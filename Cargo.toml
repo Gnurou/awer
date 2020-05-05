@@ -1,0 +1,25 @@
+[package]
+name = "AWER"
+version = "0.1.0"
+edition = "2018"
+license = "MIT OR Apache-2.0"
+authors = ["Alexandre Courbot <gnurou@gmail.com>"]
+
+[dependencies]
+log = "0.4"
+env_logger = "0.7"
+byteorder = "1"
+clap = "2"
+piston = "0.49"
+piston2d-graphics = "0.36"
+piston2d-opengl_graphics = "0.72"
+pistoncore-glutin_window = "0.63"
+
+# Raster backend
+image = "0.23"
+
+# Uncomment for custom piston_graphics.
+#[patch.crates-io]
+#piston2d-graphics = { path = "../graphics" }
+
+#piston-music = "0.25"
