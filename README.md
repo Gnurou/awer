@@ -42,15 +42,15 @@ This will start the game at scene `x`. Mostly useful to skip the password protec
 
 Choose the rendering method. `raster` is a pure software rendering mode at original resolution, which aims at mimicking exactly how the original game looked.
 
-![Raster rendering](/screenshots/raster.png?raw=true)
+<p align="center"><img src="/screenshots/raster.png?raw=true" width="75%"></p>
 
 `poly` creates quads from the polygons and passes them directly to OpenGL. This makes rendering fast and smooth at higher resolutions. However, since that's clearly not how the game was designed to be rendered, artefacts in the form of gaps and misshaped objects are to be expected. Also, transparency cannot be rendered faithfully in this mode.
 
-![Poly rendering](/screenshots/poly.png?raw=true)
+<p align="center"><img src="/screenshots/poly.png?raw=true" width="75%"></p>
 
 `line` is also a mode that uses OpenGL, but renders the polygons' outlines only. Useful to study how they are designed, not so much for enjoying the game.
 
-![Line rendering](/screenshots/line.png?raw=true)
+<p align="center"><img src="/screenshots/line.png?raw=true" width="75%"></p>
 
 Keys
 ----
