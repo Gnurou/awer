@@ -4,8 +4,10 @@
 //! clockwise, starting with the upper-right vertex. The last vertex, which is
 //! always the top-left one, is also guaranteed to have the same `y` as the
 //! first one. Similarly, there are two consecutive points with the same `y` at
-//! the bottom of the polygon (identical if need be). These properties are
-//! useful to raster the polygons quickly.
+//! the bottom of the polygon (identical if need be). This gives us another
+//! guarantee: that each polygon is made of at least 4 vertices.
+//!
+//! These properties are useful for rasterizing the polygons quickly.
 //!
 //! They are also useful when using modern rendering APIs that do not support
 //! concave polygons: by parsing the list of polygons from both ends, we can

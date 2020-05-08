@@ -104,13 +104,11 @@ impl IndexedImage {
         // the polygon line by line starting from them, and stop when our two
         // iterators join at the bottom of the polygon.
         let mut it1 = polygon.points.iter();
-        let mut it2 = polygon.points.iter().rev();
+        // We have at least 4 points in the polygon, so these unwraps() are safe.
         let mut p1 = it1.next().unwrap();
-        let mut p2 = it2.next().unwrap();
+        let mut p2 = it1.next_back().unwrap();
         let mut next_p1 = it1.next().unwrap();
-        let mut next_p2 = it2.next().unwrap();
-
-        let mut visited_points = 4;
+        let mut next_p2 = it1.next_back().unwrap();
 
         loop {
             let v_range = max(p1.y, p2.y)..min(next_p1.y, next_p2.y);
@@ -123,31 +121,32 @@ impl IndexedImage {
             // the lines between them?
             for line_y in v_range {
                 // Center the leftmost pixel
-                let x_start = min(p1_fac, p2_fac) + 0x7fff;
+                let x_start = (min(p1_fac, p2_fac) + 0x7fff) >> 16;
                 // Include the rightmost pixel in the line and center it
-                let x_end = max(p1_fac, p2_fac) + 0x18000;
+                let x_end = (max(p1_fac, p2_fac) + 0x18000) >> 16;
 
                 self.draw_hline(
                     y + line_y as i16,
-                    (x_start >> 16) as i16,
-                    (x_end >> 16) as i16,
+                    x_start as i16,
+                    x_end as i16,
                     &draw_func,
                 );
                 p1_fac += slope1;
                 p2_fac += slope2;
             }
 
-            visited_points += 1;
-            if visited_points > polygon.points.len() {
-                break;
-            }
-
             if next_p1.y < next_p2.y {
                 p1 = next_p1;
-                next_p1 = it1.next().unwrap();
+                next_p1 = match it1.next() {
+                    Some(next) => next,
+                    None => break,
+                }
             } else {
                 p2 = next_p2;
-                next_p2 = it2.next().unwrap();
+                next_p2 = match it1.next_back() {
+                    Some(next) => next,
+                    None => break,
+                }
             }
         }
     }
