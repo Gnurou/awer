@@ -39,7 +39,7 @@ First you need a copy of the original DOS game data, which comes in the form of 
 
 Put the game data it in the root directory of this project, then build and run, e.g:
 
-    cargo run -- --scene=1
+    cargo run --release -- --scene=1
 
 Options:
 
