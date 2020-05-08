@@ -4,6 +4,7 @@ mod ops;
 
 use self::ops::*;
 
+use std::any::Any;
 use std::fmt;
 use std::io::Cursor;
 use std::io::Result;
@@ -117,7 +118,24 @@ pub struct VM {
     round: u64,
 }
 
-type VMSnapshot = VMState;
+pub struct VMSnapshot {
+    vm_state: VMState,
+    gfx_state: Box<dyn Any>,
+}
+
+impl VMSnapshot {
+    pub fn new(vm_state: VMState, gfx_state: Box<dyn Any>) -> Self {
+        VMSnapshot {
+            vm_state,
+            gfx_state,
+        }
+    }
+
+    pub fn restore(self, vm: &mut VM, gfx: &mut dyn gfx::Backend) {
+        vm.set_snapshot(self.vm_state);
+        gfx.set_snapshot(self.gfx_state);
+    }
+}
 
 impl fmt::Debug for VM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -172,12 +190,12 @@ impl VM {
         })
     }
 
-    pub fn get_snapshot(&self) -> VMSnapshot {
+    pub fn get_snapshot(&self) -> VMState {
         self.state.clone()
     }
 
-    pub fn set_snapshot(&mut self, snapshot: VMSnapshot) {
-        self.state = snapshot;
+    pub fn set_snapshot(&mut self, vm_state: VMState) {
+        self.state = vm_state;
     }
 
     pub fn get_reg(&self, i: usize) -> i16 {

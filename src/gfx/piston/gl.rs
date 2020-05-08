@@ -1,6 +1,8 @@
 use super::PistonBackend;
 use crate::gfx::{Backend, Color, Palette, Point, Polygon};
 
+use std::any::Any;
+
 use log::{debug, error, trace};
 use opengl_graphics::GlGraphics;
 use piston::input::RenderArgs;
@@ -303,4 +305,28 @@ impl Backend for PistonGlGfx {
     fn blit_buffer(&mut self, _dst_page_id: usize, _buffer: &[u8]) {
         error!("not yet implemented");
     }
+
+    fn get_snapshot(&self) -> Box<dyn Any> {
+        Box::new(GLGfxSnapshot {
+            palette: self.palette.clone(),
+            buffer: self.buffer.clone(),
+            render_buffer: self.render_buffer,
+        })
+    }
+
+    fn set_snapshot(&mut self, snapshot: Box<dyn Any>) {
+        if let Ok(snapshot) = snapshot.downcast::<GLGfxSnapshot>() {
+            self.palette = snapshot.palette;
+            self.buffer = snapshot.buffer;
+            self.render_buffer = snapshot.render_buffer;
+        } else {
+            eprintln!("Attempting to restore invalid gfx snapshot, ignoring");
+        }
+    }
+}
+
+struct GLGfxSnapshot {
+    palette: Palette,
+    buffer: [DrawList; 4],
+    render_buffer: usize,
 }

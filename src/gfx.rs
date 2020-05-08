@@ -4,12 +4,17 @@ pub mod piston;
 
 use log::debug;
 use polygon::Polygon;
+use std::any::Any;
 use std::fmt::{Debug, Display, Formatter, Result};
 
 pub const SCREEN_RESOLUTION: [usize; 2] = [320, 200];
 
 // A 4:3 screen ratio should reproduce the 1991 experience.
 const SCREEN_RATIO: f64 = 4.0 / 3.0;
+
+pub trait GfxSnapshot: Any {}
+
+impl GfxSnapshot for () {}
 
 pub trait Backend {
     fn set_palette(&mut self, palette: &[u8; 32]);
@@ -18,6 +23,20 @@ pub trait Backend {
     fn fillpolygon(&mut self, dst_page_id: usize, x: i16, y: i16, color_idx: u8, polygon: &Polygon);
     fn blitframebuffer(&mut self, page_id: usize);
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]);
+
+    /// Get a snapshot object from the state of the backend. The `set_snapshot()`
+    /// method must be able to restore the exact current state when given this
+    /// object back.
+    ///
+    /// The default implementation returns an empty object.
+    fn get_snapshot(&self) -> Box<dyn Any> {
+        Box::new(())
+    }
+    /// Restore a previously saved state.
+    ///
+    /// The default implementation does nothing, which means glitches are to
+    /// be expected for backends that do not override this method.
+    fn set_snapshot(&mut self, _snapshot: Box<dyn Any>) {}
 }
 
 #[derive(Clone, Copy)]
@@ -71,14 +90,14 @@ impl<T> Point<T> {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct Color {
     r: u8,
     g: u8,
     b: u8,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct Palette([Color; 16]);
 
 impl Palette {

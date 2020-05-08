@@ -12,7 +12,7 @@ use crate::gfx::piston::PistonBackend;
 use crate::gfx::piston::OPENGL_VERSION;
 use crate::input::*;
 use crate::sys::Sys;
-use crate::vm::{VMState, VM};
+use crate::vm::{VMSnapshot, VM};
 
 pub struct PistonSys {
     window: GlutinWindow,
@@ -22,7 +22,7 @@ pub struct PistonSys {
     fast_mode: bool,
     pause: bool,
 
-    history: VecDeque<VMState>,
+    history: VecDeque<VMSnapshot>,
 }
 
 pub const WINDOW_RESOLUTION: [u32; 2] = [800, 600];
@@ -48,11 +48,22 @@ pub fn new() -> PistonSys {
     }
 }
 
+const MAX_GAME_SNAPSHOTS: usize = 50;
+
 impl PistonSys {
+    fn take_snapshot(&mut self, vm: &mut VM, gfx: &mut dyn gfx::Backend) {
+        self.history
+            .push_front(VMSnapshot::new(vm.get_snapshot(), gfx.get_snapshot()));
+
+        while self.history.len() > MAX_GAME_SNAPSHOTS {
+            self.history.pop_back();
+        }
+    }
+
     pub fn game_loop(&mut self, vm: &mut VM, gfx: &mut dyn PistonBackend) {
         let mut cpt = 0usize;
         self.history.clear();
-        self.history.push_front(vm.get_snapshot());
+        self.take_snapshot(vm, gfx.as_gfx());
 
         while let Some(e) = self.events.next(&mut self.window) {
             if let Some(r) = e.render_args() {
@@ -62,10 +73,7 @@ impl PistonSys {
             if e.update_args().is_some() {
                 if !self.pause && self.frames_to_wait == 0 {
                     if cpt == 50 {
-                        while self.history.len() >= 10 {
-                            self.history.pop_back();
-                        }
-                        self.history.push_front(vm.get_snapshot());
+                        self.take_snapshot(vm, gfx.as_gfx());
                         cpt = 0;
                     } else {
                         cpt += 1;
@@ -92,10 +100,12 @@ impl PistonSys {
                     }
                     piston::keyboard::Key::B => {
                         // TODO prevent key repeat here?
-                        if let Some(state) = self.history.front() {
-                            vm.set_snapshot(state.clone());
-                            if self.history.len() > 1 {
-                                self.history.pop_front();
+                        if let Some(state) = self.history.pop_front() {
+                            state.restore(vm, gfx.as_gfx());
+
+                            // If we are back to the first state, keep a copy.
+                            if self.history.is_empty() {
+                                self.take_snapshot(vm, gfx.as_gfx());
                             }
                         }
                     }

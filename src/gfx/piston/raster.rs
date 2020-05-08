@@ -1,6 +1,7 @@
 use super::PistonBackend;
 use crate::gfx::{Backend, Color, Palette, Point, Polygon};
 
+use std::any::Any;
 use std::cell::RefCell;
 use std::cmp::{max, min};
 
@@ -9,8 +10,10 @@ use piston::input::RenderArgs;
 
 use opengl_graphics as gl;
 
+use super::super::GfxSnapshot;
 use super::super::SCREEN_RESOLUTION;
 
+#[derive(Clone)]
 struct IndexedImage([u8; SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1]]);
 
 fn slope_step(p1: &Point<u16>, p2: &Point<u16>) -> i32 {
@@ -271,7 +274,32 @@ impl Backend for PistonRasterBackend {
                 | ((planes[3][idx] >> bit) & 0b1) << 3;
         }
     }
+
+    fn get_snapshot(&self) -> Box<dyn Any> {
+        Box::new(RasterGfxSnapshot {
+            palette: self.palette.clone(),
+            buffers: self.buffers.clone(),
+            framebuffer: self.framebuffer.clone(),
+        })
+    }
+
+    fn set_snapshot(&mut self, snapshot: Box<dyn Any>) {
+        if let Ok(snapshot) = snapshot.downcast::<RasterGfxSnapshot>() {
+            self.palette = snapshot.palette;
+            self.buffers = snapshot.buffers;
+            self.framebuffer = snapshot.framebuffer;
+        } else {
+            eprintln!("Attempting to restore invalid gfx snapshot, ignoring");
+        }
+    }
 }
+
+struct RasterGfxSnapshot {
+    palette: Palette,
+    buffers: [RefCell<IndexedImage>; 4],
+    framebuffer: im::RgbaImage,
+}
+impl GfxSnapshot for RasterGfxSnapshot {}
 
 impl PistonBackend for PistonRasterBackend {
     fn render(&mut self, args: &RenderArgs) {
