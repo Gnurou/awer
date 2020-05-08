@@ -1,15 +1,20 @@
 # Another World Engine in Rust
 
-This is a project I have started mainly to teach myself Rust and get a glimpse of how it feels to write a great game engine. I fondly remember the amazement I experienced the first time I played Another World as a kid.
+<p align="center"><img src="/screenshots/intro.gif?raw=true" width="75%"></p>
 
-This project is mainly possible thanks to the [work done by Fabien Sanglard
-reimplementing the original game engine](http://fabiensanglard.net/anotherWorld_code_review/index.php). Also don't miss his [Polygons of Another World](http://fabiensanglard.net/another_world_polygons/index.html) series.
+This is a project I have started mainly to teach myself Rust and get a glimpse of how it could possibly feel to write a great game engine.
 
-Another invaluable reference was Eric Chahi's original technical notes in French, which are provided along with the [20th anniversary edition](https://www.gog.com/game/another_world_20th_anniversary_edition).
+I fondly remember the first time I played Another World (or Out of this World as it is known in North America) as a kid, and the disbelief that ensued. Released in 1991, it redefined the way games could be designed to tell a story. No UI, no score, no dialogues, no ammo, no health indicator. No sprites that moved over a background layer made of fixed-size tiles - the game was rendered almost entirely using polygons, and the use of a virtual machine with cooperative multi-threading made it possible to animate the world in a way never seen before. It was alive, unpredictable, not constrained by limited game mechanics - anything could happen, and very often anything did happen. Although heavily scripted, the game felt like it was having an existence of its own.
 
-The code is by no means clean or documented at the moment, but I hope to improve that.
+The technical tale of Another World has been told much better than I could by Fabien Sanglard with his [C++ reimplementation of the original game engine](http://fabiensanglard.net/anotherWorld_code_review/index.php) and [Polygons of Another World](http://fabiensanglard.net/another_world_polygons/index.html) series. This work has been the main source of guidance for the present project.
 
-[Piston](https://www.piston.rs/) is used for all input/output.
+Another invaluable reference was Eric Chahi's original technical notes (in French, mind you), which are provided along with the [20th anniversary edition](https://www.gog.com/game/another_world_20th_anniversary_edition).
+
+Contrary to Fabien's work, which apparently aimed at staying as close as possible to the original program (going as far as emulating the layout of DOS conventional memory to load the resources), this project takes liberties where it felt more optimal to do so. After all, you cannot program in Rust like it's 1991. Thankfully these choices will also make the code easier to understand.
+
+Not that the code is by any means clean or documented at the moment, it's complete Rust n00b rubbish. I do hope to improve that however.
+
+[Piston](https://www.piston.rs/) is used for all input and output.
 
 What is working:
 
@@ -40,11 +45,13 @@ This will start the game at scene `x`. Mostly useful to skip the password protec
 
 `--render=(raster | poly | line)`
 
-Choose the rendering method. `raster` is a pure software rendering mode at original resolution, which aims at mimicking exactly how the original game looked.
+Choose the rendering method.
+
+`raster` is a pure software rendering mode at original 320x200 resolution and aims at showing the game the way ~~God~~ Eric Chahi intended.
 
 <p align="center"><img src="/screenshots/raster.png?raw=true" width="75%"></p>
 
-`poly` creates quads from the polygons and passes them directly to OpenGL. This makes rendering fast and smooth at higher resolutions. However, since that's clearly not how the game was designed to be rendered, artefacts in the form of gaps and misshaped objects are to be expected. Also, transparency cannot be rendered faithfully in this mode.
+`poly` creates quads from the polygons and renders them using OpenGL. This makes rendering fast and smooth at higher resolutions. However, since that's clearly not how the game was designed to be rendered, artefacts in the form of gaps and misshaped objects are to be expected. Also, transparency cannot be rendered faithfully in this mode.
 
 <p align="center"><img src="/screenshots/poly.png?raw=true" width="75%"></p>
 
