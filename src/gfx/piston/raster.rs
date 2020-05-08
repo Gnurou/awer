@@ -120,8 +120,7 @@ impl IndexedImage {
             // the lines between them?
             for line_y in v_range {
                 // Center the leftmost pixel
-                // note: + 0x7fff in Fabien's code.
-                let x_start = min(p1_fac, p2_fac) + 0x8000;
+                let x_start = min(p1_fac, p2_fac) + 0x7fff;
                 // Include the rightmost pixel in the line and center it
                 let x_end = max(p1_fac, p2_fac) + 0x18000;
 
