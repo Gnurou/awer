@@ -101,7 +101,7 @@ impl PistonSys {
                                 self.take_snapshot(vm, gfx.as_gfx());
                             }
                         }
-                    },
+                    }
                     piston::keyboard::Key::N => {
                         if self.pause {
                             self.take_snapshot(vm, gfx.as_gfx());
@@ -109,7 +109,7 @@ impl PistonSys {
                             vm.process(gfx.as_gfx());
                             self.frames_to_wait = vm.get_frames_to_wait();
                         }
-                    },
+                    }
                     _ => (),
                 }
             }
@@ -143,7 +143,6 @@ impl Sys for PistonSys {
 
         let cycles = if self.fast_mode { 8 } else { 1 };
         for _ in 0..cycles {
-
             self.snapshot_cpt += 1;
             if self.snapshot_cpt == TICKS_PER_SNAPSHOT {
                 self.take_snapshot(vm, gfx);
