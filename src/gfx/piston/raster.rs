@@ -18,10 +18,10 @@ struct IndexedImage([u8; SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1]]);
 
 fn slope_step(p1: &Point<u16>, p2: &Point<u16>) -> i32 {
     let dy = p2.y as i32 - p1.y as i32;
-    let dx = p2.x as i32 - p1.x as i32;
+    let dx = (p2.x as i32 - p1.x as i32) << 16;
 
     if dy != 0 {
-        dx * 0x10000 / dy
+        dx / dy
     } else {
         0
     }
@@ -114,8 +114,8 @@ impl IndexedImage {
             let v_range = max(p1.y, p2.y)..min(next_p1.y, next_p2.y);
             let slope1 = slope_step(p1, next_p1);
             let slope2 = slope_step(p2, next_p2);
-            let mut p1_fac = ((x + p1.x as i16) as i32) << 16;
-            let mut p2_fac = ((x + p2.x as i16) as i32) << 16;
+            let mut p1_fac = (x as i32 + p1.x as i32) << 16;
+            let mut p2_fac = (x as i32 + p2.x as i32) << 16;
 
             // TODO: an iterator class that takes two lines and iterates on
             // the lines between them?
