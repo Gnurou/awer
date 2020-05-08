@@ -103,7 +103,7 @@ impl IndexedImage {
         // The first and last points are always at the top. We will fill
         // the polygon line by line starting from them, and stop when our two
         // iterators join at the bottom of the polygon.
-        let mut it1 = polygon
+        let mut points = polygon
             .points
             .iter()
             // Add the `x` and `y` offsets
@@ -111,38 +111,41 @@ impl IndexedImage {
             // Turn the point into i32 and make `x` fixed-point.
             .map(|p| Point::<i32>::from(((p.x as i32) << 16, p.y as i32)));
         // We have at least 4 points in the polygon, so these unwraps() are safe.
-        let mut p1 = it1.next().unwrap();
-        let mut p2 = it1.next_back().unwrap();
-        let mut next_p1 = it1.next().unwrap();
-        let mut next_p2 = it1.next_back().unwrap();
+        let mut p1 = points.next().unwrap();
+        let mut p2 = points.next_back().unwrap();
+        let mut next_p1 = points.next().unwrap();
+        let mut next_p2 = points.next_back().unwrap();
 
         loop {
             let v_range = max(p1.y, p2.y)..min(next_p1.y, next_p2.y);
             let slope1 = slope_step(&p1, &next_p1);
             let slope2 = slope_step(&p2, &next_p2);
-            let mut x1 = p1.x;
-            let mut x2 = p2.x;
 
-            for line_y in v_range {
+            // For each vertical line, add the slope factor to x.
+            for line in v_range.scan((p1.x, p2.x), |state, y| {
+                let ret = (state.0, state.1, y);
+                state.0 += slope1;
+                state.1 += slope2;
+                Some(ret)
+            }) {
+                let (x1, x2, y) = (line.0, line.1, line.2);
                 // Center the leftmost pixel and scale back.
                 let x_start = ((min(x1, x2) + 0x7fff) >> 16) as i16;
                 // Include the rightmost pixel in the line, center it, and scale back.
                 let x_end = ((max(x1, x2) + 0x18000) >> 16) as i16;
 
-                self.draw_hline(line_y as i16, x_start, x_end, &draw_func);
-                x1 += slope1;
-                x2 += slope2;
+                self.draw_hline(y as i16, x_start, x_end, &draw_func);
             }
 
             if next_p1.y < next_p2.y {
                 p1 = next_p1;
-                next_p1 = match it1.next() {
+                next_p1 = match points.next() {
                     Some(next) => next,
                     None => break,
                 }
             } else {
                 p2 = next_p2;
-                next_p2 = match it1.next_back() {
+                next_p2 = match points.next_back() {
                     Some(next) => next,
                     None => break,
                 }
