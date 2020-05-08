@@ -16,9 +16,9 @@ use super::super::SCREEN_RESOLUTION;
 #[derive(Clone)]
 struct IndexedImage([u8; SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1]]);
 
-fn slope_step(p1: &Point<u16>, p2: &Point<u16>) -> i32 {
-    let dy = p2.y as i32 - p1.y as i32;
-    let dx = (p2.x as i32 - p1.x as i32) << 16;
+fn slope_step(p1: &Point<i32>, p2: &Point<i32>) -> i32 {
+    let dy = p2.y - p1.y;
+    let dx = p2.x - p1.x;
 
     if dy != 0 {
         dx / dy
@@ -103,7 +103,13 @@ impl IndexedImage {
         // The first and last points are always at the top. We will fill
         // the polygon line by line starting from them, and stop when our two
         // iterators join at the bottom of the polygon.
-        let mut it1 = polygon.points.iter();
+        let mut it1 = polygon
+            .points
+            .iter()
+            // Add the `x` and `y` offsets
+            .map(|p| Point::from((p.x as i16 + x, p.y as i16 + y)))
+            // Turn the point into i32 and make `x` fixed-point.
+            .map(|p| Point::<i32>::from(((p.x as i32) << 16, p.y as i32)));
         // We have at least 4 points in the polygon, so these unwraps() are safe.
         let mut p1 = it1.next().unwrap();
         let mut p2 = it1.next_back().unwrap();
@@ -112,27 +118,20 @@ impl IndexedImage {
 
         loop {
             let v_range = max(p1.y, p2.y)..min(next_p1.y, next_p2.y);
-            let slope1 = slope_step(p1, next_p1);
-            let slope2 = slope_step(p2, next_p2);
-            let mut p1_fac = (x as i32 + p1.x as i32) << 16;
-            let mut p2_fac = (x as i32 + p2.x as i32) << 16;
+            let slope1 = slope_step(&p1, &next_p1);
+            let slope2 = slope_step(&p2, &next_p2);
+            let mut x1 = p1.x;
+            let mut x2 = p2.x;
 
-            // TODO: an iterator class that takes two lines and iterates on
-            // the lines between them?
             for line_y in v_range {
-                // Center the leftmost pixel
-                let x_start = (min(p1_fac, p2_fac) + 0x7fff) >> 16;
-                // Include the rightmost pixel in the line and center it
-                let x_end = (max(p1_fac, p2_fac) + 0x18000) >> 16;
+                // Center the leftmost pixel and scale back.
+                let x_start = ((min(x1, x2) + 0x7fff) >> 16) as i16;
+                // Include the rightmost pixel in the line, center it, and scale back.
+                let x_end = ((max(x1, x2) + 0x18000) >> 16) as i16;
 
-                self.draw_hline(
-                    y + line_y as i16,
-                    x_start as i16,
-                    x_end as i16,
-                    &draw_func,
-                );
-                p1_fac += slope1;
-                p2_fac += slope2;
+                self.draw_hline(line_y as i16, x_start, x_end, &draw_func);
+                x1 += slope1;
+                x2 += slope2;
             }
 
             if next_p1.y < next_p2.y {
