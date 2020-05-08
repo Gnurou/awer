@@ -61,8 +61,8 @@ Choose the rendering method.
 
 Keys
 ----
-* Up, Down, Left, Right: Move.
-* Space: Action.
-* P: Pause/resume.
-* F: Fast-forward, useful to make some cinematic scenes go faster.
-* B: Rewind 5 seconds back in time. Useful if you die a lot (which you will). Note that the display will probably not look great for a few seconds since the framebuffers and palette are not restored yet.
+* `Up`, `Down`, `Left`, `Right`: Move.
+* `Space`: Action.
+* `P`: Pause/resume.
+* `F`: Fast-forward, useful to make some cinematic scenes go faster.
+* `B`: Rewind 5 seconds back in time. Useful if you die a lot (which you will). Note that the display will probably not look great for a few seconds since the framebuffers and palette are not restored yet.
