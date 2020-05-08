@@ -67,6 +67,8 @@ Keys
 ----
 * `Up`, `Down`, `Left`, `Right`: Move.
 * `Space`: Action.
-* `P`: Pause/resume.
+* `P`: Pause/resume. While in pause:
+    * `N`: Take a snapshot of the game's state and continue up to the next frame.
+    * `B`: Restore the last snapshot (moving back to the previous frame if you pressed `N`).
 * `F`: Fast-forward, useful to make some cinematic scenes go faster.
-* `B`: Rewind 5 seconds back in time. Useful if you die a lot (which you will). Note that the display will probably not look great for a few seconds since the framebuffers and palette are not restored yet.
+* `B`: Rewind to the last snapshot. Snapshots are taken roughly every 5 seconds. Useful if you die a lot (which you will).

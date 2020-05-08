@@ -21,6 +21,7 @@ pub struct PistonSys {
     frames_to_wait: usize,
     fast_mode: bool,
     pause: bool,
+    snapshot_cpt: usize,
 
     history: VecDeque<VMSnapshot>,
 }
@@ -45,6 +46,7 @@ pub fn new() -> PistonSys {
         fast_mode: false,
         pause: false,
         history: VecDeque::new(),
+        snapshot_cpt: 0,
     }
 }
 
@@ -61,7 +63,6 @@ impl PistonSys {
     }
 
     pub fn game_loop(&mut self, vm: &mut VM, gfx: &mut dyn PistonBackend) {
-        let mut cpt = 0usize;
         self.history.clear();
         self.take_snapshot(vm, gfx.as_gfx());
 
@@ -71,15 +72,6 @@ impl PistonSys {
             }
 
             if e.update_args().is_some() {
-                if !self.pause && self.frames_to_wait == 0 {
-                    if cpt == 50 {
-                        self.take_snapshot(vm, gfx.as_gfx());
-                        cpt = 0;
-                    } else {
-                        cpt += 1;
-                    }
-                }
-
                 if !self.update(vm, gfx.as_gfx()) {
                     break;
                 }
@@ -102,13 +94,22 @@ impl PistonSys {
                         // TODO prevent key repeat here?
                         if let Some(state) = self.history.pop_front() {
                             state.restore(vm, gfx.as_gfx());
+                            self.snapshot_cpt = 0;
 
                             // If we are back to the first state, keep a copy.
                             if self.history.is_empty() {
                                 self.take_snapshot(vm, gfx.as_gfx());
                             }
                         }
-                    }
+                    },
+                    piston::keyboard::Key::N => {
+                        if self.pause {
+                            self.take_snapshot(vm, gfx.as_gfx());
+                            vm.update_input(self.get_input());
+                            vm.process(gfx.as_gfx());
+                            self.frames_to_wait = vm.get_frames_to_wait();
+                        }
+                    },
                     _ => (),
                 }
             }
@@ -130,15 +131,25 @@ impl PistonSys {
     }
 }
 
+const TICKS_PER_SNAPSHOT: usize = 200;
+
 impl Sys for PistonSys {
     fn update(&mut self, vm: &mut VM, gfx: &mut dyn gfx::Backend) -> bool {
         if self.pause {
             return true;
         }
+
         vm.update_input(self.get_input());
 
         let cycles = if self.fast_mode { 8 } else { 1 };
         for _ in 0..cycles {
+
+            self.snapshot_cpt += 1;
+            if self.snapshot_cpt == TICKS_PER_SNAPSHOT {
+                self.take_snapshot(vm, gfx);
+                self.snapshot_cpt = 0;
+            }
+
             if self.frames_to_wait <= 0 {
                 if !vm.process(gfx) {
                     error!("0 threads to run, exiting.");
