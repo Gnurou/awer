@@ -214,7 +214,7 @@ impl Backend for PistonGlGfx {
         // TODO push transformation matrix with op instead!
         let offset = (polygon.bbw as f64 / 2.0, polygon.bbh as f64 / 2.0);
         // Center all pixels
-        let offset = (offset.0 - 0.5, offset.1 + 0.5);
+        //let offset = (offset.0 + 0.5, offset.1 + 0.5);
 
         trace!("fillpolygon ({}, {}) color_idx={:2x}", x, y, color_idx);
 
