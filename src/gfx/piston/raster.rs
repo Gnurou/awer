@@ -97,19 +97,21 @@ impl IndexedImage {
             return;
         }
 
+        // Offset x and y by the polygon center.
         let offset = (polygon.bbw / 2, polygon.bbh / 2);
         let x = x - offset.0 as i16;
         let y = y - offset.1 as i16;
 
         // The first and last points are always at the top. We will fill
-        // the polygon line by line starting from them, and stop when our two
-        // iterators join at the bottom of the polygon.
+        // the polygon line by line starting from them, and stop when the front
+        // and back join at the bottom of the polygon.
         let mut points = polygon
             .points
             .iter()
-            // Add the `x` and `y` offsets
+            // Add the x and y offsets.
             .map(|p| Point::from((p.x as i16 + x, p.y as i16 + y)))
-            // Turn the point into i32 and make `x` fixed-point.
+            // Turn the point into i32 and add 16 bits of fixed decimals to x to
+            // add some precision when computing the slope.
             .map(|p| Point::<i32>::from(((p.x as i32) << 16, p.y as i32)));
         // We have at least 4 points in the polygon, so these unwraps() are safe.
         let mut p1 = points.next().unwrap();
@@ -117,7 +119,9 @@ impl IndexedImage {
         let mut next_p1 = points.next().unwrap();
         let mut next_p2 = points.next_back().unwrap();
 
+        // Loop over all the points of the polygon.
         loop {
+            // Vertical range of the quad.
             let v_range = max(p1.y, p2.y)..min(next_p1.y, next_p2.y);
             let slope1 = slope_step(&p1, &next_p1);
             let slope2 = slope_step(&p2, &next_p2);
@@ -137,6 +141,7 @@ impl IndexedImage {
                 self.draw_hline(y as i16, x_start, x_end, &draw_func);
             }
 
+            // On to the next quad.
             if next_p1.y < next_p2.y {
                 p1 = next_p1;
                 next_p1 = match points.next() {
