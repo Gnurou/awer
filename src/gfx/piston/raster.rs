@@ -123,13 +123,12 @@ impl IndexedImage {
             let slope2 = slope_step(&p2, &next_p2);
 
             // For each vertical line, add the slope factor to x.
-            for line in v_range.scan((p1.x, p2.x), |state, y| {
+            for (x1, x2, y) in v_range.scan((p1.x, p2.x), |state, y| {
                 let ret = (state.0, state.1, y);
                 state.0 += slope1;
                 state.1 += slope2;
                 Some(ret)
             }) {
-                let (x1, x2, y) = (line.0, line.1, line.2);
                 // Center the leftmost pixel and scale back.
                 let x_start = ((min(x1, x2) + 0x7fff) >> 16) as i16;
                 // Include the rightmost pixel in the line, center it, and scale back.
