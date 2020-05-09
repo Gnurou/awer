@@ -83,7 +83,7 @@ impl Renderer for GlGraphics {
                     const LINE_THICKNESS: f64 = 0.5;
                     let matrix = transform.trans(*x as f64, *y as f64);
                     let color = lookup_palette(palette, *color_idx);
-                    let line = line::Line::new(color, LINE_THICKNESS);
+                    let line = line::Line::new(color, LINE_THICKNESS).shape(line::Shape::Bevel);
 
                     for l in lines {
                         line.draw(*l, &drawstate, matrix, self);
