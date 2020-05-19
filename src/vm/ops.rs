@@ -481,7 +481,7 @@ pub fn op_sprs(
         x as i16,
         y as i16,
         DEFAULT_ZOOM,
-        0xff,
+        None,
         data_cursor,
         &sys.cinematic,
         gfx,
@@ -529,7 +529,7 @@ pub fn op_sprl(
         x as i16,
         y as i16,
         zoom,
-        0xff,
+        None,
         data_cursor,
         segment,
         gfx,
@@ -569,7 +569,7 @@ fn draw_polygon(
     x: i16,
     y: i16,
     zoom: u16,
-    color: u8,
+    color: Option<u8>,
     mut data_cursor: Cursor<&[u8]>,
     segment: &[u8],
     gfx: &mut dyn gfx::Backend,
@@ -581,9 +581,9 @@ fn draw_polygon(
             // TODO match other properties of the color (e.g. blend) from op
             let color = match color {
                 // If we already have a color set, use it.
-                color if (color != 0xff) => color,
+                Some(color) => color,
                 // Otherwise take the color from the op.
-                _ => op & 0x3f,
+                None => op & 0x3f,
             };
 
             let polygon = read_polygon(data_cursor, zoom);
@@ -602,7 +602,7 @@ fn draw_polygon_hierarchy(
     ox: i16,
     oy: i16,
     zoom: u16,
-    color: u8,
+    color: Option<u8>,
     mut data_cursor: Cursor<&[u8]>,
     segment: &[u8],
     gfx: &mut dyn gfx::Backend,
@@ -637,7 +637,7 @@ fn draw_polygon_hierarchy(
         let py = y + p.1 as i16;
 
         let color = if read_color {
-            data_cursor.read_u8().unwrap() & 0x7f
+            Some(data_cursor.read_u8().unwrap() & 0x7f)
         } else {
             color
         };
@@ -649,7 +649,7 @@ fn draw_polygon_hierarchy(
         }
 
         trace!(
-            "  child at ({}, {}), offset 0x{:x} color 0x{:x}",
+            "  child at ({}, {}), offset 0x{:x} color {:?}",
             px,
             py,
             offset,
