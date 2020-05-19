@@ -642,7 +642,7 @@ fn draw_polygon_hierarchy(
             color
         };
 
-        // We have a dead byte after the color?
+        // TODO: We have a dead byte after the color?
         // Nope, this is a "mask number" apparently
         if read_color {
             data_cursor.read_u8().unwrap();
