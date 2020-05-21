@@ -35,13 +35,23 @@ trait Renderer {
     );
 }
 
+fn infer_transparent_color(palette: &Palette) -> [f32; 4] {
+    palette.0[0..8].iter().zip(palette.0[8..16].iter())
+        .map(|(c1, c2)| Color::blend(c1, c2))
+        .fold(Default::default(), |dst, c| Color::mix(&dst, &c))
+        .normalize(0.5)
+}
+
 fn lookup_palette(palette: &Palette, color: u8) -> [f32; 4] {
-    let color = if color > 0xf { 0x0 } else { color };
-
-    let &Color { r, g, b } = palette.lookup(color);
-    let blend = if color == 0x10 { 0.5 } else { 1.0 };
-
-    [r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, blend]
+    match color {
+        // TODO we should copy from buffer 0 in this case, need a proper shader?
+        0x11 => [0.0, 0.0, 0.0, 0.0],
+        0x10 => infer_transparent_color(palette),
+        _ => {
+            let color = if color > 0xf { 0x0 } else { color };
+            palette.lookup(color).normalize(1.0)
+        }
+    }
 }
 
 impl Renderer for GlGraphics {
