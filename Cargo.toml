@@ -2,7 +2,7 @@
 name = "awer"
 version = "0.1.0"
 edition = "2018"
-license = "MIT OR Apache-2.0"
+license = "GPL-3.0-only"
 authors = ["Alexandre Courbot <gnurou@gmail.com>"]
 
 [dependencies]
