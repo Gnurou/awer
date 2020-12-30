@@ -71,10 +71,8 @@ impl PistonSys {
                 gfx.render(&r);
             }
 
-            if e.update_args().is_some() {
-                if !self.update(vm, gfx.as_gfx()) {
-                    break;
-                }
+            if e.update_args().is_some() && !self.update(vm, gfx.as_gfx()) {
+                break;
             }
 
             if let Some(input::Button::Keyboard(c)) = e.press_args() {
@@ -149,7 +147,7 @@ impl Sys for PistonSys {
                 self.snapshot_cpt = 0;
             }
 
-            if self.frames_to_wait <= 0 {
+            if self.frames_to_wait == 0 {
                 if !vm.process(gfx) {
                     error!("0 threads to run, exiting.");
                     return false;

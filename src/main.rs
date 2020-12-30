@@ -1,5 +1,4 @@
 use clap::{App, Arg};
-use env_logger;
 
 mod gfx;
 mod input;
