@@ -167,6 +167,7 @@ pub struct PistonRasterBackend {
     texture: gl::Texture,
     buffers: [RefCell<IndexedImage>; 4],
     framebuffer: im::RgbaImage,
+    framebuffer_index: usize,
 }
 
 pub fn new() -> PistonRasterBackend {
@@ -193,6 +194,7 @@ pub fn new() -> PistonRasterBackend {
             RefCell::new(IndexedImage::new()),
         ],
         framebuffer,
+        framebuffer_index: 0,
     }
 }
 
@@ -256,14 +258,7 @@ impl Backend for PistonRasterBackend {
     }
 
     fn blitframebuffer(&mut self, page_id: usize) {
-        // Translate the indexed pixels into RGBA values using the palette.
-        for pixel in self
-            .framebuffer
-            .pixels_mut()
-            .zip(self.buffers[page_id].borrow().0.iter())
-        {
-            *pixel.0 = lookup_palette(&self.palette, *pixel.1);
-        }
+        self.framebuffer_index = page_id;
     }
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
@@ -324,6 +319,15 @@ impl PistonBackend for PistonRasterBackend {
             let h = window_h;
             [(window_w - w) / 2.0, 0.0, w, h]
         });
+
+        // Translate the indexed pixels into RGBA values using the palette.
+        for pixel in self
+            .framebuffer
+            .pixels_mut()
+            .zip(self.buffers[self.framebuffer_index].borrow().0.iter())
+        {
+            *pixel.0 = lookup_palette(&self.palette, *pixel.1);
+        }
 
         self.texture.update(&self.framebuffer);
 
