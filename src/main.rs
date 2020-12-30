@@ -7,8 +7,8 @@ mod scenes;
 mod sys;
 mod vm;
 
-use gfx::piston::gl::PolyRender;
 use scenes::SCENES;
+use sys::Sys;
 
 fn main() {
     env_logger::init();
@@ -52,24 +52,17 @@ fn main() {
         return;
     }
 
-    let mut sys = sys::piston::new();
+    let sys: Option<Box<dyn Sys>>;
 
-    let mut gfx = match matches.value_of("render").unwrap_or("raster") {
-        rdr @ "line" | rdr @ "poly" => {
-            let poly_render = match rdr {
-                "line" => PolyRender::Line,
-                "poly" => PolyRender::Poly,
-                _ => panic!(),
-            };
-            Box::new(gfx::piston::gl::new().set_poly_render(poly_render))
-                as Box<dyn gfx::piston::PistonBackend>
-        }
-        "raster" => Box::new(gfx::piston::raster::new()) as Box<dyn gfx::piston::PistonBackend>,
-        _ => panic!("unexpected poly_render option"),
-    };
+    #[cfg(feature = "piston-sys")]
+    {
+        sys = Some(Box::new(sys::piston::new(&matches)));
+    }
+
+    let mut sys = sys.unwrap_or_else(|| panic!("No sys instance could be created!"));
 
     let mut vm = Box::new(vm::VM::new().unwrap());
     vm.init(&scenes::SCENES[start_scene]);
 
-    sys.game_loop(&mut vm, &mut *gfx);
+    sys.game_loop(&mut vm);
 }

@@ -1,5 +1,6 @@
 pub mod polygon;
 
+#[cfg(feature = "piston-sys")]
 pub mod piston;
 
 use log::debug;

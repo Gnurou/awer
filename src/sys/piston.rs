@@ -1,3 +1,4 @@
+use clap::ArgMatches;
 use glutin_window::GlutinWindow;
 use piston::event_loop::{EventLoop, EventSettings, Events};
 use piston::input;
@@ -8,13 +9,15 @@ use log::{debug, error, trace};
 use std::collections::VecDeque;
 
 use crate::gfx;
-use crate::gfx::piston::PistonBackend;
+use crate::gfx::piston::{gl, PistonBackend};
 use crate::gfx::piston::OPENGL_VERSION;
 use crate::input::*;
 use crate::sys::Sys;
 use crate::vm::{VMSnapshot, VM};
 
 pub struct PistonSys {
+    gfx: Box<dyn PistonBackend>,
+
     window: GlutinWindow,
     events: Events,
     input: InputState,
@@ -28,7 +31,7 @@ pub struct PistonSys {
 
 pub const WINDOW_RESOLUTION: [u32; 2] = [800, 600];
 
-pub fn new() -> PistonSys {
+pub fn new(matches: &ArgMatches) -> PistonSys {
     // TODO ups looks wrong?
     let events = Events::new(EventSettings::new()).ups(50).max_fps(50);
 
@@ -38,7 +41,10 @@ pub fn new() -> PistonSys {
         .build()
         .unwrap();
 
+    let gfx = PistonSys::create_gfx(matches);
+
     PistonSys {
+        gfx,
         events,
         window,
         input: InputState::new(),
@@ -53,25 +59,78 @@ pub fn new() -> PistonSys {
 const MAX_GAME_SNAPSHOTS: usize = 50;
 
 impl PistonSys {
-    fn take_snapshot(&mut self, vm: &mut VM, gfx: &mut dyn gfx::Backend) {
+    fn create_gfx(matches: &ArgMatches) -> Box<dyn PistonBackend> {
+        match matches.value_of("render").unwrap_or("raster") {
+            rdr @ "line" | rdr @ "poly" => {
+                let poly_render = match rdr {
+                    "line" => gl::PolyRender::Line,
+                    "poly" => gl::PolyRender::Poly,
+                    _ => panic!(),
+                };
+                Box::new(gl::new().set_poly_render(poly_render))
+                    as Box<dyn gfx::piston::PistonBackend>
+            }
+            "raster" => Box::new(gfx::piston::raster::new()) as Box<dyn gfx::piston::PistonBackend>,
+            _ => panic!("unexpected poly_render option"),
+        }
+    }
+
+    fn take_snapshot(&mut self, vm: &mut VM) {
         self.history
-            .push_front(VMSnapshot::new(vm.get_snapshot(), gfx.get_snapshot()));
+            .push_front(VMSnapshot::new(vm.get_snapshot(), self.gfx.get_snapshot()));
 
         while self.history.len() > MAX_GAME_SNAPSHOTS {
             self.history.pop_back();
         }
     }
 
-    pub fn game_loop(&mut self, vm: &mut VM, gfx: &mut dyn PistonBackend) {
+    // Returns true if the game should continue, false if we should quit.
+    fn update(&mut self, vm: &mut VM) -> bool {
+        if self.pause {
+            return true;
+        }
+
+        vm.update_input(&self.input);
+
+        let cycles = if self.fast_mode { 8 } else { 1 };
+        for _ in 0..cycles {
+            self.snapshot_cpt += 1;
+            if self.snapshot_cpt == TICKS_PER_SNAPSHOT {
+                self.take_snapshot(vm);
+                self.snapshot_cpt = 0;
+            }
+
+            if self.frames_to_wait == 0 {
+                if !vm.process(self.gfx.as_gfx()) {
+                    error!("0 threads to run, exiting.");
+                    return false;
+                }
+                self.frames_to_wait = vm.get_frames_to_wait();
+                debug!(
+                    "Need to wait {} frames for this cycle.",
+                    self.frames_to_wait
+                );
+            }
+            self.frames_to_wait -= 1;
+        }
+
+        true
+    }
+}
+
+const TICKS_PER_SNAPSHOT: usize = 200;
+
+impl Sys for PistonSys {
+    fn game_loop(&mut self, vm: &mut VM) {
         self.history.clear();
-        self.take_snapshot(vm, gfx.as_gfx());
+        self.take_snapshot(vm);
 
         while let Some(e) = self.events.next(&mut self.window) {
             if let Some(r) = e.render_args() {
-                gfx.render(&r);
+                self.gfx.render(&r);
             }
 
-            if e.update_args().is_some() && !self.update(vm, gfx.as_gfx()) {
+            if e.update_args().is_some() && !self.update(vm) {
                 break;
             }
 
@@ -91,20 +150,20 @@ impl PistonSys {
                     piston::keyboard::Key::B => {
                         // TODO prevent key repeat here?
                         if let Some(state) = self.history.pop_front() {
-                            state.restore(vm, gfx.as_gfx());
+                            state.restore(vm, self.gfx.as_gfx());
                             self.snapshot_cpt = 0;
 
                             // If we are back to the first state, keep a copy.
                             if self.history.is_empty() {
-                                self.take_snapshot(vm, gfx.as_gfx());
+                                self.take_snapshot(vm);
                             }
                         }
                     }
                     piston::keyboard::Key::N => {
                         if self.pause {
-                            self.take_snapshot(vm, gfx.as_gfx());
-                            vm.update_input(self.get_input());
-                            vm.process(gfx.as_gfx());
+                            self.take_snapshot(vm);
+                            vm.update_input(&self.input);
+                            vm.process(self.gfx.as_gfx());
                             self.frames_to_wait = vm.get_frames_to_wait();
                         }
                     }
@@ -126,45 +185,5 @@ impl PistonSys {
                 }
             }
         }
-    }
-}
-
-const TICKS_PER_SNAPSHOT: usize = 200;
-
-impl Sys for PistonSys {
-    fn update(&mut self, vm: &mut VM, gfx: &mut dyn gfx::Backend) -> bool {
-        if self.pause {
-            return true;
-        }
-
-        vm.update_input(self.get_input());
-
-        let cycles = if self.fast_mode { 8 } else { 1 };
-        for _ in 0..cycles {
-            self.snapshot_cpt += 1;
-            if self.snapshot_cpt == TICKS_PER_SNAPSHOT {
-                self.take_snapshot(vm, gfx);
-                self.snapshot_cpt = 0;
-            }
-
-            if self.frames_to_wait == 0 {
-                if !vm.process(gfx) {
-                    error!("0 threads to run, exiting.");
-                    return false;
-                }
-                self.frames_to_wait = vm.get_frames_to_wait();
-                debug!(
-                    "Need to wait {} frames for this cycle.",
-                    self.frames_to_wait
-                );
-            }
-            self.frames_to_wait -= 1;
-        }
-
-        true
-    }
-
-    fn get_input(&self) -> &InputState {
-        &self.input
     }
 }
