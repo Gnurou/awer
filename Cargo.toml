@@ -7,13 +7,13 @@ authors = ["Alexandre Courbot <gnurou@gmail.com>"]
 
 [dependencies]
 log = "0.4"
-env_logger = "0.7"
+env_logger = "0.8"
 byteorder = "1"
 clap = "2"
-piston = "0.49"
-piston2d-graphics = "0.36"
-piston2d-opengl_graphics = "0.72"
-pistoncore-glutin_window = "0.63"
+piston = "0.52"
+piston2d-graphics = "0.39"
+piston2d-opengl_graphics = "0.76"
+pistoncore-glutin_window = "0.67"
 
 # Raster backend
 image = "0.23"
