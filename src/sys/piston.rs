@@ -9,8 +9,8 @@ use log::{debug, error, trace};
 use std::collections::VecDeque;
 
 use crate::gfx;
-use crate::gfx::piston::{gl, PistonBackend};
 use crate::gfx::piston::OPENGL_VERSION;
+use crate::gfx::piston::{gl, PistonBackend};
 use crate::input::*;
 use crate::sys::Sys;
 use crate::vm::{VMSnapshot, VM};

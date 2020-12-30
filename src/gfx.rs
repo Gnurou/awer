@@ -6,8 +6,8 @@ pub mod piston;
 use log::debug;
 use polygon::Polygon;
 use std::any::Any;
-use std::fmt::{Debug, Display, Formatter, Result};
 use std::cmp::max;
+use std::fmt::{Debug, Display, Formatter, Result};
 
 pub const SCREEN_RESOLUTION: [usize; 2] = [320, 200];
 

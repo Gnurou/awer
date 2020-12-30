@@ -36,7 +36,9 @@ trait Renderer {
 }
 
 fn infer_transparent_color(palette: &Palette) -> [f32; 4] {
-    palette.0[0..8].iter().zip(palette.0[8..16].iter())
+    palette.0[0..8]
+        .iter()
+        .zip(palette.0[8..16].iter())
         .map(|(c1, c2)| Color::blend(c1, c2))
         .fold(Default::default(), |dst, c| Color::mix(&dst, &c))
         .normalize(0.5)
