@@ -1,4 +1,5 @@
 pub mod polygon;
+pub mod raster;
 
 #[cfg(feature = "piston-sys")]
 pub mod piston;
@@ -127,7 +128,7 @@ impl Color {
 }
 
 #[derive(Debug, Default, Clone)]
-struct Palette([Color; 16]);
+pub struct Palette([Color; 16]);
 
 impl Palette {
     /// Sets the current |palette| from a raw PALETTE resource.

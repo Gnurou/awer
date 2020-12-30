@@ -76,8 +76,10 @@ impl PistonSys {
     }
 
     fn take_snapshot(&mut self, vm: &mut VM) {
-        self.history
-            .push_front(VMSnapshot::new(vm.get_snapshot(), self.gfx.get_snapshot()));
+        self.history.push_front(VMSnapshot::new(
+            vm.get_snapshot(),
+            self.gfx.as_gfx().get_snapshot(),
+        ));
 
         while self.history.len() > MAX_GAME_SNAPSHOTS {
             self.history.pop_back();
