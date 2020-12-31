@@ -54,6 +54,11 @@ fn main() {
 
     let mut sys: Option<Box<dyn Sys>> = None;
 
+    #[cfg(feature = "sdl2-sys")]
+    if sys.is_none() {
+        sys = sys::sdl2::new(&matches);
+    }
+
     #[cfg(feature = "piston-sys")]
     if sys.is_none() {
         sys = sys::piston::new(&matches);

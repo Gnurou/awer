@@ -7,8 +7,8 @@ authors = ["Alexandre Courbot <gnurou@gmail.com>"]
 
 [features]
 default = ["piston-sys"]
-
 piston-sys = ["piston", "piston2d-graphics", "piston2d-opengl_graphics", "pistoncore-glutin_window", "image"]
+sdl2-sys = ["sdl2"]
 
 [dependencies]
 log = "0.4"
@@ -22,6 +22,9 @@ piston2d-graphics = { version = "0.39", optional = true }
 piston2d-opengl_graphics = { version = "0.76", optional = true }
 pistoncore-glutin_window = { version = "0.67", optional = true }
 image = {version = "0.23", optional = true }
+
+# SDL2 dependencies
+sdl2 = { version = "0.34", optional = true }
 
 
 # Uncomment for custom piston_graphics.
