@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     cell::{Ref, RefCell},
     cmp::{max, min},
 };
@@ -254,6 +255,18 @@ impl Backend for RasterBackend {
                 | ((planes[1][idx] >> bit) & 0b1) << 1
                 | ((planes[2][idx] >> bit) & 0b1) << 2
                 | ((planes[3][idx] >> bit) & 0b1) << 3;
+        }
+    }
+
+    fn get_snapshot(&self) -> Box<dyn Any> {
+        Box::new(self.clone())
+    }
+
+    fn set_snapshot(&mut self, snapshot: Box<dyn Any>) {
+        if let Ok(snapshot) = snapshot.downcast::<Self>() {
+            *self = *snapshot;
+        } else {
+            eprintln!("Attempting to restore invalid gfx snapshot, ignoring");
         }
     }
 }
