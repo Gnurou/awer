@@ -75,7 +75,7 @@ impl PistonSys {
         }
     }
 
-    fn take_snapshot(&mut self, vm: &mut VM) {
+    fn take_snapshot(&mut self, vm: &VM) {
         self.history.push_front(VMSnapshot::new(
             vm.get_snapshot(),
             self.gfx.as_gfx().get_snapshot(),
