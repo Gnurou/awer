@@ -94,10 +94,10 @@ impl<T> Point<T> {
 }
 
 #[derive(Debug, Default, Clone)]
-struct Color {
-    r: u8,
-    g: u8,
-    b: u8,
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
 }
 
 impl Color {
@@ -127,8 +127,10 @@ impl Color {
     }
 }
 
+pub const PALETTE_SIZE: usize = 16;
+
 #[derive(Debug, Default, Clone)]
-pub struct Palette([Color; 16]);
+pub struct Palette([Color; PALETTE_SIZE]);
 
 impl Palette {
     /// Sets the current |palette| from a raw PALETTE resource.
@@ -155,7 +157,7 @@ impl Palette {
     /// Return the RGB color corresponding to |color_idx|.
     /// A palette only has 16 colors, so this method will panic if |color_idx|
     /// is bigger than 0xf.
-    fn lookup(&self, color_idx: u8) -> &Color {
+    pub fn lookup(&self, color_idx: u8) -> &Color {
         assert!(color_idx <= 0xf);
 
         &self.0[color_idx as usize]
