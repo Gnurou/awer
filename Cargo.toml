@@ -8,7 +8,7 @@ authors = ["Alexandre Courbot <gnurou@gmail.com>"]
 [features]
 default = ["piston-sys"]
 
-piston-sys = ["piston", "piston2d-graphics", "piston2d-opengl_graphics", "pistoncore-glutin_window"]
+piston-sys = ["piston", "piston2d-graphics", "piston2d-opengl_graphics", "pistoncore-glutin_window", "image"]
 
 [dependencies]
 log = "0.4"
@@ -21,12 +21,9 @@ piston = { version = "0.52", optional = true }
 piston2d-graphics = { version = "0.39", optional = true }
 piston2d-opengl_graphics = { version = "0.76", optional = true }
 pistoncore-glutin_window = { version = "0.67", optional = true }
+image = {version = "0.23", optional = true }
 
-# Raster backend
-image = "0.23"
 
 # Uncomment for custom piston_graphics.
 #[patch.crates-io]
 #piston2d-graphics = { path = "../graphics" }
-
-#piston-music = "0.25"
