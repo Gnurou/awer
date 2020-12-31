@@ -31,7 +31,7 @@ pub struct PistonSys {
 
 pub const WINDOW_RESOLUTION: [u32; 2] = [800, 600];
 
-pub fn new(matches: &ArgMatches) -> PistonSys {
+pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
     // TODO ups looks wrong?
     let events = Events::new(EventSettings::new()).ups(50).max_fps(50);
 
@@ -39,11 +39,11 @@ pub fn new(matches: &ArgMatches) -> PistonSys {
         .graphics_api(OPENGL_VERSION)
         .exit_on_esc(true)
         .build()
-        .unwrap();
+        .ok()?;
 
     let gfx = PistonSys::create_gfx(matches);
 
-    PistonSys {
+    Some(Box::new(PistonSys {
         gfx,
         events,
         window,
@@ -53,7 +53,7 @@ pub fn new(matches: &ArgMatches) -> PistonSys {
         pause: false,
         history: VecDeque::new(),
         snapshot_cpt: 0,
-    }
+    }))
 }
 
 const MAX_GAME_SNAPSHOTS: usize = 50;

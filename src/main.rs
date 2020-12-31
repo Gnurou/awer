@@ -52,11 +52,11 @@ fn main() {
         return;
     }
 
-    let sys: Option<Box<dyn Sys>>;
+    let mut sys: Option<Box<dyn Sys>> = None;
 
     #[cfg(feature = "piston-sys")]
-    {
-        sys = Some(Box::new(sys::piston::new(&matches)));
+    if sys.is_none() {
+        sys = sys::piston::new(&matches);
     }
 
     let mut sys = sys.unwrap_or_else(|| panic!("No sys instance could be created!"));
