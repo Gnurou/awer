@@ -89,13 +89,11 @@ impl Sys for SDL2Sys {
         let mut snapshot_cpt = 0;
         take_snapshot(&mut history, &vm, self.gfx.as_ref());
 
-        // Render to texture
+        // Texture we will render the game screen into
         let texture_creator = self.sdl_canvas.texture_creator();
         let pixel_format_enum = texture_creator.default_pixel_format();
         let pixel_format = PixelFormat::try_from(pixel_format_enum).unwrap();
         let bytes_per_pixel = pixel_format_enum.byte_size_per_pixel();
-        let mut frame =
-            vec![0u8; gfx::SCREEN_RESOLUTION[0] * gfx::SCREEN_RESOLUTION[1] * bytes_per_pixel];
         let mut render_texture = texture_creator
             .create_texture_streaming(
                 None,
@@ -202,21 +200,28 @@ impl Sys for SDL2Sys {
                     }
                     palette_to_color
                 };
-                for pixel in self
-                    .gfx
-                    .get_framebuffer()
-                    .pixels()
-                    .iter()
-                    .zip(frame.chunks_exact_mut(bytes_per_pixel))
-                {
-                    pixel.1.copy_from_slice(
-                        &palette_to_color[*pixel.0 as usize].to_ne_bytes()[0..bytes_per_pixel],
-                    );
-                }
+
+                let render_into_texture = |texture: &mut [u8], pitch: usize| {
+                    for (src_line, dst_line) in self
+                        .gfx
+                        .get_framebuffer()
+                        .pixels()
+                        .chunks_exact(gfx::SCREEN_RESOLUTION[0])
+                        .zip(texture.chunks_exact_mut(pitch))
+                    {
+                        for (src_pix, dst_pix) in src_line
+                            .iter()
+                            .zip(dst_line.chunks_exact_mut(bytes_per_pixel))
+                        {
+                            let color = palette_to_color[*src_pix as usize];
+                            dst_pix.copy_from_slice(&color.to_ne_bytes()[0..bytes_per_pixel]);
+                        }
+                    }
+                };
 
                 render_texture
-                    .update(None, &frame, gfx::SCREEN_RESOLUTION[0] * bytes_per_pixel)
-                    .expect("Failed to update texture");
+                    .with_lock(None, render_into_texture)
+                    .unwrap();
             }
 
             fn div_by_screen_ratio(x: u32) -> u32 {
