@@ -194,11 +194,14 @@ impl Sys for SDL2Sys {
             if vm_updated {
                 // First generate the true color palette
                 let palette = self.gfx.get_palette();
-                let mut palette_to_color = [0u32; gfx::PALETTE_SIZE];
-                for (i, color) in palette_to_color.iter_mut().enumerate() {
-                    let Color { r, g, b } = palette.lookup(i as u8);
-                    *color = sdl2::pixels::Color::RGB(*r, *g, *b).to_u32(&pixel_format);
-                }
+                let palette_to_color = {
+                    let mut palette_to_color = [0u32; gfx::PALETTE_SIZE];
+                    for (i, color) in palette_to_color.iter_mut().enumerate() {
+                        let &Color { r, g, b } = palette.lookup(i as u8);
+                        *color = sdl2::pixels::Color::RGB(r, g, b).to_u32(&pixel_format);
+                    }
+                    palette_to_color
+                };
                 for pixel in self
                     .gfx
                     .get_framebuffer()
