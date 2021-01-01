@@ -44,6 +44,7 @@ pub fn new(_matches: &ArgMatches) -> Option<Box<dyn Sys>> {
         .window("Another World", WINDOW_RESOLUTION[0], WINDOW_RESOLUTION[1])
         .resizable()
         .opengl()
+        .allow_highdpi()
         .build()
         .map_err(|e| eprintln!("Failed to create window: {}", e))
         .ok()?;
