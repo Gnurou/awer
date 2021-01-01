@@ -25,8 +25,3 @@ image = {version = "0.23", optional = true }
 
 # SDL2 dependencies
 sdl2 = { version = "0.34", optional = true }
-
-
-# Uncomment for custom piston_graphics.
-#[patch.crates-io]
-#piston2d-graphics = { path = "../graphics" }
