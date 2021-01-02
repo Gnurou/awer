@@ -8,9 +8,9 @@ use piston::window::WindowSettings;
 use log::{debug, error, trace};
 use std::collections::VecDeque;
 
-use crate::gfx;
 use crate::gfx::piston::OPENGL_VERSION;
 use crate::gfx::piston::{gl, PistonBackend};
+use crate::gfx::{self, draw_list::PolyRender};
 use crate::input::*;
 use crate::sys::Sys;
 use crate::vm::{VMSnapshot, VM};
@@ -63,12 +63,11 @@ impl PistonSys {
         match matches.value_of("render").unwrap_or("raster") {
             rdr @ "line" | rdr @ "poly" => {
                 let poly_render = match rdr {
-                    "line" => gl::PolyRender::Line,
-                    "poly" => gl::PolyRender::Poly,
+                    "line" => PolyRender::Line,
+                    "poly" => PolyRender::Poly,
                     _ => panic!(),
                 };
-                Box::new(gl::new().set_poly_render(poly_render))
-                    as Box<dyn gfx::piston::PistonBackend>
+                Box::new(gl::new(poly_render)) as Box<dyn gfx::piston::PistonBackend>
             }
             "raster" => Box::new(gfx::piston::raster::new()) as Box<dyn gfx::piston::PistonBackend>,
             _ => panic!("unexpected poly_render option"),

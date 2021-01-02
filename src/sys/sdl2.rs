@@ -220,9 +220,7 @@ impl Sys for SDL2Sys {
                     }
                 };
 
-                render_texture
-                    .with_lock(None, render_into_texture)
-                    .unwrap();
+                render_texture.with_lock(None, render_into_texture).unwrap();
             }
 
             fn div_by_screen_ratio(x: u32) -> u32 {

@@ -1,3 +1,4 @@
+pub mod draw_list;
 pub mod polygon;
 pub mod raster;
 
