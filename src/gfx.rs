@@ -5,6 +5,9 @@ pub mod raster;
 #[cfg(feature = "piston-sys")]
 pub mod piston;
 
+#[cfg(feature = "sdl2-sys")]
+pub mod sdl2;
+
 use log::debug;
 use polygon::Polygon;
 use std::any::Any;
