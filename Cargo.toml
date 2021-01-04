@@ -15,6 +15,7 @@ log = "0.4"
 env_logger = "0.8"
 byteorder = "1"
 clap = "2"
+anyhow = "1.0"
 
 # Piston dependencies
 piston = { version = "0.52", optional = true }

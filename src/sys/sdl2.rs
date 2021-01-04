@@ -1,6 +1,6 @@
 use clap::ArgMatches;
 use log::error;
-use sdl2::{event::Event, keyboard::Keycode, render::Canvas, video::Window, Sdl};
+use sdl2::{event::Event, keyboard::Keycode, Sdl};
 
 use crate::{
     gfx::{
@@ -19,13 +19,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub const WINDOW_RESOLUTION: [u32; 2] = [1280, 960];
 const TICKS_PER_SECOND: u64 = 50;
 const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
 
 pub struct SDL2Sys {
     sdl_context: Sdl,
-    sdl_canvas: Canvas<Window>,
+    renderer: Box<dyn SDL2Renderer>,
 }
 
 pub fn new(_matches: &ArgMatches) -> Option<Box<dyn Sys>> {
@@ -34,29 +33,12 @@ pub fn new(_matches: &ArgMatches) -> Option<Box<dyn Sys>> {
             eprintln!("Failed to initialize SDL: {}", e);
         })
         .ok()?;
-    let sdl_video = sdl_context
-        .video()
-        .map_err(|e| eprintln!("Failed to initialize SDL video: {}", e))
-        .ok()?;
 
-    let window = sdl_video
-        .window("Another World", WINDOW_RESOLUTION[0], WINDOW_RESOLUTION[1])
-        .resizable()
-        .opengl()
-        .allow_highdpi()
-        .build()
-        .map_err(|e| eprintln!("Failed to create window: {}", e))
-        .ok()?;
-
-    let sdl_canvas = window
-        .into_canvas()
-        .build()
-        .map_err(|e| eprintln!("Failed to obtain canvas: {}", e))
-        .ok()?;
+    let renderer = Box::new(SDL2RasterRenderer::new(&sdl_context).ok()?);
 
     Some(Box::new(SDL2Sys {
         sdl_context,
-        sdl_canvas,
+        renderer,
     }))
 }
 
@@ -82,14 +64,11 @@ impl Sys for SDL2Sys {
         let mut fast_mode = false;
         let mut pause = false;
 
-        // Renderer
-        let mut renderer = Box::new(SDL2RasterRenderer::new(&self.sdl_canvas));
-
         // State rewind
         const TICKS_PER_SNAPSHOT: usize = 200;
         let mut history: VecDeque<VMSnapshot> = VecDeque::new();
         let mut snapshot_cpt = 0;
-        take_snapshot(&mut history, &vm, renderer.as_gfx());
+        take_snapshot(&mut history, &vm, self.renderer.as_gfx());
 
         'run: loop {
             // Update input
@@ -116,19 +95,19 @@ impl Sys for SDL2Sys {
                         Keycode::P => pause ^= true,
                         Keycode::B => {
                             if let Some(state) = history.pop_front() {
-                                state.restore(vm, renderer.as_gfx_mut());
+                                state.restore(vm, self.renderer.as_gfx_mut());
                                 snapshot_cpt = 0;
                             }
 
                             // If we are back to the first state, keep a copy.
                             if history.is_empty() {
-                                take_snapshot(&mut history, vm, renderer.as_gfx());
+                                take_snapshot(&mut history, vm, self.renderer.as_gfx());
                             }
                         }
                         Keycode::N if pause => {
-                            take_snapshot(&mut history, vm, renderer.as_gfx());
+                            take_snapshot(&mut history, vm, self.renderer.as_gfx());
                             vm.update_input(&input);
-                            vm.process(renderer.as_gfx_mut());
+                            vm.process(self.renderer.as_gfx_mut());
                             ticks_to_wait = vm.get_frames_to_wait();
                         }
                         _ => {}
@@ -161,12 +140,12 @@ impl Sys for SDL2Sys {
             for _ in 0..cycles {
                 snapshot_cpt += 1;
                 if snapshot_cpt == TICKS_PER_SNAPSHOT {
-                    take_snapshot(&mut history, &vm, renderer.as_gfx());
+                    take_snapshot(&mut history, &vm, self.renderer.as_gfx());
                     snapshot_cpt = 0;
                 }
 
                 if ticks_to_wait == 0 {
-                    if !vm.process(renderer.as_gfx_mut()) {
+                    if !vm.process(self.renderer.as_gfx_mut()) {
                         error!("0 threads to run, exiting.");
                         break 'run;
                     }
@@ -179,7 +158,7 @@ impl Sys for SDL2Sys {
 
             // If the VM state has changed, we need to update the game texture
             if vm_updated {
-                renderer.render_game();
+                self.renderer.render_game();
             }
 
             fn div_by_screen_ratio(x: u32) -> u32 {
@@ -198,13 +177,8 @@ impl Sys for SDL2Sys {
             }
             last_tick_time = Instant::now();
 
-            // Clear screen
-            self.sdl_canvas
-                .set_draw_color(sdl2::pixels::Color::RGB(0, 0, 0));
-            self.sdl_canvas.clear();
-
             // Compute destination rectangle of game screen
-            let viewport = self.sdl_canvas.viewport();
+            let viewport = self.renderer.viewport();
             let viewport_dst = if div_by_screen_ratio(viewport.width()) < viewport.height() {
                 let w = viewport.width();
                 let h = div_by_screen_ratio(viewport.width());
@@ -215,11 +189,8 @@ impl Sys for SDL2Sys {
                 sdl2::rect::Rect::new((viewport.width() - w) as i32 / 2, 0, w, h)
             };
 
-            // Blit the game screen into the window viewport
-            self.sdl_canvas
-                .copy(renderer.get_rendered_texture(), None, Some(viewport_dst))
-                .unwrap();
-            self.sdl_canvas.present();
+            self.renderer.blit_game(viewport_dst);
+            self.renderer.present();
         }
     }
 }
