@@ -154,6 +154,10 @@ impl IndexedImage {
     pub fn pixels(&self) -> &[u8; SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1]] {
         &self.0
     }
+
+    pub fn as_ptr(&self) -> *const u8 {
+        self.0.as_ptr()
+    }
 }
 
 #[derive(Clone)]
