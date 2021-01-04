@@ -1,3 +1,4 @@
+pub mod gl;
 pub mod raster;
 
 use crate::gfx;

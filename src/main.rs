@@ -26,7 +26,7 @@ fn main() {
             Arg::with_name("render")
                 .short("r")
                 .long("render")
-                .help("How to render the game (raster, line, poly)")
+                .help("How to render the game (raster, raster-gl, line, poly)")
                 .takes_value(true),
         )
         .arg(

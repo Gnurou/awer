@@ -105,6 +105,7 @@ dependencies = [
  "byteorder",
  "clap",
  "env_logger",
+ "gl 0.14.0",
  "image",
  "log",
  "piston",
@@ -402,6 +403,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7d8c8e25e8ed44d4813809205090162723a866fb4be3a9d8bb983c9a0bf98f1"
 dependencies = [
  "gl_generator 0.10.0",
+]
+
+[[package]]
+name = "gl"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a94edab108827d67608095e269cf862e60d920f144a5026d3dbcfd8b877fb404"
+dependencies = [
+ "gl_generator 0.14.0",
 ]
 
 [[package]]
@@ -901,7 +911,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36f8be70b6b0ca8682043429bd75c4bbeee3fdca5c3a7475c6f7e474c13fd7c1"
 dependencies = [
  "fnv",
- "gl",
+ "gl 0.11.0",
  "image",
  "khronos_api 2.2.0",
  "piston-shaders_graphics2d",
@@ -927,7 +937,7 @@ version = "0.67.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da1490e5868b0135be83120bdc211017cac1c945bd8773bfdd8fbd259122dfc5"
 dependencies = [
- "gl",
+ "gl 0.11.0",
  "glutin",
  "pistoncore-input",
  "pistoncore-window",
