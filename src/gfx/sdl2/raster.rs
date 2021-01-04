@@ -36,9 +36,7 @@ impl SDL2RasterRenderer {
     /// Create a new raster renderer, using the given SDL context. This takes
     /// care of creating the window, canvas, and everything we need to draw.
     pub fn new(sdl_context: &Sdl) -> Result<Self> {
-        let sdl_video = sdl_context
-            .video()
-            .map_err(|s| anyhow!(s))?;
+        let sdl_video = sdl_context.video().map_err(|s| anyhow!(s))?;
 
         let window = sdl_video
             .window("Another World", WINDOW_RESOLUTION[0], WINDOW_RESOLUTION[1])
@@ -46,20 +44,17 @@ impl SDL2RasterRenderer {
             .allow_highdpi()
             .build()?;
 
-        let canvas = window
-            .into_canvas()
-            .build()?;
+        let canvas = window.into_canvas().build()?;
 
         let texture_creator = canvas.texture_creator();
         let pixel_format_enum = texture_creator.default_pixel_format();
         let pixel_format = PixelFormat::try_from(pixel_format_enum).unwrap();
         let bytes_per_pixel = pixel_format_enum.byte_size_per_pixel();
-        let texture = texture_creator
-            .create_texture_streaming(
-                None,
-                gfx::SCREEN_RESOLUTION[0] as u32,
-                gfx::SCREEN_RESOLUTION[1] as u32,
-            )?;
+        let texture = texture_creator.create_texture_streaming(
+            None,
+            gfx::SCREEN_RESOLUTION[0] as u32,
+            gfx::SCREEN_RESOLUTION[1] as u32,
+        )?;
 
         Ok(SDL2RasterRenderer {
             canvas,
