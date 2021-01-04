@@ -170,6 +170,10 @@ impl Palette {
 
         &self.0[color_idx as usize]
     }
+
+    pub fn as_ptr(&self) -> *const Color {
+        self.0.as_ptr()
+    }
 }
 
 /// Returns how many units of x we need to move per unit of y in order to follow
