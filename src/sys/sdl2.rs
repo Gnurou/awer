@@ -83,8 +83,7 @@ impl Sys for SDL2Sys {
         let mut pause = false;
 
         // Renderer
-        let texture_creator = self.sdl_canvas.texture_creator();
-        let mut renderer = Box::new(SDL2RasterRenderer::new(&texture_creator));
+        let mut renderer = Box::new(SDL2RasterRenderer::new(&self.sdl_canvas));
 
         // State rewind
         const TICKS_PER_SNAPSHOT: usize = 200;

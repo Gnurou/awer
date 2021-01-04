@@ -2,22 +2,26 @@ use std::convert::TryFrom;
 
 use sdl2::{
     pixels::PixelFormat,
-    render::{Texture, TextureCreator},
-    video::WindowContext,
+    render::{Canvas, Texture, TextureCreator},
+    video::{Window, WindowContext},
 };
 
 use crate::gfx::{self, raster::RasterBackend, sdl2::SDL2Renderer, Color};
 
-pub struct SDL2RasterRenderer<'r> {
-    texture: Texture<'r>,
+pub struct SDL2RasterRenderer {
+    // Textures are owned by their texture creator, so we need to keep this
+    // around.
+    _texture_creator: TextureCreator<WindowContext>,
+    texture: Texture,
     pixel_format: PixelFormat,
     bytes_per_pixel: usize,
 
     raster: RasterBackend,
 }
 
-impl<'r> SDL2RasterRenderer<'r> {
-    pub fn new(texture_creator: &'r TextureCreator<WindowContext>) -> Self {
+impl SDL2RasterRenderer {
+    pub fn new(canvas: &Canvas<Window>) -> Self {
+        let texture_creator = canvas.texture_creator();
         let pixel_format_enum = texture_creator.default_pixel_format();
         let pixel_format = PixelFormat::try_from(pixel_format_enum).unwrap();
         let bytes_per_pixel = pixel_format_enum.byte_size_per_pixel();
@@ -30,6 +34,7 @@ impl<'r> SDL2RasterRenderer<'r> {
             .unwrap();
 
         SDL2RasterRenderer {
+            _texture_creator: texture_creator,
             texture,
             pixel_format,
             bytes_per_pixel,
@@ -38,7 +43,7 @@ impl<'r> SDL2RasterRenderer<'r> {
     }
 }
 
-impl<'r> SDL2Renderer for SDL2RasterRenderer<'r> {
+impl SDL2Renderer for SDL2RasterRenderer {
     fn render_game(&mut self) {
         // First generate the true color palette
         let palette = self.raster.get_palette();
