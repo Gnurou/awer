@@ -27,14 +27,17 @@ pub struct SDL2Sys {
     renderer: Box<dyn SDL2Renderer>,
 }
 
-pub fn new(_matches: &ArgMatches) -> Option<Box<dyn Sys>> {
+pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
     let sdl_context = sdl2::init()
         .map_err(|e| {
             eprintln!("Failed to initialize SDL: {}", e);
         })
         .ok()?;
 
-    let renderer = Box::new(SDL2RasterRenderer::new(&sdl_context).ok()?);
+    let renderer: Box<dyn SDL2Renderer> = match matches.value_of("render").unwrap_or("raster") {
+        "raster" => Box::new(SDL2RasterRenderer::new(&sdl_context).ok()?),
+        _ => return None,
+    };
 
     Some(Box::new(SDL2Sys {
         sdl_context,
