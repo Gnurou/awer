@@ -3,6 +3,9 @@ pub mod raster;
 use crate::gfx;
 use sdl2::rect::Rect;
 
+/// Initial size of the window when using this renderer.
+pub const WINDOW_RESOLUTION: [u32; 2] = [1280, 960];
+
 pub trait SDL2Renderer {
     /// Returns a rectangle of the size of the visible area (i.e. window).
     fn viewport(&self) -> Rect;

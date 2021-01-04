@@ -12,7 +12,7 @@ use anyhow::{anyhow, Result};
 
 use crate::gfx::{self, raster::RasterBackend, sdl2::SDL2Renderer, Color};
 
-pub const WINDOW_RESOLUTION: [u32; 2] = [1280, 960];
+use super::WINDOW_RESOLUTION;
 
 /// A renderer that renders the game into a SDL Texture, using only Texture
 /// and Canvas methods. The rendered texture is then stretched to fit the
