@@ -97,6 +97,9 @@ impl<T> Point<T> {
     }
 }
 
+// Use a C representation so we can safely pass this to shaders, and align
+// to 32 bits so each palette entry can be easily indexed from a shader.
+#[repr(C, align(4))]
 #[derive(Debug, Default, Clone)]
 pub struct Color {
     pub r: u8,
@@ -133,6 +136,7 @@ impl Color {
 
 pub const PALETTE_SIZE: usize = 16;
 
+#[repr(C)]
 #[derive(Debug, Default, Clone)]
 pub struct Palette([Color; PALETTE_SIZE]);
 
