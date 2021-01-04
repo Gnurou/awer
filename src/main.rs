@@ -17,7 +17,7 @@ fn main() {
         .version("0.1")
         .arg(
             Arg::with_name("scene")
-                .short("s")
+                .short("S")
                 .long("scene")
                 .help("The scene to start from (0..9)")
                 .takes_value(true),
@@ -27,6 +27,13 @@ fn main() {
                 .short("r")
                 .long("render")
                 .help("How to render the game (raster, line, poly)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("sys")
+                .short("s")
+                .long("sys")
+                .help("Which library to use (sdl2, piston)")
                 .takes_value(true),
         )
         .arg(
@@ -52,19 +59,13 @@ fn main() {
         return;
     }
 
-    let mut sys: Option<Box<dyn Sys>> = None;
-
-    #[cfg(feature = "sdl2-sys")]
-    if sys.is_none() {
-        sys = sys::sdl2::new(&matches);
-    }
-
-    #[cfg(feature = "piston-sys")]
-    if sys.is_none() {
-        sys = sys::piston::new(&matches);
-    }
-
-    let mut sys = sys.unwrap_or_else(|| panic!("No sys instance could be created!"));
+    let mut sys: Box<dyn Sys> = match matches.value_of("sys").unwrap_or("piston") {
+        #[cfg(feature = "sdl2-sys")]
+        "sdl2" => sys::sdl2::new(&matches).unwrap(),
+        #[cfg(feature = "piston-sys")]
+        "piston" => sys::piston::new(&matches).unwrap(),
+        name => panic!("Invalid sys name {}!", name),
+    };
 
     let mut vm = Box::new(vm::VM::new().unwrap());
     vm.init(&scenes::SCENES[start_scene]);
