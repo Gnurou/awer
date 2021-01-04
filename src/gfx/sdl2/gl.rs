@@ -117,11 +117,6 @@ impl SDL2GLRenderer {
 }
 
 impl SDL2Renderer for SDL2GLRenderer {
-    fn viewport(&self) -> Rect {
-        let (w, h) = self.window.size();
-        Rect::new(0, 0, w, h)
-    }
-
     fn render_game(&mut self) {}
 
     fn blit_game(&mut self, dst: Rect) {
@@ -168,6 +163,10 @@ impl SDL2Renderer for SDL2GLRenderer {
 
     fn as_gfx_mut(&mut self) -> &mut dyn crate::gfx::Backend {
         &mut self.raster
+    }
+
+    fn window(&self) -> &Window {
+        &self.window
     }
 }
 

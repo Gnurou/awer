@@ -1,6 +1,6 @@
 use clap::ArgMatches;
 use log::error;
-use sdl2::{event::Event, keyboard::Keycode, Sdl};
+use sdl2::{event::Event, keyboard::Keycode, rect::Rect, Sdl};
 
 use crate::{
     gfx::{
@@ -182,7 +182,10 @@ impl Sys for SDL2Sys {
             last_tick_time = Instant::now();
 
             // Compute destination rectangle of game screen
-            let viewport = self.renderer.viewport();
+            let viewport = {
+                let (w, h) = self.renderer.window().size();
+                Rect::new(0, 0, w, h)
+            };
             let viewport_dst = if div_by_screen_ratio(viewport.width()) < viewport.height() {
                 let w = viewport.width();
                 let h = div_by_screen_ratio(viewport.width());

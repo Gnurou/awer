@@ -68,10 +68,6 @@ impl SDL2RasterRenderer {
 }
 
 impl SDL2Renderer for SDL2RasterRenderer {
-    fn viewport(&self) -> Rect {
-        self.canvas.viewport()
-    }
-
     fn render_game(&mut self) {
         // First generate the true color palette
         let palette = self.raster.get_palette();
@@ -126,5 +122,9 @@ impl SDL2Renderer for SDL2RasterRenderer {
 
     fn as_gfx_mut(&mut self) -> &mut dyn crate::gfx::Backend {
         &mut self.raster
+    }
+
+    fn window(&self) -> &Window {
+        &self.canvas.window()
     }
 }
