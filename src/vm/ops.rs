@@ -429,7 +429,7 @@ pub fn op_blitframebuffer(
     gfx.blitframebuffer(state.front_buffer);
 
     // Assume that we render very fast, which should be the case.
-    state.regs[VM_VARIABLE_SLICES_USED] = 0;
+    state.regs[VM_VARIABLE_SLICES_USED] = 1;
 
     false
 }
