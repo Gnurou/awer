@@ -33,6 +33,8 @@ pub struct SDL2GLRenderer {
     palette_uniform: GLint,
 
     raster: RasterBackend,
+    current_framebuffer: IndexedImage,
+    current_palette: Palette,
 }
 
 impl SDL2GLRenderer {
@@ -122,13 +124,13 @@ impl SDL2GLRenderer {
             scene_uniform,
             palette_uniform,
             raster: RasterBackend::new(),
+            current_framebuffer: Default::default(),
+            current_palette: Default::default(),
         })
     }
 }
 
 impl SDL2Renderer for SDL2GLRenderer {
-    fn render_game(&mut self) {}
-
     fn blit_game(&mut self, dst: Rect) {
         unsafe {
             gl::Viewport(
@@ -144,12 +146,12 @@ impl SDL2Renderer for SDL2GLRenderer {
             gl::Uniform1uiv(
                 self.scene_uniform,
                 (gfx::SCREEN_RESOLUTION[0] * gfx::SCREEN_RESOLUTION[1] / 4) as GLint,
-                self.raster.get_framebuffer().as_ptr() as *const u32,
+                self.current_framebuffer.as_ptr() as *const u32,
             );
             gl::Uniform1uiv(
                 self.palette_uniform,
                 gfx::PALETTE_SIZE as GLint,
-                self.raster.get_palette().as_ptr() as *const u32,
+                self.current_palette.as_ptr() as *const u32,
             );
 
             gl::BindVertexArray(self.vao);
@@ -168,15 +170,54 @@ impl SDL2Renderer for SDL2GLRenderer {
     }
 
     fn as_gfx(&self) -> &dyn crate::gfx::Backend {
-        &self.raster
+        self
     }
 
     fn as_gfx_mut(&mut self) -> &mut dyn crate::gfx::Backend {
-        &mut self.raster
+        self
     }
 
     fn window(&self) -> &Window {
         &self.window
+    }
+}
+
+impl gfx::Backend for SDL2GLRenderer {
+    fn set_palette(&mut self, palette: &[u8; 32]) {
+        self.raster.set_palette(palette)
+    }
+
+    fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
+        self.raster.fillvideopage(page_id, color_idx)
+    }
+
+    fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16) {
+        self.raster.copyvideopage(src_page_id, dst_page_id, vscroll)
+    }
+
+    fn fillpolygon(
+        &mut self,
+        dst_page_id: usize,
+        x: i16,
+        y: i16,
+        color_idx: u8,
+        polygon: &gfx::polygon::Polygon,
+    ) {
+        self.raster
+            .fillpolygon(dst_page_id, x, y, color_idx, polygon)
+    }
+
+    fn blitframebuffer(&mut self, page_id: usize) {
+        self.raster.blitframebuffer(page_id);
+
+        // Copy the palette and rendered image that we will pass as uniforms
+        // to our shader.
+        self.current_framebuffer = self.raster.get_framebuffer().clone();
+        self.current_palette = self.raster.get_palette().clone();
+    }
+
+    fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
+        self.raster.blit_buffer(dst_page_id, buffer)
     }
 }
 

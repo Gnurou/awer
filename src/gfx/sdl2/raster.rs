@@ -68,7 +68,60 @@ impl SDL2RasterRenderer {
 }
 
 impl SDL2Renderer for SDL2RasterRenderer {
-    fn render_game(&mut self) {
+    fn blit_game(&mut self, dst: Rect) {
+        // Clear screen
+        self.canvas
+            .set_draw_color(sdl2::pixels::Color::RGB(0, 0, 0));
+        self.canvas.clear();
+        // Blit the game screen into the window viewport
+        self.canvas.copy(&self.texture, None, Some(dst)).unwrap();
+    }
+
+    fn present(&mut self) {
+        self.canvas.present();
+    }
+
+    fn as_gfx(&self) -> &dyn crate::gfx::Backend {
+        self
+    }
+
+    fn as_gfx_mut(&mut self) -> &mut dyn crate::gfx::Backend {
+        self
+    }
+
+    fn window(&self) -> &Window {
+        &self.canvas.window()
+    }
+}
+
+impl gfx::Backend for SDL2RasterRenderer {
+    fn set_palette(&mut self, palette: &[u8; 32]) {
+        self.raster.set_palette(palette)
+    }
+
+    fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
+        self.raster.fillvideopage(page_id, color_idx)
+    }
+
+    fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16) {
+        self.raster.copyvideopage(src_page_id, dst_page_id, vscroll)
+    }
+
+    fn fillpolygon(
+        &mut self,
+        dst_page_id: usize,
+        x: i16,
+        y: i16,
+        color_idx: u8,
+        polygon: &gfx::polygon::Polygon,
+    ) {
+        self.raster
+            .fillpolygon(dst_page_id, x, y, color_idx, polygon)
+    }
+
+    fn blitframebuffer(&mut self, page_id: usize) {
+        self.raster.blitframebuffer(page_id);
+
         // First generate the true color palette
         let palette = self.raster.get_palette();
         let palette_to_color = {
@@ -103,28 +156,7 @@ impl SDL2Renderer for SDL2RasterRenderer {
         self.texture.with_lock(None, render_into_texture).unwrap();
     }
 
-    fn blit_game(&mut self, dst: Rect) {
-        // Clear screen
-        self.canvas
-            .set_draw_color(sdl2::pixels::Color::RGB(0, 0, 0));
-        self.canvas.clear();
-        // Blit the game screen into the window viewport
-        self.canvas.copy(&self.texture, None, Some(dst)).unwrap();
-    }
-
-    fn present(&mut self) {
-        self.canvas.present();
-    }
-
-    fn as_gfx(&self) -> &dyn crate::gfx::Backend {
-        &self.raster
-    }
-
-    fn as_gfx_mut(&mut self) -> &mut dyn crate::gfx::Backend {
-        &mut self.raster
-    }
-
-    fn window(&self) -> &Window {
-        &self.canvas.window()
+    fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
+        self.raster.blit_buffer(dst_page_id, buffer)
     }
 }

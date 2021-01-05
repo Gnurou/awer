@@ -8,10 +8,8 @@ use sdl2::{rect::Rect, video::Window};
 pub const WINDOW_RESOLUTION: [u32; 2] = [1280, 960];
 
 pub trait SDL2Renderer {
-    /// Render the current game state into an off-screen buffer.
-    fn render_game(&mut self);
-    /// Blit the rendered off-screen buffer into the `dst` rectangle of the
-    /// actual display.
+    /// Blit the rendered framebuffer into the `dst` rectangle of the actual
+    /// display.
     fn blit_game(&mut self, dst: Rect);
     /// Page-flip the display.
     fn present(&mut self);
@@ -21,6 +19,6 @@ pub trait SDL2Renderer {
     /// Returns a mutable reference to the graphics backend.
     fn as_gfx_mut(&mut self) -> &mut dyn gfx::Backend;
 
-    /// Returns the window the program will render into.
+    /// Returns the window the renderer will render into.
     fn window(&self) -> &Window;
 }

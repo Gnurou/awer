@@ -133,7 +133,6 @@ impl Sys for SDL2Sys {
 
             // Update VM state
             vm.update_input(&input);
-            let mut vm_updated = false;
             let cycles = if pause {
                 0
             } else if fast_mode {
@@ -154,15 +153,9 @@ impl Sys for SDL2Sys {
                         break 'run;
                     }
 
-                    vm_updated = true;
                     ticks_to_wait = vm.get_frames_to_wait();
                 }
                 ticks_to_wait -= 1;
-            }
-
-            // If the VM state has changed, we need to update the game texture
-            if vm_updated {
-                self.renderer.render_game();
             }
 
             fn div_by_screen_ratio(x: u32) -> u32 {
