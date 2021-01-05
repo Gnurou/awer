@@ -331,7 +331,6 @@ void main() {
     uint r = (palette_color >> 0u) % 256u;
     uint g = (palette_color >> 8u) % 256u;
     uint b = (palette_color >> 16u) % 256u;
-    uint v = (palette_color >> 24u) % 256u;
-    color = vec4(float(r) / 255, float(g) / 255, float(b) / 255, 1.0);
+    color = vec4(r / 255.0, g / 255.0, b / 255.0, 1.0);
 }
 "#;
