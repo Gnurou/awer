@@ -262,9 +262,6 @@ static VERTEX_SHADER: &str = r#"
 layout (location = 0) in vec2 position;
 layout (location = 1) in vec2 scene_position;
 
-uniform uint scene[320 * 200 / 4];
-uniform uint palette[16];
-
 out vec2 scene_pos;
 
 void main() {
