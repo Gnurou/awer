@@ -28,10 +28,11 @@ use super::{SDL2Renderer, WINDOW_RESOLUTION};
 pub struct SDL2GLRenderer {
     window: Window,
     _opengl_context: GLContext,
-    vao: GLuint,
-    scene_uniform: GLint,
-    palette_uniform: GLint,
 
+    vao: GLuint,
+    vbo: GLuint,
+
+    raster_program: GLuint,
     raster: RasterBackend,
     current_framebuffer: IndexedImage,
     current_palette: Palette,
@@ -69,24 +70,45 @@ impl SDL2GLRenderer {
 
         let vertex_shader = compile_shader(VERTEX_SHADER, gl::VERTEX_SHADER);
         let fragment_shader = compile_shader(FRAGMENT_SHADER, gl::FRAGMENT_SHADER);
-        let program = link_program(vertex_shader, fragment_shader);
+        let raster_program = link_program(vertex_shader, fragment_shader);
 
         let mut vao = 0;
+        let mut vbo = 0;
         unsafe {
             gl::GenVertexArrays(1, &mut vao);
-            gl::BindVertexArray(vao);
-
-            let mut vbo = 0;
             gl::GenBuffers(1, &mut vbo);
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+        }
+
+        Ok(SDL2GLRenderer {
+            window,
+            _opengl_context: opengl_context,
+
+            vao,
+            vbo,
+            raster_program,
+            raster: RasterBackend::new(),
+            current_framebuffer: Default::default(),
+            current_palette: Default::default(),
+        })
+    }
+}
+
+impl SDL2GLRenderer {
+    fn blit_game_raster(&mut self) {
+        let program = self.raster_program;
+
+        unsafe {
+            gl::UseProgram(program);
+
+            // Vertices
+            gl::BindVertexArray(self.vao);
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
             gl::BufferData(
                 gl::ARRAY_BUFFER,
                 (VERTICES.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
                 VERTICES.as_ptr() as *const _,
                 gl::STATIC_DRAW,
             );
-
-            gl::UseProgram(program);
 
             // position attribute
             gl::EnableVertexAttribArray(0);
@@ -109,24 +131,32 @@ impl SDL2GLRenderer {
                 VERTICES_STRIDE,
                 (2 * mem::size_of::<GLfloat>()) as *const _,
             );
-
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
             gl::BindVertexArray(0);
+
+            let scene_uniform = get_uniform_location(program, "scene");
+            let palette_uniform = get_uniform_location(program, "palette");
+
+            gl::Uniform1uiv(
+                scene_uniform,
+                (gfx::SCREEN_RESOLUTION[0] * gfx::SCREEN_RESOLUTION[1] / 4) as GLint,
+                self.current_framebuffer.as_ptr() as *const u32,
+            );
+            gl::Uniform1uiv(
+                palette_uniform,
+                gfx::PALETTE_SIZE as GLint,
+                self.current_palette.as_ptr() as *const u32,
+            );
+
+            gl::BindVertexArray(self.vao);
+            gl::DrawElements(
+                gl::TRIANGLES,
+                INDICES.len() as GLint,
+                gl::UNSIGNED_BYTE,
+                INDICES.as_ptr() as *const _,
+            );
+            gl::BindVertexArray(0);
         }
-
-        let scene_uniform = get_uniform_location(program, "scene");
-        let palette_uniform = get_uniform_location(program, "palette");
-
-        Ok(SDL2GLRenderer {
-            window,
-            _opengl_context: opengl_context,
-            vao,
-            scene_uniform,
-            palette_uniform,
-            raster: RasterBackend::new(),
-            current_framebuffer: Default::default(),
-            current_palette: Default::default(),
-        })
     }
 }
 
@@ -142,27 +172,9 @@ impl SDL2Renderer for SDL2GLRenderer {
 
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
-
-            gl::Uniform1uiv(
-                self.scene_uniform,
-                (gfx::SCREEN_RESOLUTION[0] * gfx::SCREEN_RESOLUTION[1] / 4) as GLint,
-                self.current_framebuffer.as_ptr() as *const u32,
-            );
-            gl::Uniform1uiv(
-                self.palette_uniform,
-                gfx::PALETTE_SIZE as GLint,
-                self.current_palette.as_ptr() as *const u32,
-            );
-
-            gl::BindVertexArray(self.vao);
-            gl::DrawElements(
-                gl::TRIANGLES,
-                6,
-                gl::UNSIGNED_BYTE,
-                INDICES.as_ptr() as *const _,
-            );
-            gl::BindVertexArray(0);
         }
+
+        self.blit_game_raster();
     }
 
     fn present(&mut self) {
