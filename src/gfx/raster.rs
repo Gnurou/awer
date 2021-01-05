@@ -20,11 +20,13 @@ fn slope_step(p1: &Point<i32>, p2: &Point<i32>) -> i32 {
     }
 }
 
-impl IndexedImage {
-    fn new() -> IndexedImage {
+impl Default for IndexedImage {
+    fn default() -> Self {
         IndexedImage([0u8; SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1]])
     }
+}
 
+impl IndexedImage {
     fn offset(x: i16, y: i16) -> Result<usize, ()> {
         if x < 0 || x >= SCREEN_RESOLUTION[0] as i16 || y < 0 || y >= SCREEN_RESOLUTION[1] as i16 {
             Err(())
@@ -172,10 +174,10 @@ impl RasterBackend {
         RasterBackend {
             palette: Default::default(),
             buffers: [
-                RefCell::new(IndexedImage::new()),
-                RefCell::new(IndexedImage::new()),
-                RefCell::new(IndexedImage::new()),
-                RefCell::new(IndexedImage::new()),
+                RefCell::new(Default::default()),
+                RefCell::new(Default::default()),
+                RefCell::new(Default::default()),
+                RefCell::new(Default::default()),
             ],
             framebuffer_index: 0,
         }
@@ -282,7 +284,7 @@ mod test {
     #[test]
     /// Check that a newly created image is all blank.
     fn test_new_image() {
-        let image = IndexedImage::new();
+        let image: IndexedImage = Default::default();
 
         for pixel in image.0.iter() {
             assert_eq!(*pixel, 0);
@@ -291,7 +293,7 @@ mod test {
 
     #[test]
     fn test_set_get_pixel() {
-        let mut image = IndexedImage::new();
+        let mut image: IndexedImage = Default::default();
 
         assert_eq!(image.get_pixel(10, 27), Ok(0x0));
 
