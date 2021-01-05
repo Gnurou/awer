@@ -75,6 +75,8 @@ impl SDL2GLRenderer {
         let mut vao = 0;
         let mut vbo = 0;
         unsafe {
+            gl::Disable(gl::DEPTH_TEST);
+
             gl::GenVertexArrays(1, &mut vao);
             gl::GenBuffers(1, &mut vbo);
         }
