@@ -85,8 +85,6 @@ impl SDL2GLRenderer {
             );
 
             gl::UseProgram(program);
-            let color_str = CString::new("color").unwrap();
-            gl::BindFragDataLocation(program, 0, color_str.as_ptr());
 
             // position attribute
             gl::EnableVertexAttribArray(0);
@@ -283,7 +281,7 @@ in vec2 scene_pos;
 uniform uint scene[320 * 200 / 4];
 uniform uint palette[16];
 
-out vec4 color;
+layout (location = 0) out vec4 color;
 
 void main() {
     int x = int(floor(scene_pos.x));
