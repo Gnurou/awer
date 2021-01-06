@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::{any::Any, convert::TryFrom};
 
 use sdl2::{
     pixels::PixelFormat,
@@ -158,5 +158,13 @@ impl gfx::Backend for SDL2RasterRenderer {
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
         self.raster.blit_buffer(dst_page_id, buffer)
+    }
+
+    fn get_snapshot(&self) -> Box<dyn Any> {
+        self.raster.get_snapshot()
+    }
+
+    fn set_snapshot(&mut self, snapshot: Box<dyn Any>) {
+        self.raster.set_snapshot(snapshot)
     }
 }
