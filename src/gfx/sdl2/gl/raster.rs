@@ -21,6 +21,16 @@ pub struct SDL2GLRasterRenderer {
     current_framebuffer: IndexedImage,
 }
 
+impl Drop for SDL2GLRasterRenderer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteBuffers(1, &self.vbo);
+            gl::DeleteVertexArrays(1, &self.vao);
+            gl::DeleteProgram(self.program);
+        }
+    }
+}
+
 impl SDL2GLRasterRenderer {
     pub fn new() -> Result<SDL2GLRasterRenderer> {
         let vertex_shader = compile_shader(VERTEX_SHADER, gl::VERTEX_SHADER);
@@ -33,24 +43,10 @@ impl SDL2GLRasterRenderer {
         unsafe {
             gl::GenVertexArrays(1, &mut vao);
             gl::GenBuffers(1, &mut vbo);
-        }
-
-        Ok(SDL2GLRasterRenderer {
-            vao,
-            vbo,
-            program,
-            raster: RasterBackend::new(),
-            current_framebuffer: Default::default(),
-        })
-    }
-
-    pub fn blit(&mut self, palette: &Palette) {
-        unsafe {
-            gl::UseProgram(self.program);
 
             // Vertices
-            gl::BindVertexArray(self.vao);
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
+            gl::BindVertexArray(vao);
+            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
             gl::BufferData(
                 gl::ARRAY_BUFFER,
                 (VERTICES.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
@@ -79,8 +75,22 @@ impl SDL2GLRasterRenderer {
                 VERTICES_STRIDE,
                 (2 * mem::size_of::<GLfloat>()) as *const _,
             );
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
             gl::BindVertexArray(0);
+            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+        }
+
+        Ok(SDL2GLRasterRenderer {
+            vao,
+            vbo,
+            program,
+            raster: RasterBackend::new(),
+            current_framebuffer: Default::default(),
+        })
+    }
+
+    pub fn blit(&mut self, palette: &Palette) {
+        unsafe {
+            gl::UseProgram(self.program);
 
             let scene_uniform = get_uniform_location(self.program, "scene");
             let palette_uniform = get_uniform_location(self.program, "palette");

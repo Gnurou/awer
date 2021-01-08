@@ -220,6 +220,9 @@ fn link_program(vertex_shader: GLuint, fragment_shader: GLuint) -> GLuint {
             panic!("{}", error_string.trim());
         }
 
+        gl::DeleteShader(fragment_shader);
+        gl::DeleteShader(vertex_shader);
+
         program
     }
 }
