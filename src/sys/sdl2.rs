@@ -5,7 +5,11 @@ use sdl2::{event::Event, keyboard::Keycode, rect::Rect, Sdl};
 use crate::{
     gfx::{
         self,
-        sdl2::{gl::SDL2GLRenderer, raster::SDL2RasterRenderer, SDL2Renderer},
+        sdl2::{
+            gl::{RenderingMode, SDL2GLRenderer},
+            raster::SDL2RasterRenderer,
+            SDL2Renderer,
+        },
     },
     input::{ButtonState, InputState, LeftRightDir, UpDownDir},
     vm::{VMSnapshot, VM},
@@ -36,7 +40,9 @@ pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
 
     let renderer: Box<dyn SDL2Renderer> = match matches.value_of("render").unwrap_or("raster") {
         "raster" => Box::new(SDL2RasterRenderer::new(&sdl_context).ok()?),
-        "raster-gl" => Box::new(SDL2GLRenderer::new(&sdl_context).ok()?),
+        "gl_raster" => Box::new(SDL2GLRenderer::new(&sdl_context, RenderingMode::Raster).ok()?),
+        "gl_poly" => Box::new(SDL2GLRenderer::new(&sdl_context, RenderingMode::Poly).ok()?),
+        "gl_line" => Box::new(SDL2GLRenderer::new(&sdl_context, RenderingMode::Line).ok()?),
         _ => return None,
     };
 

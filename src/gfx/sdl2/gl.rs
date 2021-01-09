@@ -1,3 +1,4 @@
+mod poly;
 mod raster;
 
 use gfx::raster::IndexedImage;
@@ -12,9 +13,15 @@ use anyhow::{anyhow, Result};
 use gl::types::*;
 use std::{ffi::CString, mem};
 
-use crate::gfx::{self, Palette};
+use crate::gfx::{self, polygon::Polygon, Palette};
 
 use super::{SDL2Renderer, WINDOW_RESOLUTION};
+
+pub enum RenderingMode {
+    Raster,
+    Poly,
+    Line,
+}
 
 /// A GL-based renderer for SDL. Contrary to what the name implies, it still
 /// renders using rasterization into a 320x200 texture that is scaled. Howver,
@@ -28,16 +35,18 @@ use super::{SDL2Renderer, WINDOW_RESOLUTION};
 /// In the future it should also be able to render a DrawList into polygons at
 /// any resolution - ideally we would be able to switch modes on the fly...
 pub struct SDL2GLRenderer {
+    rendering_mode: RenderingMode,
     window: Window,
     _opengl_context: GLContext,
 
     current_palette: Palette,
 
     raster_renderer: raster::SDL2GLRasterRenderer,
+    poly_renderer: poly::SDL2GLPolyRenderer,
 }
 
 impl SDL2GLRenderer {
-    pub fn new(sdl_context: &Sdl) -> Result<Self> {
+    pub fn new(sdl_context: &Sdl, rendering_mode: RenderingMode) -> Result<Self> {
         let sdl_video = sdl_context.video().map_err(|s| anyhow!(s))?;
 
         let gl_attr = sdl_video.gl_attr();
@@ -67,16 +76,20 @@ impl SDL2GLRenderer {
         }
 
         unsafe {
+            gl::LineWidth(5.0);
+
             gl::Disable(gl::DEPTH_TEST);
         }
 
         Ok(SDL2GLRenderer {
+            rendering_mode,
             window,
             _opengl_context: opengl_context,
 
             current_palette: Default::default(),
 
             raster_renderer: raster::SDL2GLRasterRenderer::new()?,
+            poly_renderer: poly::SDL2GLPolyRenderer::new()?,
         })
     }
 }
@@ -95,7 +108,11 @@ impl SDL2Renderer for SDL2GLRenderer {
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
 
-        self.raster_renderer.blit(&self.current_palette);
+        match self.rendering_mode {
+            RenderingMode::Raster => self.raster_renderer.blit(&self.current_palette),
+            RenderingMode::Poly => self.poly_renderer.blit(&self.current_palette, poly::RenderingMode::Poly),
+            RenderingMode::Line => self.poly_renderer.blit(&self.current_palette, poly::RenderingMode::Line),
+        };
     }
 
     fn present(&mut self) {
@@ -124,14 +141,18 @@ impl gfx::Backend for SDL2GLRenderer {
         };
 
         self.raster_renderer.set_palette(palette);
+        self.poly_renderer.set_palette(palette);
     }
 
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         self.raster_renderer.fillvideopage(page_id, color_idx);
+        self.poly_renderer.fillvideopage(page_id, color_idx);
     }
 
     fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16) {
         self.raster_renderer
+            .copyvideopage(src_page_id, dst_page_id, vscroll);
+        self.poly_renderer
             .copyvideopage(src_page_id, dst_page_id, vscroll);
     }
 
@@ -141,14 +162,17 @@ impl gfx::Backend for SDL2GLRenderer {
         x: i16,
         y: i16,
         color_idx: u8,
-        polygon: &gfx::polygon::Polygon,
+        polygon: &Polygon,
     ) {
         self.raster_renderer
+            .fillpolygon(dst_page_id, x, y, color_idx, polygon);
+        self.poly_renderer
             .fillpolygon(dst_page_id, x, y, color_idx, polygon);
     }
 
     fn blitframebuffer(&mut self, page_id: usize) {
         self.raster_renderer.blitframebuffer(page_id);
+        self.poly_renderer.blitframebuffer(page_id);
     }
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {

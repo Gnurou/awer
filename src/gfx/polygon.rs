@@ -21,6 +21,7 @@ use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Add, Div, Mul, Sub};
 use std::slice::Iter;
 
+#[derive(Clone)]
 pub struct Polygon {
     pub bbw: u16,
     pub bbh: u16,
