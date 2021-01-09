@@ -86,11 +86,11 @@ impl SDL2GLPolyRenderer {
                 gl::TexImage2D(
                     gl::TEXTURE_2D,
                     0,
-                    gl::RGB as i32,
+                    gl::RED as i32,
                     1280,
                     960,
                     0,
-                    gl::RGB,
+                    gl::RED,
                     gl::UNSIGNED_BYTE,
                     std::ptr::null(),
                 );
@@ -294,9 +294,10 @@ uniform uvec2 bb;
 uniform uint color_idx;
 uniform uint palette[16];
 
-out vec3 vertex_color;
+//out vec3 vertex_color;
 
 void main() {
+    /*
     if (color_idx >= 0x10u) {
         vertex_color = vec3(0.5);
     } else {
@@ -306,6 +307,7 @@ void main() {
         uint b = (palette_color >> 16u) % 256u;
         vertex_color = vec3(r / 255.0, g / 255.0, b / 255.0);
     }
+    */
 
     vec2 offset = bb / 2.0;
     vec2 fpos = pos + vertex - offset;
@@ -320,11 +322,13 @@ void main() {
 static FRAGMENT_SHADER: &str = r#"
 #version 330 core
 
-in vec3 vertex_color;
+//in vec3 vertex_color;
 
-layout (location = 0) out vec4 color;
+uniform uint color_idx;
+
+layout (location = 0) out float color;
 
 void main() {
-    color = vec4(vertex_color, 1.0);
+    color = (color_idx & 0x1fu) / 17.0;
 }
 "#;
