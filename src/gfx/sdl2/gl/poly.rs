@@ -2,9 +2,10 @@ use std::{iter::once, mem};
 
 use gfx::SCREEN_RESOLUTION;
 use gl::types::*;
+use sdl2::rect::Rect;
 
 use crate::gfx::{self, gl::*, polygon::Polygon, Palette, Point};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 #[derive(Clone, Copy)]
 pub enum RenderingMode {
@@ -24,11 +25,19 @@ pub struct SDL2GLPolyRenderer {
 
     candidate_palette: Palette,
     current_palette: Palette,
+
+    fbo: GLuint,
+    render_textures: [GLuint; 4],
 }
 
 impl Drop for SDL2GLPolyRenderer {
     fn drop(&mut self) {
         unsafe {
+            gl::DeleteTextures(
+                self.render_textures.len() as GLint,
+                self.render_textures.as_ptr(),
+            );
+            gl::DeleteFramebuffers(1, &self.fbo);
             gl::DeleteBuffers(1, &self.vbo);
             gl::DeleteVertexArrays(1, &self.vao);
             gl::DeleteProgram(self.program);
@@ -44,6 +53,8 @@ impl SDL2GLPolyRenderer {
 
         let mut vao = 0;
         let mut vbo = 0;
+        let mut fbo = 0;
+        let mut render_textures = [0; 4];
         unsafe {
             gl::GenVertexArrays(1, &mut vao);
             gl::GenBuffers(1, &mut vbo);
@@ -67,8 +78,44 @@ impl SDL2GLPolyRenderer {
                 (mem::size_of::<u16>() * 2) as GLsizei,
                 std::ptr::null(),
             );
+
+            // render texture
+            gl::GenTextures(render_textures.len() as GLint, render_textures.as_mut_ptr());
+            for texture in render_textures.iter() {
+                gl::BindTexture(gl::TEXTURE_2D, *texture);
+                gl::TexImage2D(
+                    gl::TEXTURE_2D,
+                    0,
+                    gl::RGB as i32,
+                    1280,
+                    960,
+                    0,
+                    gl::RGB,
+                    gl::UNSIGNED_BYTE,
+                    std::ptr::null(),
+                );
+                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            }
+
+            // framebuffer object
+            gl::GenFramebuffers(1, &mut fbo);
+            gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
+            gl::FramebufferTexture(
+                gl::FRAMEBUFFER,
+                gl::COLOR_ATTACHMENT0,
+                render_textures[0],
+                0,
+            );
+            gl::DrawBuffers(1, [gl::COLOR_ATTACHMENT0].as_ptr());
+            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+
             gl::BindVertexArray(0);
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+
+            if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
+                return Err(anyhow!("Error while creating framebuffer"));
+            }
         }
 
         Ok(SDL2GLPolyRenderer {
@@ -82,10 +129,13 @@ impl SDL2GLPolyRenderer {
             framebuffer_index: 0,
             candidate_palette: Default::default(),
             current_palette: Default::default(),
+
+            fbo,
+            render_textures,
         })
     }
 
-    pub fn blit(&mut self) {
+    pub fn blit(&mut self, dst: &Rect) {
         let polys = &self.polys[self.framebuffer_index];
 
         for poly in polys {
@@ -117,6 +167,8 @@ impl SDL2GLPolyRenderer {
             };
 
             unsafe {
+                gl::Viewport(0, 0, 1280, 960);
+
                 // Vertices
                 gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
                 gl::BufferSubData(
@@ -146,6 +198,7 @@ impl SDL2GLPolyRenderer {
                 );
 
                 gl::BindVertexArray(self.vao);
+                gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, self.fbo);
                 gl::DrawElements(
                     draw_type,
                     indices.len() as GLint,
@@ -154,6 +207,23 @@ impl SDL2GLPolyRenderer {
                 );
                 gl::BindVertexArray(0);
             }
+        }
+
+        unsafe {
+            gl::BindFramebuffer(gl::READ_FRAMEBUFFER, self.fbo);
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
+            gl::BlitFramebuffer(
+                0,
+                0,
+                1280,
+                960,
+                dst.x(),
+                dst.y(),
+                dst.x() + dst.width() as i32,
+                dst.y() + dst.height() as i32,
+                gl::COLOR_BUFFER_BIT,
+                gl::LINEAR,
+            );
         }
     }
 }
