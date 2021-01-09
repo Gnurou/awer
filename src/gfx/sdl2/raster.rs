@@ -35,7 +35,7 @@ pub struct SDL2RasterRenderer {
 impl SDL2RasterRenderer {
     /// Create a new raster renderer, using the given SDL context. This takes
     /// care of creating the window, canvas, and everything we need to draw.
-    pub fn new(sdl_context: &Sdl) -> Result<Self> {
+    pub fn new(sdl_context: &Sdl) -> Result<Box<Self>> {
         let sdl_video = sdl_context.video().map_err(|s| anyhow!(s))?;
 
         let window = sdl_video
@@ -56,14 +56,14 @@ impl SDL2RasterRenderer {
             gfx::SCREEN_RESOLUTION[1] as u32,
         )?;
 
-        Ok(SDL2RasterRenderer {
+        Ok(Box::new(SDL2RasterRenderer {
             canvas,
             _texture_creator: texture_creator,
             texture,
             pixel_format,
             bytes_per_pixel,
             raster: RasterBackend::new(),
-        })
+        }))
     }
 }
 

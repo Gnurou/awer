@@ -1,5 +1,6 @@
 use std::{iter::once, mem};
 
+use gfx::SCREEN_RESOLUTION;
 use gl::types::*;
 
 use crate::gfx::{self, polygon::Polygon, Palette, Point};
@@ -85,7 +86,15 @@ impl SDL2GLPolyRenderer {
             } else {
                 match rendering_mode {
                     RenderingMode::Poly => gl::TRIANGLE_STRIP,
-                    RenderingMode::Line => gl::LINE_LOOP,
+                    RenderingMode::Line => {
+                        if poly.0.bbw == SCREEN_RESOLUTION[0] as u16
+                            && poly.0.bbh == SCREEN_RESOLUTION[1] as u16
+                        {
+                            gl::TRIANGLE_STRIP
+                        } else {
+                            gl::LINE_LOOP
+                        }
+                    }
                 }
             };
 

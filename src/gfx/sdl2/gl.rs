@@ -46,7 +46,7 @@ pub struct SDL2GLRenderer {
 }
 
 impl SDL2GLRenderer {
-    pub fn new(sdl_context: &Sdl, rendering_mode: RenderingMode) -> Result<Self> {
+    pub fn new(sdl_context: &Sdl, rendering_mode: RenderingMode) -> Result<Box<Self>> {
         let sdl_video = sdl_context.video().map_err(|s| anyhow!(s))?;
 
         let gl_attr = sdl_video.gl_attr();
@@ -81,7 +81,7 @@ impl SDL2GLRenderer {
             gl::Disable(gl::DEPTH_TEST);
         }
 
-        Ok(SDL2GLRenderer {
+        Ok(Box::new(SDL2GLRenderer {
             rendering_mode,
             window,
             _opengl_context: opengl_context,
@@ -90,7 +90,7 @@ impl SDL2GLRenderer {
 
             raster_renderer: raster::SDL2GLRasterRenderer::new()?,
             poly_renderer: poly::SDL2GLPolyRenderer::new()?,
-        })
+        }))
     }
 }
 
@@ -110,8 +110,12 @@ impl SDL2Renderer for SDL2GLRenderer {
 
         match self.rendering_mode {
             RenderingMode::Raster => self.raster_renderer.blit(&self.current_palette),
-            RenderingMode::Poly => self.poly_renderer.blit(&self.current_palette, poly::RenderingMode::Poly),
-            RenderingMode::Line => self.poly_renderer.blit(&self.current_palette, poly::RenderingMode::Line),
+            RenderingMode::Poly => self
+                .poly_renderer
+                .blit(&self.current_palette, poly::RenderingMode::Poly),
+            RenderingMode::Line => self
+                .poly_renderer
+                .blit(&self.current_palette, poly::RenderingMode::Line),
         };
     }
 
