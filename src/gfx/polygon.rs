@@ -43,6 +43,7 @@ impl Polygon {
         }
     }
 
+    #[allow(dead_code)]
     pub fn line_iter<T>(&self) -> PolygonIter<T>
     where
         Point<T>: From<Point<u16>>,

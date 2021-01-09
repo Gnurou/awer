@@ -26,14 +26,7 @@ fn main() {
             Arg::with_name("render")
                 .short("r")
                 .long("render")
-                .help("How to render the game (raster, raster-gl, line, poly)")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("sys")
-                .short("s")
-                .long("sys")
-                .help("Which library to use (sdl2, piston)")
+                .help("How to render the game (raster, gl_raster, gl_poly, gl_line)")
                 .takes_value(true),
         )
         .arg(
@@ -59,13 +52,7 @@ fn main() {
         return;
     }
 
-    let mut sys: Box<dyn Sys> = match matches.value_of("sys").unwrap_or("piston") {
-        #[cfg(feature = "sdl2-sys")]
-        "sdl2" => sys::sdl2::new(&matches).unwrap(),
-        #[cfg(feature = "piston-sys")]
-        "piston" => sys::piston::new(&matches).unwrap(),
-        name => panic!("Invalid sys name {}!", name),
-    };
+    let mut sys: Box<dyn Sys> = sys::sdl2::new(&matches).unwrap();
 
     let mut vm = Box::new(vm::VM::new().unwrap());
     vm.init(&scenes::SCENES[start_scene]);

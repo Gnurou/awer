@@ -1,9 +1,5 @@
-pub mod draw_list;
 pub mod polygon;
 pub mod raster;
-
-#[cfg(feature = "piston-sys")]
-pub mod piston;
 
 #[cfg(feature = "sdl2-sys")]
 pub mod sdl2;
@@ -11,13 +7,9 @@ pub mod sdl2;
 use log::debug;
 use polygon::Polygon;
 use std::any::Any;
-use std::cmp::max;
 use std::fmt::{Debug, Display, Formatter, Result};
 
 pub const SCREEN_RESOLUTION: [usize; 2] = [320, 200];
-
-// A 4:3 screen ratio should reproduce the 1991 experience.
-const SCREEN_RATIO: f64 = 4.0 / 3.0;
 
 pub trait GfxSnapshot: Any {}
 
@@ -105,33 +97,6 @@ pub struct Color {
     pub r: u8,
     pub g: u8,
     pub b: u8,
-}
-
-impl Color {
-    fn blend(c1: &Color, c2: &Color) -> Color {
-        Color {
-            r: max(c2.r as i16 - c1.r as i16, 0) as u8,
-            g: max(c2.g as i16 - c1.g as i16, 0) as u8,
-            b: max(c2.b as i16 - c1.b as i16, 0) as u8,
-        }
-    }
-
-    fn mix(c1: &Color, c2: &Color) -> Color {
-        Color {
-            r: ((c1.r as u16 + c2.r as u16) / 2) as u8,
-            g: ((c1.g as u16 + c2.g as u16) / 2) as u8,
-            b: ((c1.b as u16 + c2.b as u16) / 2) as u8,
-        }
-    }
-
-    fn normalize(&self, alpha: f32) -> [f32; 4] {
-        [
-            self.r as f32 / 255.0,
-            self.g as f32 / 255.0,
-            self.b as f32 / 255.0,
-            alpha,
-        ]
-    }
 }
 
 pub const PALETTE_SIZE: usize = 16;
