@@ -18,7 +18,7 @@ Contrary to Fabien's work, which apparently aimed at staying as close as possibl
 
 Not that the code is by any means clean or documented at the moment, it's complete Rust n00b rubbish. I do hope to improve that however.
 
-[Piston](https://www.piston.rs/) is used for all input and output.
+[SDL2](https://www.libsdl.org/) is used for all input and output.
 
 What is working:
 
@@ -47,19 +47,21 @@ Options:
 
 This will start the game at scene `x`. Mostly useful to skip the password protection screen (use `--scene=1`). Note that some scenes depend on the state left by the previous one, so expect crashes if you use this.
 
-`--render=(raster | poly | line)`
+`--render=(raster | gl_raster | gl_poly | gl_line)`
 
 Choose the rendering method.
 
-`raster` is a pure software rendering mode at original 320x200 resolution and aims at showing the game the way ~~God~~ Eric Chahi intended.
+`raster` is a pure software rendering mode at original 320x200 resolution and aims at showing the game the way ~~God~~ Eric Chahi intended. The final 320x200 image is scaled using SDL2, which will use whatever hardware acceleration is supported by this step only.
 
 <p align="center"><img src="/screenshots/raster.png?raw=true" width="75%"></p>
 
-`poly` creates quads from the polygons and renders them using OpenGL. This makes rendering fast and smooth at higher resolutions. However, since that's clearly not how the game was designed to be rendered, artefacts in the form of gaps and misshaped objects are to be expected. Also, transparency cannot be rendered faithfully in this mode.
+`gl_raster` is similar to `raster`, but uses a GL shader to convert and scale the game screen to our modern displays. It is more efficient than `raster`, but introduces a dependency to GL.
+
+`gl_poly` creates triangles from the polygons and renders them using OpenGL. This makes rendering fast and smooth at higher resolutions. However, since that's clearly not how the game was designed to be rendered, artefacts in the form of gaps and misshaped objects are to be expected. Also, transparency cannot be rendered faithfully in this mode.
 
 <p align="center"><img src="/screenshots/poly.png?raw=true" width="75%"></p>
 
-`line` is also a mode that uses OpenGL, but renders the polygons' outlines only. Useful to study how they are designed, not so much for enjoying the game.
+`gl_line` is also a mode that uses OpenGL, but renders the polygons' outlines only. Useful to study how they are designed, not so much for enjoying the game.
 
 <p align="center"><img src="/screenshots/line.png?raw=true" width="75%"></p>
 
