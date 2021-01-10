@@ -77,6 +77,7 @@ impl SDL2GLRenderer {
             gl::LineWidth(5.0);
 
             gl::Disable(gl::DEPTH_TEST);
+            gl::Disable(gl::STENCIL_TEST);
         }
 
         Ok(Box::new(SDL2GLRenderer {
