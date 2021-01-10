@@ -1,7 +1,6 @@
 mod poly;
 mod raster;
 
-use gfx::raster::IndexedImage;
 use sdl2::{
     rect::Rect,
     video::{GLContext, GLProfile, Window},
@@ -11,9 +10,9 @@ use sdl2::{
 use anyhow::{anyhow, Result};
 
 use gl::types::*;
-use std::{ffi::CString, mem};
+use std::ffi::CString;
 
-use crate::gfx::{self, polygon::Polygon, Palette};
+use crate::gfx::{self, polygon::Polygon};
 
 use super::{SDL2Renderer, WINDOW_RESOLUTION};
 
@@ -61,17 +60,6 @@ impl SDL2GLRenderer {
 
         let opengl_context = window.gl_create_context().map_err(|s| anyhow!(s))?;
         gl::load_with(|s| sdl_video.gl_get_proc_address(s) as _);
-
-        // Check that the GPU supports enough uniform space
-        unsafe {
-            let mut max_uniform_size = 0;
-            const REQUIRED_UNIFORM_SIZE: usize =
-                mem::size_of::<IndexedImage>() + mem::size_of::<Palette>();
-            gl::GetIntegerv(gl::MAX_UNIFORM_BLOCK_SIZE, &mut max_uniform_size);
-            if max_uniform_size < REQUIRED_UNIFORM_SIZE as i32 {
-                return Err(anyhow!("Cannot create SDL2 GL renderer: GPU provides {} bytes of uniform space, but we need {}.", max_uniform_size, REQUIRED_UNIFORM_SIZE));
-            }
-        }
 
         unsafe {
             gl::LineWidth(5.0);
