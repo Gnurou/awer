@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::gfx::{
     self,
-    gl::*,
+    gl::indexed_frame_renderer::*,
     raster::{IndexedImage, RasterBackend},
     Palette,
 };
@@ -10,7 +10,7 @@ use crate::gfx::{
 pub struct SDL2GLRasterRenderer {
     raster: RasterBackend,
     current_framebuffer: IndexedImage,
-    framebuffer_renderer: IndexedImageRenderer,
+    framebuffer_renderer: IndexedFrameRenderer,
     current_palette: Palette,
 }
 
@@ -19,7 +19,7 @@ impl SDL2GLRasterRenderer {
         Ok(SDL2GLRasterRenderer {
             raster: RasterBackend::new(),
             current_framebuffer: Default::default(),
-            framebuffer_renderer: IndexedImageRenderer::new()?,
+            framebuffer_renderer: IndexedFrameRenderer::new()?,
             current_palette: Default::default(),
         })
     }
