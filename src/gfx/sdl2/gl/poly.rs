@@ -3,10 +3,8 @@ use std::{iter::once, mem};
 use gfx::SCREEN_RESOLUTION;
 use gl::types::*;
 
-use crate::gfx::{self, polygon::Polygon, Palette, Point};
+use crate::gfx::{self, gl::*, polygon::Polygon, Palette, Point};
 use anyhow::Result;
-
-use super::{compile_shader, get_uniform_location, link_program};
 
 pub enum RenderingMode {
     Poly,
