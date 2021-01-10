@@ -195,7 +195,7 @@ impl Sys for SDL2Sys {
                 sdl2::rect::Rect::new((viewport.width() - w) as i32 / 2, 0, w, h)
             };
 
-            self.renderer.blit_game(viewport_dst);
+            self.renderer.blit_game(&viewport_dst);
             self.renderer.present();
         }
     }

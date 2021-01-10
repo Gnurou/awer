@@ -68,13 +68,13 @@ impl SDL2RasterRenderer {
 }
 
 impl SDL2Renderer for SDL2RasterRenderer {
-    fn blit_game(&mut self, dst: Rect) {
+    fn blit_game(&mut self, dst: &Rect) {
         // Clear screen
         self.canvas
             .set_draw_color(sdl2::pixels::Color::RGB(0, 0, 0));
         self.canvas.clear();
         // Blit the game screen into the window viewport
-        self.canvas.copy(&self.texture, None, Some(dst)).unwrap();
+        self.canvas.copy(&self.texture, None, Some(*dst)).unwrap();
     }
 
     fn present(&mut self) {

@@ -91,7 +91,7 @@ impl SDL2GLRenderer {
 }
 
 impl SDL2Renderer for SDL2GLRenderer {
-    fn blit_game(&mut self, dst: Rect) {
+    fn blit_game(&mut self, dst: &Rect) {
         unsafe {
             gl::Viewport(
                 dst.x(),
