@@ -82,9 +82,9 @@ impl SDL2GLRasterRenderer {
 
             // game scene texture
             gl::GenTextures(1, &mut texture);
-            gl::BindTexture(gl::TEXTURE_RECTANGLE, texture);
+            gl::BindTexture(gl::TEXTURE_2D, texture);
             gl::TexImage2D(
-                gl::TEXTURE_RECTANGLE,
+                gl::TEXTURE_2D,
                 0,
                 gl::RED as i32,
                 gfx::SCREEN_RESOLUTION[0] as GLint,
@@ -94,17 +94,9 @@ impl SDL2GLRasterRenderer {
                 gl::UNSIGNED_BYTE,
                 std::ptr::null(),
             );
-            gl::TexParameteri(
-                gl::TEXTURE_RECTANGLE,
-                gl::TEXTURE_MAG_FILTER,
-                gl::NEAREST as i32,
-            );
-            gl::TexParameteri(
-                gl::TEXTURE_RECTANGLE,
-                gl::TEXTURE_MIN_FILTER,
-                gl::NEAREST as i32,
-            );
-            gl::BindTexture(gl::TEXTURE_RECTANGLE, 0);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::BindTexture(gl::TEXTURE_2D, 0);
 
             gl::BindVertexArray(0);
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
@@ -126,9 +118,9 @@ impl SDL2GLRasterRenderer {
             gl::UseProgram(self.program);
 
             gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_RECTANGLE, self.texture);
+            gl::BindTexture(gl::TEXTURE_2D, self.texture);
             gl::TexSubImage2D(
-                gl::TEXTURE_RECTANGLE,
+                gl::TEXTURE_2D,
                 0,
                 0,
                 0,
@@ -157,7 +149,7 @@ impl SDL2GLRasterRenderer {
                 INDICES.as_ptr() as *const _,
             );
             gl::BindVertexArray(0);
-            gl::BindTexture(gl::TEXTURE_RECTANGLE, 0);
+            gl::BindTexture(gl::TEXTURE_2D, 0);
         }
     }
 }
@@ -204,10 +196,10 @@ impl gfx::Backend for SDL2GLRasterRenderer {
 const VERTICES_STRIDE: GLsizei = 4 * mem::size_of::<GLfloat>() as GLsizei;
 // Vertices and their coordinate in the scene
 static VERTICES: [GLfloat; 16] = [
-    -1.0, -1.0, 0.0, 200.0, // Bottom left
+    -1.0, -1.0, 0.0, 1.0, // Bottom left
     -1.0, 1.0, 0.0, 0.0, // Top left
-    1.0, 1.0, 320.0, 0.0, // Top right
-    1.0, -1.0, 320.0, 200.0, // Bottom right
+    1.0, 1.0, 1.0, 0.0, // Top right
+    1.0, -1.0, 1.0, 1.0, // Bottom right
 ];
 static INDICES: [GLubyte; 6] = [0, 1, 2, 0, 2, 3];
 
@@ -230,7 +222,7 @@ static FRAGMENT_SHADER: &str = r#"
 
 in vec2 scene_pos;
 
-uniform sampler2DRect game_scene;
+uniform sampler2D game_scene;
 uniform uint palette[16];
 
 layout (location = 0) out vec4 color;
