@@ -20,6 +20,9 @@ pub struct SDL2GLPolyRenderer {
     program: GLuint,
     polys: [Vec<(Polygon, i16, i16, u8)>; 4],
     framebuffer_index: usize,
+
+    candidate_palette: Palette,
+    current_palette: Palette,
 }
 
 impl Drop for SDL2GLPolyRenderer {
@@ -74,10 +77,12 @@ impl SDL2GLPolyRenderer {
 
             polys: Default::default(),
             framebuffer_index: 0,
+            candidate_palette: Default::default(),
+            current_palette: Default::default(),
         })
     }
 
-    pub fn blit(&mut self, palette: &Palette, rendering_mode: RenderingMode) {
+    pub fn blit(&mut self, rendering_mode: RenderingMode) {
         let polys = &self.polys[self.framebuffer_index];
 
         for poly in polys {
@@ -134,7 +139,7 @@ impl SDL2GLPolyRenderer {
                 gl::Uniform1uiv(
                     uniform,
                     gfx::PALETTE_SIZE as GLint,
-                    palette.as_ptr() as *const u32,
+                    self.current_palette.as_ptr() as *const u32,
                 );
 
                 gl::BindVertexArray(self.vao);
@@ -151,7 +156,13 @@ impl SDL2GLPolyRenderer {
 }
 
 impl gfx::Backend for SDL2GLPolyRenderer {
-    fn set_palette(&mut self, _palette: &[u8; 32]) {}
+    fn set_palette(&mut self, palette: &[u8; 32]) {
+        self.candidate_palette = {
+            let mut p: Palette = Default::default();
+            p.set(palette);
+            p
+        }
+    }
 
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         let polys = &mut self.polys[page_id];
@@ -194,6 +205,7 @@ impl gfx::Backend for SDL2GLPolyRenderer {
 
     fn blitframebuffer(&mut self, page_id: usize) {
         self.framebuffer_index = page_id;
+        self.current_palette = self.candidate_palette.clone();
     }
 
     fn blit_buffer(&mut self, _dst_page_id: usize, _buffer: &[u8]) {}

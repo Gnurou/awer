@@ -19,6 +19,7 @@ pub struct SDL2GLRasterRenderer {
 
     raster: RasterBackend,
     current_framebuffer: IndexedImage,
+    current_palette: Palette,
 }
 
 impl Drop for SDL2GLRasterRenderer {
@@ -85,10 +86,11 @@ impl SDL2GLRasterRenderer {
             program,
             raster: RasterBackend::new(),
             current_framebuffer: Default::default(),
+            current_palette: Default::default(),
         })
     }
 
-    pub fn blit(&mut self, palette: &Palette) {
+    pub fn blit(&mut self) {
         unsafe {
             gl::UseProgram(self.program);
 
@@ -103,7 +105,7 @@ impl SDL2GLRasterRenderer {
             gl::Uniform1uiv(
                 palette_uniform,
                 gfx::PALETTE_SIZE as GLint,
-                palette.as_ptr() as *const u32,
+                self.current_palette.as_ptr() as *const u32,
             );
 
             gl::BindVertexArray(self.vao);
@@ -149,6 +151,7 @@ impl gfx::Backend for SDL2GLRasterRenderer {
         // Copy the palette and rendered image that we will pass as uniforms
         // to our shader.
         self.current_framebuffer = self.raster.get_framebuffer().clone();
+        self.current_palette = self.raster.get_palette().clone();
     }
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {

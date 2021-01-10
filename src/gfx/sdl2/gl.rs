@@ -39,8 +39,6 @@ pub struct SDL2GLRenderer {
     window: Window,
     _opengl_context: GLContext,
 
-    current_palette: Palette,
-
     raster_renderer: raster::SDL2GLRasterRenderer,
     poly_renderer: poly::SDL2GLPolyRenderer,
 }
@@ -86,8 +84,6 @@ impl SDL2GLRenderer {
             window,
             _opengl_context: opengl_context,
 
-            current_palette: Default::default(),
-
             raster_renderer: raster::SDL2GLRasterRenderer::new()?,
             poly_renderer: poly::SDL2GLPolyRenderer::new()?,
         }))
@@ -109,13 +105,9 @@ impl SDL2Renderer for SDL2GLRenderer {
         }
 
         match self.rendering_mode {
-            RenderingMode::Raster => self.raster_renderer.blit(&self.current_palette),
-            RenderingMode::Poly => self
-                .poly_renderer
-                .blit(&self.current_palette, poly::RenderingMode::Poly),
-            RenderingMode::Line => self
-                .poly_renderer
-                .blit(&self.current_palette, poly::RenderingMode::Line),
+            RenderingMode::Raster => self.raster_renderer.blit(),
+            RenderingMode::Poly => self.poly_renderer.blit(poly::RenderingMode::Poly),
+            RenderingMode::Line => self.poly_renderer.blit(poly::RenderingMode::Line),
         };
     }
 
@@ -138,12 +130,6 @@ impl SDL2Renderer for SDL2GLRenderer {
 
 impl gfx::Backend for SDL2GLRenderer {
     fn set_palette(&mut self, palette: &[u8; 32]) {
-        self.current_palette = {
-            let mut p: Palette = Default::default();
-            p.set(palette);
-            p
-        };
-
         self.raster_renderer.set_palette(palette);
         self.poly_renderer.set_palette(palette);
     }
