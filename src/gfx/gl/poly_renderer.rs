@@ -1,4 +1,4 @@
-use std::iter::once;
+use std::{cell::RefCell, iter::once};
 
 use crate::gfx::{polygon::Polygon, Point, SCREEN_RESOLUTION};
 
@@ -26,13 +26,34 @@ impl PolyDrawCommand {
     }
 }
 
+#[derive(Clone)]
+pub struct BlitBufferCommand {
+    image: Box<IndexedImage>,
+}
+
+impl From<IndexedImage> for BlitBufferCommand {
+    fn from(image: IndexedImage) -> Self {
+        Self {
+            image: Box::new(image),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum DrawCommand {
+    Poly(PolyDrawCommand),
+    BlitBuffer(BlitBufferCommand),
+}
+
 /// Allows to render a list of game polys into an 8-bpp OpenGL framebuffer at
 /// any resolution, using the GPU. The rendering is still using indexed colors
 /// and must be converted to true colors using an `IndexedFrameRenderer`.
 pub struct PolyRenderer {
     vao: GLuint,
     vbo: GLuint,
-    fbo: GLuint,
+    target_fbo: GLuint,
+    source_fbo: GLuint,
+    source_texture: RefCell<IndexedTexture>,
     program: GLuint,
 
     pos_uniform: GLint,
@@ -45,7 +66,8 @@ pub struct PolyRenderer {
 impl Drop for PolyRenderer {
     fn drop(&mut self) {
         unsafe {
-            gl::DeleteFramebuffers(1, &self.fbo);
+            gl::DeleteFramebuffers(1, &self.source_fbo);
+            gl::DeleteFramebuffers(1, &self.target_fbo);
             gl::DeleteBuffers(1, &self.vbo);
             gl::DeleteVertexArrays(1, &self.vao);
             gl::DeleteProgram(self.program);
@@ -61,15 +83,21 @@ impl PolyRenderer {
 
         let mut vao = 0;
         let mut vbo = 0;
-        let mut fbo = 0;
+        let mut target_fbo = 0;
+        let mut source_fbo = 0;
         let pos_uniform;
         let bb_uniform;
         let color_uniform;
         let self_uniform;
         let buffer0_uniform;
         unsafe {
-            gl::GenFramebuffers(1, &mut fbo);
-            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, fbo);
+            gl::GenFramebuffers(1, &mut target_fbo);
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, target_fbo);
+            gl::DrawBuffers(1, [gl::COLOR_ATTACHMENT0].as_ptr());
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
+
+            gl::GenFramebuffers(1, &mut source_fbo);
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, source_fbo);
             gl::DrawBuffers(1, [gl::COLOR_ATTACHMENT0].as_ptr());
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
 
@@ -108,7 +136,12 @@ impl PolyRenderer {
         Ok(PolyRenderer {
             vao,
             vbo,
-            fbo,
+            target_fbo,
+            source_fbo,
+            source_texture: RefCell::new(IndexedTexture::new(
+                SCREEN_RESOLUTION[0],
+                SCREEN_RESOLUTION[1],
+            )),
             program,
             pos_uniform,
             bb_uniform,
@@ -179,26 +212,72 @@ impl PolyRenderer {
         }
     }
 
-    pub fn render_into<'a, C: IntoIterator<Item = &'a PolyDrawCommand>>(
+    fn draw_buffer(&self, command: &BlitBufferCommand, dimensions: (usize, usize)) {
+        // TODO super inefficient as we do this for every frame!
+        // The texture should rather be in the command, and be refcounted?
+        self.source_texture
+            .borrow_mut()
+            .set_data(&*command.image, 0, 0);
+
+        unsafe {
+            gl::BindFramebuffer(gl::READ_FRAMEBUFFER, self.source_fbo);
+            gl::FramebufferTexture(
+                gl::READ_FRAMEBUFFER,
+                gl::COLOR_ATTACHMENT0,
+                self.source_texture.borrow().as_tex_id(),
+                0,
+            );
+            if gl::CheckFramebufferStatus(gl::READ_FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
+                panic!("Error while setting framebuffer up");
+            }
+            gl::BlitFramebuffer(
+                0,
+                0,
+                SCREEN_RESOLUTION[0] as GLint,
+                SCREEN_RESOLUTION[1] as GLint,
+                0,
+                0,
+                dimensions.0 as GLint,
+                dimensions.1 as GLint,
+                gl::COLOR_BUFFER_BIT,
+                gl::NEAREST,
+            );
+            gl::BindFramebuffer(gl::READ_FRAMEBUFFER, 0);
+        }
+    }
+
+    fn draw(
+        &self,
+        command: &DrawCommand,
+        dimensions: (usize, usize),
+        rendering_mode: RenderingMode,
+    ) {
+        match command {
+            DrawCommand::Poly(poly) => self.draw_poly(&poly, rendering_mode),
+            DrawCommand::BlitBuffer(buffer) => self.draw_buffer(&buffer, dimensions),
+        }
+    }
+
+    pub fn render_into<'a, C: IntoIterator<Item = &'a DrawCommand>>(
         &self,
         draw_commands: C,
         target_texture: &IndexedTexture,
         buffer0: &IndexedTexture,
         rendering_mode: RenderingMode,
     ) {
+        let dimensions = target_texture.dimensions();
         unsafe {
-            let dimensions = target_texture.dimensions();
             gl::Viewport(0, 0, dimensions.0 as GLint, dimensions.1 as GLint);
 
             // Setup destination framebuffer
-            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, self.fbo);
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, self.target_fbo);
             gl::FramebufferTexture(
                 gl::DRAW_FRAMEBUFFER,
                 gl::COLOR_ATTACHMENT0,
                 target_texture.as_tex_id(),
                 0,
             );
-            if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
+            if gl::CheckFramebufferStatus(gl::DRAW_FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
                 panic!("Error while setting framebuffer up");
             }
 
@@ -222,7 +301,7 @@ impl PolyRenderer {
         }
 
         for command in draw_commands {
-            self.draw_poly(&command, rendering_mode);
+            self.draw(&command, dimensions, rendering_mode);
         }
 
         unsafe {

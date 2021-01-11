@@ -156,7 +156,8 @@ impl gfx::Backend for SDL2GLRenderer {
     }
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
-        self.raster_renderer.blit_buffer(dst_page_id, buffer)
+        self.raster_renderer.blit_buffer(dst_page_id, buffer);
+        self.poly_renderer.blit_buffer(dst_page_id, buffer);
     }
 
     fn get_snapshot(&self) -> Box<dyn Any> {

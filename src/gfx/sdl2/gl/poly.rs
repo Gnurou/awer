@@ -1,10 +1,18 @@
 use std::any::Any;
 
-use indexed_frame_renderer::IndexedFrameRenderer;
-use poly_renderer::{PolyDrawCommand, PolyRenderer};
+use gfx::raster::IndexedImage;
 use sdl2::rect::Rect;
 
-use crate::gfx::{self, gl::*, polygon::Polygon, Palette, Point};
+use crate::gfx::{
+    self,
+    gl::{
+        indexed_frame_renderer::IndexedFrameRenderer,
+        poly_renderer::{DrawCommand, PolyDrawCommand, PolyRenderer},
+        IndexedTexture, Viewport,
+    },
+    polygon::Polygon,
+    Palette, Point,
+};
 use anyhow::Result;
 
 pub use crate::gfx::gl::poly_renderer::RenderingMode;
@@ -12,7 +20,7 @@ pub use crate::gfx::gl::poly_renderer::RenderingMode;
 pub struct SDL2GLPolyRenderer {
     rendering_mode: RenderingMode,
 
-    draw_commands: [Vec<PolyDrawCommand>; 4],
+    draw_commands: [Vec<DrawCommand>; 4],
     framebuffer_index: usize,
 
     candidate_palette: Palette,
@@ -25,7 +33,7 @@ pub struct SDL2GLPolyRenderer {
 }
 
 struct State {
-    draw_commands: [Vec<PolyDrawCommand>; 4],
+    draw_commands: [Vec<DrawCommand>; 4],
     framebuffer_index: usize,
     candidate_palette: Palette,
     current_palette: Palette,
@@ -80,7 +88,6 @@ impl SDL2GLPolyRenderer {
             &self.render_texture_buffer0,
             self.rendering_mode,
         );
-
     }
 }
 
@@ -99,7 +106,7 @@ impl gfx::Backend for SDL2GLPolyRenderer {
 
         let w = gfx::SCREEN_RESOLUTION[0] as u16;
         let h = gfx::SCREEN_RESOLUTION[1] as u16;
-        commands.push(PolyDrawCommand::new(
+        commands.push(DrawCommand::Poly(PolyDrawCommand::new(
             Polygon::new(
                 (w, h),
                 vec![
@@ -112,7 +119,7 @@ impl gfx::Backend for SDL2GLPolyRenderer {
             w as i16 / 2,
             h as i16 / 2,
             color_idx,
-        ));
+        )));
     }
 
     fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, _vscroll: i16) {
@@ -129,7 +136,12 @@ impl gfx::Backend for SDL2GLPolyRenderer {
         polygon: &Polygon,
     ) {
         let command = &mut self.draw_commands[dst_page_id];
-        command.push(PolyDrawCommand::new(polygon.clone(), x, y, color_idx));
+        command.push(DrawCommand::Poly(PolyDrawCommand::new(
+            polygon.clone(),
+            x,
+            y,
+            color_idx,
+        )));
     }
 
     fn blitframebuffer(&mut self, page_id: usize) {
@@ -139,7 +151,14 @@ impl gfx::Backend for SDL2GLPolyRenderer {
         self.redraw();
     }
 
-    fn blit_buffer(&mut self, _dst_page_id: usize, _buffer: &[u8]) {}
+    fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
+        let mut image: IndexedImage = Default::default();
+        image
+            .set_content(buffer)
+            .unwrap_or_else(|e| eprintln!("blit_buffer failed: {}", e));
+
+        self.draw_commands[dst_page_id].push(DrawCommand::BlitBuffer(image.into()));
+    }
 
     fn get_snapshot(&self) -> Box<dyn Any> {
         Box::new(State {
