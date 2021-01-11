@@ -78,7 +78,7 @@ fn link_program(vertex_shader: GLuint, fragment_shader: GLuint) -> GLuint {
     }
 }
 
-/// Implemented by potential sources for the texture of `IndexedFrameRenderer`.
+/// Implemented by potential sources for the texture of `IndexedTexture`.
 pub trait IndexedTextureSource {
     /// Return the (width, height) dimensions of the source frame.
     fn dimensions(&self) -> (usize, usize);
@@ -98,7 +98,7 @@ impl IndexedTextureSource for IndexedImage {
 
 /// An OpenGL texture which format is similar to that of `IndexedImage`, i.e.
 /// 4-bpp indexed colors. It can be rendered into by a shader, or be used as
-/// a source.
+/// a shader input.
 pub struct IndexedTexture {
     texture: GLuint,
     width: usize,
