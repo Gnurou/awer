@@ -4,6 +4,8 @@ use std::{
     cmp::{max, min},
 };
 
+use anyhow::{anyhow, Result};
+
 use super::{polygon::Polygon, Backend, Palette, Point, SCREEN_RESOLUTION};
 
 #[derive(Clone)]
@@ -27,6 +29,30 @@ impl Default for IndexedImage {
 }
 
 impl IndexedImage {
+    pub fn set_content(&mut self, buffer: &[u8]) -> Result<()> {
+        const EXPECTED_LENGTH: usize = SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1] / 2;
+        if buffer.len() != EXPECTED_LENGTH {
+            return Err(anyhow!(
+                "Invalid buffer length {}, expected {}",
+                buffer.len(),
+                EXPECTED_LENGTH
+            ));
+        }
+
+        let planes: Vec<&[u8]> = buffer.chunks(8000).collect();
+
+        for (i, pixel) in self.0.iter_mut().enumerate() {
+            let idx = i / 8;
+            let bit = 7 - (i % 8);
+            *pixel = (planes[0][idx] >> bit) & 0b1
+                | ((planes[1][idx] >> bit) & 0b1) << 1
+                | ((planes[2][idx] >> bit) & 0b1) << 2
+                | ((planes[3][idx] >> bit) & 0b1) << 3;
+        }
+
+        Ok(())
+    }
+
     fn offset(x: i16, y: i16) -> Result<usize, ()> {
         if x < 0 || x >= SCREEN_RESOLUTION[0] as i16 || y < 0 || y >= SCREEN_RESOLUTION[1] as i16 {
             Err(())
@@ -252,16 +278,8 @@ impl Backend for RasterBackend {
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
         assert_eq!(buffer.len(), 32000);
         let mut dst = self.buffers[dst_page_id].borrow_mut();
-        let planes: Vec<&[u8]> = buffer.chunks(8000).collect();
-
-        for (i, pixel) in dst.0.iter_mut().enumerate() {
-            let idx = i / 8;
-            let bit = 7 - (i % 8);
-            *pixel = (planes[0][idx] >> bit) & 0b1
-                | ((planes[1][idx] >> bit) & 0b1) << 1
-                | ((planes[2][idx] >> bit) & 0b1) << 2
-                | ((planes[3][idx] >> bit) & 0b1) << 3;
-        }
+        dst.set_content(buffer)
+            .unwrap_or_else(|e| eprintln!("blit_buffer failed: {}", e));
     }
 
     fn get_snapshot(&self) -> Box<dyn Any> {
