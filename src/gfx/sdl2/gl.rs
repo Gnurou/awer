@@ -15,6 +15,7 @@ use crate::gfx::{self, polygon::Polygon};
 
 use super::{SDL2Renderer, WINDOW_RESOLUTION};
 
+#[derive(Clone, Copy)]
 pub enum RenderingMode {
     Raster,
     Poly,
@@ -73,7 +74,10 @@ impl SDL2GLRenderer {
             _opengl_context: opengl_context,
 
             raster_renderer: raster::SDL2GLRasterRenderer::new()?,
-            poly_renderer: poly::SDL2GLPolyRenderer::new()?,
+            poly_renderer: poly::SDL2GLPolyRenderer::new(match rendering_mode {
+                RenderingMode::Raster | RenderingMode::Poly => poly::RenderingMode::Poly,
+                RenderingMode::Line => poly::RenderingMode::Line,
+            })?,
         }))
     }
 }
@@ -94,8 +98,8 @@ impl SDL2Renderer for SDL2GLRenderer {
 
         match self.rendering_mode {
             RenderingMode::Raster => self.raster_renderer.blit(),
-            RenderingMode::Poly => self.poly_renderer.blit(poly::RenderingMode::Poly),
-            RenderingMode::Line => self.poly_renderer.blit(poly::RenderingMode::Line),
+            RenderingMode::Poly => self.poly_renderer.blit(),
+            RenderingMode::Line => self.poly_renderer.blit(),
         };
     }
 

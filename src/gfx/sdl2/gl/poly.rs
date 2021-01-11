@@ -6,12 +6,15 @@ use gl::types::*;
 use crate::gfx::{self, gl::*, polygon::Polygon, Palette, Point};
 use anyhow::Result;
 
+#[derive(Clone, Copy)]
 pub enum RenderingMode {
     Poly,
     Line,
 }
 
 pub struct SDL2GLPolyRenderer {
+    rendering_mode: RenderingMode,
+
     vao: GLuint,
     vbo: GLuint,
 
@@ -34,7 +37,7 @@ impl Drop for SDL2GLPolyRenderer {
 }
 
 impl SDL2GLPolyRenderer {
-    pub fn new() -> Result<SDL2GLPolyRenderer> {
+    pub fn new(rendering_mode: RenderingMode) -> Result<SDL2GLPolyRenderer> {
         let vertex_shader = compile_shader(VERTEX_SHADER, gl::VERTEX_SHADER);
         let fragment_shader = compile_shader(FRAGMENT_SHADER, gl::FRAGMENT_SHADER);
         let program = link_program(vertex_shader, fragment_shader);
@@ -69,6 +72,8 @@ impl SDL2GLPolyRenderer {
         }
 
         Ok(SDL2GLPolyRenderer {
+            rendering_mode,
+
             vao,
             vbo,
             program,
@@ -80,14 +85,14 @@ impl SDL2GLPolyRenderer {
         })
     }
 
-    pub fn blit(&mut self, rendering_mode: RenderingMode) {
+    pub fn blit(&mut self) {
         let polys = &self.polys[self.framebuffer_index];
 
         for poly in polys {
             let draw_type = if poly.0.bbw == 0 || poly.0.bbh == 0 {
                 gl::LINE_LOOP
             } else {
-                match rendering_mode {
+                match self.rendering_mode {
                     RenderingMode::Poly => gl::TRIANGLE_STRIP,
                     RenderingMode::Line => {
                         if poly.0.bbw == SCREEN_RESOLUTION[0] as u16
