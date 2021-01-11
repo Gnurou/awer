@@ -1,6 +1,8 @@
 mod poly;
 mod raster;
 
+use std::any::Any;
+
 use sdl2::{
     rect::Rect,
     video::{GLContext, GLProfile, Window},
@@ -38,6 +40,11 @@ pub struct SDL2GLRenderer {
 
     raster_renderer: raster::SDL2GLRasterRenderer,
     poly_renderer: poly::SDL2GLPolyRenderer,
+}
+
+struct State {
+    raster_renderer: Box<dyn Any>,
+    poly_renderer: Box<dyn Any>,
 }
 
 impl SDL2GLRenderer {
@@ -152,5 +159,19 @@ impl gfx::Backend for SDL2GLRenderer {
         self.raster_renderer.blit_buffer(dst_page_id, buffer)
     }
 
-    // TODO get/set snapshot!
+    fn get_snapshot(&self) -> Box<dyn Any> {
+        Box::new(State {
+            raster_renderer: self.raster_renderer.get_snapshot(),
+            poly_renderer: self.poly_renderer.get_snapshot(),
+        })
+    }
+
+    fn set_snapshot(&mut self, snapshot: Box<dyn Any>) {
+        if let Ok(state) = snapshot.downcast::<State>() {
+            self.raster_renderer.set_snapshot(state.raster_renderer);
+            self.poly_renderer.set_snapshot(state.poly_renderer);
+        } else {
+            eprintln!("Attempting to restore invalid gfx snapshot, ignoring");
+        }
+    }
 }

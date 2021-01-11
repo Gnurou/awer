@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use anyhow::Result;
 use gfx::SCREEN_RESOLUTION;
 use sdl2::rect::Rect;
@@ -12,8 +14,15 @@ use crate::gfx::{
 pub struct SDL2GLRasterRenderer {
     raster: RasterBackend,
     current_framebuffer: IndexedImage,
+    current_palette: Palette,
+
     framebuffer_texture: IndexedTexture,
     framebuffer_renderer: IndexedFrameRenderer,
+}
+
+struct State {
+    raster: Box<dyn Any>,
+    current_framebuffer: IndexedImage,
     current_palette: Palette,
 }
 
@@ -22,9 +31,10 @@ impl SDL2GLRasterRenderer {
         Ok(SDL2GLRasterRenderer {
             raster: RasterBackend::new(),
             current_framebuffer: Default::default(),
+            current_palette: Default::default(),
+
             framebuffer_texture: IndexedTexture::new(SCREEN_RESOLUTION[0], SCREEN_RESOLUTION[1]),
             framebuffer_renderer: IndexedFrameRenderer::new()?,
-            current_palette: Default::default(),
         })
     }
 
@@ -81,5 +91,23 @@ impl gfx::Backend for SDL2GLRasterRenderer {
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
         self.raster.blit_buffer(dst_page_id, buffer)
+    }
+
+    fn get_snapshot(&self) -> Box<dyn Any> {
+        Box::new(State {
+            raster: self.raster.get_snapshot(),
+            current_framebuffer: self.current_framebuffer.clone(),
+            current_palette: self.current_palette.clone(),
+        })
+    }
+
+    fn set_snapshot(&mut self, snapshot: Box<dyn Any>) {
+        if let Ok(state) = snapshot.downcast::<State>() {
+            self.raster.set_snapshot(state.raster);
+            self.current_framebuffer = state.current_framebuffer;
+            self.current_palette = state.current_palette;
+        } else {
+            eprintln!("Attempting to restore invalid gfx snapshot, ignoring");
+        }
     }
 }

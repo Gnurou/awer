@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use indexed_frame_renderer::IndexedFrameRenderer;
 use poly_renderer::{PolyDrawCommand, PolyRenderer};
 use sdl2::rect::Rect;
@@ -20,6 +22,13 @@ pub struct SDL2GLPolyRenderer {
     render_texture_framebuffer: IndexedTexture,
     poly_renderer: PolyRenderer,
     frame_renderer: IndexedFrameRenderer,
+}
+
+struct State {
+    draw_commands: [Vec<PolyDrawCommand>; 4],
+    framebuffer_index: usize,
+    candidate_palette: Palette,
+    current_palette: Palette,
 }
 
 const TEXTURE_SIZE: (usize, usize) = (1280, 960);
@@ -53,6 +62,25 @@ impl SDL2GLPolyRenderer {
                 height: dst.height() as i32,
             },
         );
+    }
+
+    fn redraw(&mut self) {
+        // First render buffer 0, since it may be needed to render the final
+        // buffer.
+        self.poly_renderer.render_into(
+            &self.draw_commands[0],
+            &self.render_texture_buffer0,
+            &self.render_texture_buffer0,
+            self.rendering_mode,
+        );
+
+        self.poly_renderer.render_into(
+            &self.draw_commands[self.framebuffer_index],
+            &self.render_texture_framebuffer,
+            &self.render_texture_buffer0,
+            self.rendering_mode,
+        );
+
     }
 }
 
@@ -108,22 +136,30 @@ impl gfx::Backend for SDL2GLPolyRenderer {
         self.framebuffer_index = page_id;
         self.current_palette = self.candidate_palette.clone();
 
-        // First render buffer 0, since it may be needed to render the final
-        // buffer.
-        self.poly_renderer.render_into(
-            &self.draw_commands[0],
-            &self.render_texture_buffer0,
-            &self.render_texture_buffer0,
-            self.rendering_mode,
-        );
-
-        self.poly_renderer.render_into(
-            &self.draw_commands[self.framebuffer_index],
-            &self.render_texture_framebuffer,
-            &self.render_texture_buffer0,
-            self.rendering_mode,
-        );
+        self.redraw();
     }
 
     fn blit_buffer(&mut self, _dst_page_id: usize, _buffer: &[u8]) {}
+
+    fn get_snapshot(&self) -> Box<dyn Any> {
+        Box::new(State {
+            draw_commands: self.draw_commands.clone(),
+            framebuffer_index: self.framebuffer_index,
+            candidate_palette: self.candidate_palette.clone(),
+            current_palette: self.current_palette.clone(),
+        })
+    }
+
+    fn set_snapshot(&mut self, snapshot: Box<dyn Any>) {
+        if let Ok(state) = snapshot.downcast::<State>() {
+            self.draw_commands = state.draw_commands;
+            self.framebuffer_index = state.framebuffer_index;
+            self.candidate_palette = state.candidate_palette;
+            self.current_palette = state.current_palette;
+        } else {
+            eprintln!("Attempting to restore invalid gfx snapshot, ignoring");
+        }
+
+        self.redraw();
+    }
 }
