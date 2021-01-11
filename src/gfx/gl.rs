@@ -6,6 +6,7 @@ use std::{ffi::CString, mem};
 
 use anyhow::Result;
 use gl::types::*;
+use indexed_frame_renderer::IndexedTextureSource;
 
 use crate::gfx::{self, raster::IndexedImage, Palette};
 
@@ -132,20 +133,21 @@ impl IndexedTexture {
         self.texture
     }
 
-    // TODO change self ref to mut!
-    pub fn set_data(&self, data: *const u8) {
+    pub fn set_data<S: IndexedTextureSource>(&mut self, source: &S, xoffset: i32, yoffset: i32) {
+        let dimensions = source.dimensions();
+
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, self.texture);
             gl::TexSubImage2D(
                 gl::TEXTURE_2D,
                 0,
-                0,
-                0,
-                self.width as GLint,
-                self.height as GLint,
+                xoffset as GLint,
+                yoffset as GLint,
+                dimensions.0 as GLint,
+                dimensions.1 as GLint,
                 gl::RED,
                 gl::UNSIGNED_BYTE,
-                data as *const _,
+                source.data() as *const _,
             );
             gl::BindTexture(gl::TEXTURE_2D, 0);
         }

@@ -9,7 +9,6 @@ use super::*;
 pub struct IndexedFrameRenderer {
     vao: GLuint,
     vbo: GLuint,
-    texture: IndexedTexture,
     program: GLuint,
 }
 
@@ -89,28 +88,22 @@ impl IndexedFrameRenderer {
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
         }
 
-        Ok(IndexedFrameRenderer {
-            vao,
-            vbo,
-            texture: IndexedTexture::new(gfx::SCREEN_RESOLUTION[0], gfx::SCREEN_RESOLUTION[1]),
-            program,
-        })
+        Ok(IndexedFrameRenderer { vao, vbo, program })
     }
 
     /// Renders `framebuffer` using the color `palette` into `target_framebuffer`.
     /// `target_framebuffer` must either be a valid FBO, or `0` in which case
     /// the default framebuffer will be used.
-    pub fn render_into<F: IndexedTextureSource>(
+    pub fn render_into(
         &self,
         target_framebuffer: GLuint,
-        source: &F,
+        source: &IndexedTexture,
         palette: &Palette,
     ) {
-        self.texture.set_data(source.data());
         unsafe {
             gl::UseProgram(self.program);
             gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, self.texture.as_tex_id());
+            gl::BindTexture(gl::TEXTURE_2D, source.as_tex_id());
             let texture_uniform = get_uniform_location(self.program, "game_scene");
             gl::Uniform1i(texture_uniform, 0);
 

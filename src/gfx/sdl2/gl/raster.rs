@@ -1,8 +1,9 @@
 use anyhow::Result;
+use gfx::SCREEN_RESOLUTION;
 
 use crate::gfx::{
     self,
-    gl::indexed_frame_renderer::*,
+    gl::{indexed_frame_renderer::*, IndexedTexture},
     raster::{IndexedImage, RasterBackend},
     Palette,
 };
@@ -10,6 +11,7 @@ use crate::gfx::{
 pub struct SDL2GLRasterRenderer {
     raster: RasterBackend,
     current_framebuffer: IndexedImage,
+    framebuffer_texture: IndexedTexture,
     framebuffer_renderer: IndexedFrameRenderer,
     current_palette: Palette,
 }
@@ -19,14 +21,17 @@ impl SDL2GLRasterRenderer {
         Ok(SDL2GLRasterRenderer {
             raster: RasterBackend::new(),
             current_framebuffer: Default::default(),
+            framebuffer_texture: IndexedTexture::new(SCREEN_RESOLUTION[0], SCREEN_RESOLUTION[1]),
             framebuffer_renderer: IndexedFrameRenderer::new()?,
             current_palette: Default::default(),
         })
     }
 
     pub fn blit(&mut self) {
+        self.framebuffer_texture
+            .set_data(&self.current_framebuffer, 0, 0);
         self.framebuffer_renderer
-            .render_into(0, &self.current_framebuffer, &self.current_palette);
+            .render_into(0, &self.framebuffer_texture, &self.current_palette);
     }
 }
 
