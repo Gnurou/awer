@@ -16,6 +16,7 @@ pub struct SDL2GLPolyRenderer {
     candidate_palette: Palette,
     current_palette: Palette,
 
+    render_texture_buffer0: IndexedTexture,
     render_texture_framebuffer: IndexedTexture,
     poly_renderer: PolyRenderer,
     frame_renderer: IndexedFrameRenderer,
@@ -33,6 +34,7 @@ impl SDL2GLPolyRenderer {
             candidate_palette: Default::default(),
             current_palette: Default::default(),
 
+            render_texture_buffer0: IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
             render_texture_framebuffer: IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
             poly_renderer: PolyRenderer::new()?,
             frame_renderer: IndexedFrameRenderer::new()?,
@@ -40,12 +42,6 @@ impl SDL2GLPolyRenderer {
     }
 
     pub fn blit(&mut self, dst: &Rect) {
-        self.poly_renderer.render_into(
-            &self.draw_commands[self.framebuffer_index],
-            &self.render_texture_framebuffer,
-            self.rendering_mode,
-        );
-
         self.frame_renderer.render_into(
             &self.render_texture_framebuffer,
             &self.current_palette,
@@ -111,6 +107,22 @@ impl gfx::Backend for SDL2GLPolyRenderer {
     fn blitframebuffer(&mut self, page_id: usize) {
         self.framebuffer_index = page_id;
         self.current_palette = self.candidate_palette.clone();
+
+        // First render buffer 0, since it may be needed to render the final
+        // buffer.
+        self.poly_renderer.render_into(
+            &self.draw_commands[0],
+            &self.render_texture_buffer0,
+            &self.render_texture_buffer0,
+            self.rendering_mode,
+        );
+
+        self.poly_renderer.render_into(
+            &self.draw_commands[self.framebuffer_index],
+            &self.render_texture_framebuffer,
+            &self.render_texture_buffer0,
+            self.rendering_mode,
+        );
     }
 
     fn blit_buffer(&mut self, _dst_page_id: usize, _buffer: &[u8]) {}

@@ -38,6 +38,8 @@ pub struct PolyRenderer {
     pos_uniform: GLint,
     bb_uniform: GLint,
     color_uniform: GLint,
+    self_uniform: GLint,
+    buffer0_uniform: GLint,
 }
 
 impl Drop for PolyRenderer {
@@ -63,6 +65,8 @@ impl PolyRenderer {
         let pos_uniform;
         let bb_uniform;
         let color_uniform;
+        let self_uniform;
+        let buffer0_uniform;
         unsafe {
             gl::GenFramebuffers(1, &mut fbo);
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, fbo);
@@ -97,6 +101,8 @@ impl PolyRenderer {
             pos_uniform = get_uniform_location(program, "pos");
             bb_uniform = get_uniform_location(program, "bb");
             color_uniform = get_uniform_location(program, "color_idx");
+            self_uniform = get_uniform_location(program, "self");
+            buffer0_uniform = get_uniform_location(program, "buffer0");
         }
 
         Ok(PolyRenderer {
@@ -107,6 +113,8 @@ impl PolyRenderer {
             pos_uniform,
             bb_uniform,
             color_uniform,
+            self_uniform,
+            buffer0_uniform,
         })
     }
 
@@ -155,6 +163,13 @@ impl PolyRenderer {
             gl::Uniform2ui(self.bb_uniform, poly.bbw as GLuint, poly.bbh as GLuint);
             gl::Uniform1ui(self.color_uniform, command.color as GLuint);
 
+            // If the next polygon is transparent, make sure that all previous
+            // commands are completed to ensure our self-referencing texture
+            // will have up-to-date data.
+            if command.color == 0x10 {
+                gl::Finish();
+            }
+
             gl::DrawElements(
                 draw_type,
                 indices.len() as GLint,
@@ -168,11 +183,14 @@ impl PolyRenderer {
         &self,
         draw_commands: C,
         target_texture: &IndexedTexture,
+        buffer0: &IndexedTexture,
         rendering_mode: RenderingMode,
     ) {
         unsafe {
             let dimensions = target_texture.dimensions();
             gl::Viewport(0, 0, dimensions.0 as GLint, dimensions.1 as GLint);
+
+            // Setup destination framebuffer
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, self.fbo);
             gl::FramebufferTexture(
                 gl::DRAW_FRAMEBUFFER,
@@ -180,12 +198,26 @@ impl PolyRenderer {
                 target_texture.as_tex_id(),
                 0,
             );
-
             if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
                 panic!("Error while setting framebuffer up");
             }
 
             gl::UseProgram(self.program);
+
+            // Setup texture to target buffer
+            gl::Uniform1i(self.self_uniform, 0);
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, target_texture.as_tex_id());
+
+            // Setup texture to buffer0
+            gl::Uniform1i(self.buffer0_uniform, 1);
+            gl::ActiveTexture(gl::TEXTURE0 + 1);
+            gl::BindTexture(gl::TEXTURE_2D, buffer0.as_tex_id());
+            // TODO when can we unbind the textures?
+
+            let viewport_uniform = get_uniform_location(self.program, "viewport_size");
+            gl::Uniform2f(viewport_uniform, dimensions.0 as f32, dimensions.1 as f32);
+
             gl::BindVertexArray(self.vao);
         }
 
@@ -223,10 +255,22 @@ static FRAGMENT_SHADER: &str = r#"
 #version 330 core
 
 uniform uint color_idx;
+uniform sampler2D self;
+uniform sampler2D buffer0;
+uniform vec2 viewport_size;
 
 layout (location = 0) out float color;
 
 void main() {
-    color = (color_idx & 0xfu) / 256.0;
+    if (color_idx == 0x10u) {
+        uint source_color = uint(texture(self, gl_FragCoord.xy / viewport_size).r * 256.0);
+        color = (source_color | 0x8u) / 256.0;
+    }
+    else if (color_idx == 0x11u) {
+        color = texture(buffer0, gl_FragCoord.xy / viewport_size).r;
+    }
+    else {
+        color = (color_idx & 0xfu) / 256.0;
+    }
 }
 "#;

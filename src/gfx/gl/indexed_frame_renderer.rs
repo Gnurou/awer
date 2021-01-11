@@ -147,7 +147,7 @@ uniform uint palette[16];
 layout (location = 0) out vec4 color;
 
 void main() {
-    uint pixel = uint((texture(game_scene, scene_pos).r * 256.0));
+    uint pixel = uint(texture(game_scene, scene_pos).r * 256.0);
     uint palette_color = palette[pixel];
     uint r = (palette_color >> 0u) % 256u;
     uint g = (palette_color >> 8u) % 256u;
