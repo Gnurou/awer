@@ -6,7 +6,6 @@ use std::{ffi::CString, mem};
 
 use anyhow::Result;
 use gl::types::*;
-use indexed_frame_renderer::IndexedTextureSource;
 
 use crate::gfx::{self, raster::IndexedImage, Palette};
 
@@ -76,6 +75,24 @@ fn link_program(vertex_shader: GLuint, fragment_shader: GLuint) -> GLuint {
         gl::DeleteShader(vertex_shader);
 
         program
+    }
+}
+
+/// Implemented by potential sources for the texture of `IndexedFrameRenderer`.
+pub trait IndexedTextureSource {
+    /// Return the (width, height) dimensions of the source frame.
+    fn dimensions(&self) -> (usize, usize);
+    /// Return a raw pointer to the frame data.
+    fn data(&self) -> *const u8;
+}
+
+impl IndexedTextureSource for IndexedImage {
+    fn dimensions(&self) -> (usize, usize) {
+        (gfx::SCREEN_RESOLUTION[0], gfx::SCREEN_RESOLUTION[1])
+    }
+
+    fn data(&self) -> *const u8 {
+        self.as_ptr()
     }
 }
 
