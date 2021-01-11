@@ -16,7 +16,7 @@ pub struct SDL2GLPolyRenderer {
     candidate_palette: Palette,
     current_palette: Palette,
 
-    render_textures: [IndexedTexture; 4],
+    render_texture_framebuffer: IndexedTexture,
     poly_renderer: PolyRenderer,
     frame_renderer: IndexedFrameRenderer,
 }
@@ -33,12 +33,7 @@ impl SDL2GLPolyRenderer {
             candidate_palette: Default::default(),
             current_palette: Default::default(),
 
-            render_textures: [
-                IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
-                IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
-                IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
-                IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
-            ],
+            render_texture_framebuffer: IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
             poly_renderer: PolyRenderer::new()?,
             frame_renderer: IndexedFrameRenderer::new()?,
         })
@@ -47,12 +42,12 @@ impl SDL2GLPolyRenderer {
     pub fn blit(&mut self, dst: &Rect) {
         self.poly_renderer.render_into(
             &self.draw_commands[self.framebuffer_index],
-            &self.render_textures[self.framebuffer_index],
+            &self.render_texture_framebuffer,
             self.rendering_mode,
         );
 
         self.frame_renderer.render_into(
-            &self.render_textures[self.framebuffer_index],
+            &self.render_texture_framebuffer,
             &self.current_palette,
             0,
             &Viewport {
