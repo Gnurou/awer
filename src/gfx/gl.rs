@@ -153,3 +153,10 @@ impl IndexedTexture {
         }
     }
 }
+
+pub struct Viewport {
+    pub x: GLint,
+    pub y: GLint,
+    pub width: GLsizei,
+    pub height: GLsizei,
+}

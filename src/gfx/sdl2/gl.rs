@@ -9,8 +9,6 @@ use sdl2::{
 
 use anyhow::{anyhow, Result};
 
-use gl::types::*;
-
 use crate::gfx::{self, polygon::Polygon};
 
 use super::{SDL2Renderer, WINDOW_RESOLUTION};
@@ -85,19 +83,12 @@ impl SDL2GLRenderer {
 impl SDL2Renderer for SDL2GLRenderer {
     fn blit_game(&mut self, dst: &Rect) {
         unsafe {
-            gl::Viewport(
-                dst.x(),
-                dst.y(),
-                dst.width() as GLint,
-                dst.height() as GLint,
-            );
-
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
 
         match self.rendering_mode {
-            RenderingMode::Raster => self.raster_renderer.blit(),
+            RenderingMode::Raster => self.raster_renderer.blit(&dst),
             RenderingMode::Poly => self.poly_renderer.blit(&dst),
             RenderingMode::Line => self.poly_renderer.blit(&dst),
         };

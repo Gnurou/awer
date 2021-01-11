@@ -1,9 +1,10 @@
 use anyhow::Result;
 use gfx::SCREEN_RESOLUTION;
+use sdl2::rect::Rect;
 
 use crate::gfx::{
     self,
-    gl::{indexed_frame_renderer::*, IndexedTexture},
+    gl::{indexed_frame_renderer::*, IndexedTexture, Viewport},
     raster::{IndexedImage, RasterBackend},
     Palette,
 };
@@ -27,11 +28,20 @@ impl SDL2GLRasterRenderer {
         })
     }
 
-    pub fn blit(&mut self) {
+    pub fn blit(&mut self, dst: &Rect) {
         self.framebuffer_texture
             .set_data(&self.current_framebuffer, 0, 0);
-        self.framebuffer_renderer
-            .render_into(0, &self.framebuffer_texture, &self.current_palette);
+        self.framebuffer_renderer.render_into(
+            &self.framebuffer_texture,
+            &self.current_palette,
+            0,
+            &Viewport {
+                x: dst.x(),
+                y: dst.y(),
+                width: dst.width() as i32,
+                height: dst.height() as i32,
+            },
+        );
     }
 }
 

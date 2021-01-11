@@ -96,9 +96,10 @@ impl IndexedFrameRenderer {
     /// the default framebuffer will be used.
     pub fn render_into(
         &self,
-        target_framebuffer: GLuint,
         source: &IndexedTexture,
         palette: &Palette,
+        target_framebuffer: GLuint,
+        viewport: &Viewport,
     ) {
         unsafe {
             gl::UseProgram(self.program);
@@ -115,6 +116,7 @@ impl IndexedFrameRenderer {
             );
 
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, target_framebuffer);
+            gl::Viewport(viewport.x, viewport.y, viewport.width, viewport.height);
             gl::BindVertexArray(self.vao);
             gl::DrawElements(
                 gl::TRIANGLES,

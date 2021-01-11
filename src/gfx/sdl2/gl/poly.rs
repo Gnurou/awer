@@ -1,3 +1,4 @@
+use indexed_frame_renderer::IndexedFrameRenderer;
 use poly_renderer::{PolyDrawCommand, PolyRenderer};
 use sdl2::rect::Rect;
 
@@ -17,7 +18,10 @@ pub struct SDL2GLPolyRenderer {
 
     render_textures: [IndexedTexture; 4],
     poly_renderer: PolyRenderer,
+    frame_renderer: IndexedFrameRenderer,
 }
+
+const TEXTURE_SIZE: (usize, usize) = (1280, 960);
 
 impl SDL2GLPolyRenderer {
     pub fn new(rendering_mode: RenderingMode) -> Result<SDL2GLPolyRenderer> {
@@ -30,12 +34,13 @@ impl SDL2GLPolyRenderer {
             current_palette: Default::default(),
 
             render_textures: [
-                IndexedTexture::new(1280, 960),
-                IndexedTexture::new(1280, 960),
-                IndexedTexture::new(1280, 960),
-                IndexedTexture::new(1280, 960),
+                IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
+                IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
+                IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
+                IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
             ],
             poly_renderer: PolyRenderer::new()?,
+            frame_renderer: IndexedFrameRenderer::new()?,
         })
     }
 
@@ -46,22 +51,17 @@ impl SDL2GLPolyRenderer {
             self.rendering_mode,
         );
 
-        unsafe {
-            gl::BindFramebuffer(gl::READ_FRAMEBUFFER, self.poly_renderer.fbo());
-            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
-            gl::BlitFramebuffer(
-                0,
-                0,
-                1280,
-                960,
-                dst.x(),
-                dst.y(),
-                dst.x() + dst.width() as i32,
-                dst.y() + dst.height() as i32,
-                gl::COLOR_BUFFER_BIT,
-                gl::LINEAR,
-            );
-        }
+        self.frame_renderer.render_into(
+            &self.render_textures[self.framebuffer_index],
+            &self.current_palette,
+            0,
+            &Viewport {
+                x: dst.x(),
+                y: dst.y(),
+                width: dst.width() as i32,
+                height: dst.height() as i32,
+            },
+        );
     }
 }
 

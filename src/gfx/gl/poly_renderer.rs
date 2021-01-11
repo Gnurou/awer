@@ -198,10 +198,6 @@ impl PolyRenderer {
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
         }
     }
-
-    pub fn fbo(&self) -> GLuint {
-        self.fbo
-    }
 }
 
 static VERTEX_SHADER: &str = r#"
@@ -218,9 +214,8 @@ void main() {
     vec2 fpos = pos + vertex - offset;
 
     vec2 normalized_pos = vec2((fpos.x / 320.0) * 2 - 1.0, (fpos.y / 200.0) * 2 - 1.0);
-    vec2 flipped_pos = vec2(normalized_pos.x, -normalized_pos.y);
 
-    gl_Position = vec4(flipped_pos, 0.0, 1.0);
+    gl_Position = vec4(normalized_pos, 0.0, 1.0);
 }
 "#;
 
@@ -232,6 +227,6 @@ uniform uint color_idx;
 layout (location = 0) out float color;
 
 void main() {
-    color = (color_idx & 0x1fu) / 17.0;
+    color = (color_idx & 0xfu) / 256.0;
 }
 "#;
