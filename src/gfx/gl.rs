@@ -1,5 +1,6 @@
 //! Structs and code to help render the game using OpenGL.
 pub mod indexed_frame_renderer;
+pub mod poly_renderer;
 
 use std::{ffi::CString, mem};
 
@@ -8,12 +9,12 @@ use gl::types::*;
 
 use crate::gfx::{self, raster::IndexedImage, Palette};
 
-pub fn get_uniform_location(program: GLuint, name: &str) -> GLint {
+fn get_uniform_location(program: GLuint, name: &str) -> GLint {
     let cstr = CString::new(name).unwrap();
     unsafe { gl::GetUniformLocation(program, cstr.as_ptr()) }
 }
 
-pub fn compile_shader(src: &str, typ: GLenum) -> GLuint {
+fn compile_shader(src: &str, typ: GLenum) -> GLuint {
     unsafe {
         let shader = gl::CreateShader(typ);
 
@@ -44,7 +45,7 @@ pub fn compile_shader(src: &str, typ: GLenum) -> GLuint {
     }
 }
 
-pub fn link_program(vertex_shader: GLuint, fragment_shader: GLuint) -> GLuint {
+fn link_program(vertex_shader: GLuint, fragment_shader: GLuint) -> GLuint {
     unsafe {
         let program = gl::CreateProgram();
         gl::AttachShader(program, vertex_shader);
@@ -74,5 +75,59 @@ pub fn link_program(vertex_shader: GLuint, fragment_shader: GLuint) -> GLuint {
         gl::DeleteShader(vertex_shader);
 
         program
+    }
+}
+
+/// An OpenGL texture which format is similar to that of `IndexedImage`, i.e.
+/// 4-bpp indexed colors. It can be rendered into by a shader, or be used as
+/// a source.
+pub struct IndexedTexture {
+    texture: GLuint,
+    width: usize,
+    height: usize,
+}
+
+impl Drop for IndexedTexture {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteTextures(1, &self.texture);
+        }
+    }
+}
+
+impl IndexedTexture {
+    pub fn new(width: usize, height: usize) -> Self {
+        let mut texture = 0;
+        unsafe {
+            gl::GenTextures(1, &mut texture);
+            gl::BindTexture(gl::TEXTURE_2D, texture);
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RED as i32,
+                width as GLint,
+                height as GLint,
+                0,
+                gl::RED,
+                gl::UNSIGNED_BYTE,
+                std::ptr::null(),
+            );
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+        }
+
+        Self {
+            texture,
+            width,
+            height,
+        }
+    }
+
+    pub fn dimensions(&self) -> (usize, usize) {
+        (self.width, self.height)
+    }
+
+    pub fn as_tex_id(&self) -> GLuint {
+        self.texture
     }
 }

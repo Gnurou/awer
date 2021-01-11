@@ -1,216 +1,53 @@
-use std::{iter::once, mem};
-
-use gfx::SCREEN_RESOLUTION;
-use gl::types::*;
+use poly_renderer::{PolyDrawCommand, PolyRenderer};
 use sdl2::rect::Rect;
 
 use crate::gfx::{self, gl::*, polygon::Polygon, Palette, Point};
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
-#[derive(Clone, Copy)]
-pub enum RenderingMode {
-    Poly,
-    Line,
-}
+pub use crate::gfx::gl::poly_renderer::RenderingMode;
 
 pub struct SDL2GLPolyRenderer {
     rendering_mode: RenderingMode,
 
-    vao: GLuint,
-    vbo: GLuint,
-
-    program: GLuint,
-    polys: [Vec<(Polygon, i16, i16, u8)>; 4],
+    draw_commands: [Vec<PolyDrawCommand>; 4],
     framebuffer_index: usize,
 
     candidate_palette: Palette,
     current_palette: Palette,
 
-    fbo: GLuint,
-    render_textures: [GLuint; 4],
-}
-
-impl Drop for SDL2GLPolyRenderer {
-    fn drop(&mut self) {
-        unsafe {
-            gl::DeleteTextures(
-                self.render_textures.len() as GLint,
-                self.render_textures.as_ptr(),
-            );
-            gl::DeleteFramebuffers(1, &self.fbo);
-            gl::DeleteBuffers(1, &self.vbo);
-            gl::DeleteVertexArrays(1, &self.vao);
-            gl::DeleteProgram(self.program);
-        }
-    }
+    render_textures: [IndexedTexture; 4],
+    poly_renderer: PolyRenderer,
 }
 
 impl SDL2GLPolyRenderer {
     pub fn new(rendering_mode: RenderingMode) -> Result<SDL2GLPolyRenderer> {
-        let vertex_shader = compile_shader(VERTEX_SHADER, gl::VERTEX_SHADER);
-        let fragment_shader = compile_shader(FRAGMENT_SHADER, gl::FRAGMENT_SHADER);
-        let program = link_program(vertex_shader, fragment_shader);
-
-        let mut vao = 0;
-        let mut vbo = 0;
-        let mut fbo = 0;
-        let mut render_textures = [0; 4];
-        unsafe {
-            gl::GenVertexArrays(1, &mut vao);
-            gl::GenBuffers(1, &mut vbo);
-
-            gl::BindVertexArray(vao);
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-            // We shall have no poly with more than 256 points.
-            gl::BufferData(
-                gl::ARRAY_BUFFER,
-                (256 * mem::size_of::<Point<u16>>()) as GLsizeiptr,
-                std::ptr::null() as *const _,
-                gl::STREAM_DRAW,
-            );
-
-            // vertex attribute
-            gl::EnableVertexAttribArray(0);
-            gl::VertexAttribIPointer(
-                0,
-                2,
-                gl::SHORT,
-                (mem::size_of::<u16>() * 2) as GLsizei,
-                std::ptr::null(),
-            );
-
-            // render texture
-            gl::GenTextures(render_textures.len() as GLint, render_textures.as_mut_ptr());
-            for texture in render_textures.iter() {
-                gl::BindTexture(gl::TEXTURE_2D, *texture);
-                gl::TexImage2D(
-                    gl::TEXTURE_2D,
-                    0,
-                    gl::RED as i32,
-                    1280,
-                    960,
-                    0,
-                    gl::RED,
-                    gl::UNSIGNED_BYTE,
-                    std::ptr::null(),
-                );
-                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
-            }
-
-            // framebuffer object
-            gl::GenFramebuffers(1, &mut fbo);
-            gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
-            gl::FramebufferTexture(
-                gl::FRAMEBUFFER,
-                gl::COLOR_ATTACHMENT0,
-                render_textures[0],
-                0,
-            );
-            gl::DrawBuffers(1, [gl::COLOR_ATTACHMENT0].as_ptr());
-            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
-
-            gl::BindVertexArray(0);
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-
-            if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
-                return Err(anyhow!("Error while creating framebuffer"));
-            }
-        }
-
         Ok(SDL2GLPolyRenderer {
             rendering_mode,
 
-            vao,
-            vbo,
-            program,
-
-            polys: Default::default(),
+            draw_commands: Default::default(),
             framebuffer_index: 0,
             candidate_palette: Default::default(),
             current_palette: Default::default(),
 
-            fbo,
-            render_textures,
+            render_textures: [
+                IndexedTexture::new(1280, 960),
+                IndexedTexture::new(1280, 960),
+                IndexedTexture::new(1280, 960),
+                IndexedTexture::new(1280, 960),
+            ],
+            poly_renderer: PolyRenderer::new()?,
         })
     }
 
     pub fn blit(&mut self, dst: &Rect) {
-        let polys = &self.polys[self.framebuffer_index];
-
-        for poly in polys {
-            let draw_type = if poly.0.bbw == 0 || poly.0.bbh == 0 {
-                gl::LINE_LOOP
-            } else {
-                match self.rendering_mode {
-                    RenderingMode::Poly => gl::TRIANGLE_STRIP,
-                    RenderingMode::Line => {
-                        if poly.0.bbw == SCREEN_RESOLUTION[0] as u16
-                            && poly.0.bbh == SCREEN_RESOLUTION[1] as u16
-                        {
-                            gl::TRIANGLE_STRIP
-                        } else {
-                            gl::LINE_LOOP
-                        }
-                    }
-                }
-            };
-
-            let len = poly.0.points.len() as u16;
-            let indices: Vec<u16> = match draw_type {
-                gl::TRIANGLE_STRIP => (0..poly.0.points.len() as u16 / 2)
-                    .into_iter()
-                    .flat_map(|i| once(len - (i + 1)).chain(once(i)))
-                    .collect(),
-                gl::LINE_LOOP => (0..poly.0.points.len() as u16).into_iter().collect(),
-                _ => panic!(),
-            };
-
-            unsafe {
-                gl::Viewport(0, 0, 1280, 960);
-
-                // Vertices
-                gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
-                gl::BufferSubData(
-                    gl::ARRAY_BUFFER,
-                    0,
-                    (poly.0.points.len() * mem::size_of::<Point<u16>>()) as GLsizeiptr,
-                    poly.0.points.as_ptr() as *const _,
-                );
-                gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-
-                gl::UseProgram(self.program);
-
-                let uniform = get_uniform_location(self.program, "pos");
-                gl::Uniform2i(uniform, poly.1 as GLint, poly.2 as GLint);
-
-                let uniform = get_uniform_location(self.program, "bb");
-                gl::Uniform2ui(uniform, poly.0.bbw as GLuint, poly.0.bbh as GLuint);
-
-                let uniform = get_uniform_location(self.program, "color_idx");
-                gl::Uniform1ui(uniform, poly.3 as GLuint);
-
-                let uniform = get_uniform_location(self.program, "palette");
-                gl::Uniform1uiv(
-                    uniform,
-                    gfx::PALETTE_SIZE as GLint,
-                    self.current_palette.as_ptr() as *const u32,
-                );
-
-                gl::BindVertexArray(self.vao);
-                gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, self.fbo);
-                gl::DrawElements(
-                    draw_type,
-                    indices.len() as GLint,
-                    gl::UNSIGNED_SHORT,
-                    indices.as_ptr() as *const _,
-                );
-                gl::BindVertexArray(0);
-            }
-        }
+        self.poly_renderer.render_into(
+            &self.draw_commands[self.framebuffer_index],
+            &self.render_textures[self.framebuffer_index],
+            self.rendering_mode,
+        );
 
         unsafe {
-            gl::BindFramebuffer(gl::READ_FRAMEBUFFER, self.fbo);
+            gl::BindFramebuffer(gl::READ_FRAMEBUFFER, self.poly_renderer.fbo());
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
             gl::BlitFramebuffer(
                 0,
@@ -238,12 +75,12 @@ impl gfx::Backend for SDL2GLPolyRenderer {
     }
 
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
-        let polys = &mut self.polys[page_id];
-        polys.clear();
+        let commands = &mut self.draw_commands[page_id];
+        commands.clear();
 
         let w = gfx::SCREEN_RESOLUTION[0] as u16;
         let h = gfx::SCREEN_RESOLUTION[1] as u16;
-        polys.push((
+        commands.push(PolyDrawCommand::new(
             Polygon::new(
                 (w, h),
                 vec![
@@ -260,8 +97,8 @@ impl gfx::Backend for SDL2GLPolyRenderer {
     }
 
     fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, _vscroll: i16) {
-        let src_polys = self.polys[src_page_id].clone();
-        self.polys[dst_page_id] = src_polys;
+        let src_polys = self.draw_commands[src_page_id].clone();
+        self.draw_commands[dst_page_id] = src_polys;
     }
 
     fn fillpolygon(
@@ -272,8 +109,8 @@ impl gfx::Backend for SDL2GLPolyRenderer {
         color_idx: u8,
         polygon: &Polygon,
     ) {
-        let polys = &mut self.polys[dst_page_id];
-        polys.push((polygon.clone(), x, y, color_idx));
+        let command = &mut self.draw_commands[dst_page_id];
+        command.push(PolyDrawCommand::new(polygon.clone(), x, y, color_idx));
     }
 
     fn blitframebuffer(&mut self, page_id: usize) {
@@ -283,52 +120,3 @@ impl gfx::Backend for SDL2GLPolyRenderer {
 
     fn blit_buffer(&mut self, _dst_page_id: usize, _buffer: &[u8]) {}
 }
-
-static VERTEX_SHADER: &str = r#"
-#version 330 core
-
-layout (location = 0) in ivec2 vertex;
-
-uniform ivec2 pos;
-uniform uvec2 bb;
-uniform uint color_idx;
-uniform uint palette[16];
-
-//out vec3 vertex_color;
-
-void main() {
-    /*
-    if (color_idx >= 0x10u) {
-        vertex_color = vec3(0.5);
-    } else {
-        uint palette_color = palette[color_idx];
-        uint r = (palette_color >> 0u) % 256u;
-        uint g = (palette_color >> 8u) % 256u;
-        uint b = (palette_color >> 16u) % 256u;
-        vertex_color = vec3(r / 255.0, g / 255.0, b / 255.0);
-    }
-    */
-
-    vec2 offset = bb / 2.0;
-    vec2 fpos = pos + vertex - offset;
-
-    vec2 normalized_pos = vec2((fpos.x / 320.0) * 2 - 1.0, (fpos.y / 200.0) * 2 - 1.0);
-    vec2 flipped_pos = vec2(normalized_pos.x, -normalized_pos.y);
-
-    gl_Position = vec4(flipped_pos, 0.0, 1.0);
-}
-"#;
-
-static FRAGMENT_SHADER: &str = r#"
-#version 330 core
-
-//in vec3 vertex_color;
-
-uniform uint color_idx;
-
-layout (location = 0) out float color;
-
-void main() {
-    color = (color_idx & 0x1fu) / 17.0;
-}
-"#;
