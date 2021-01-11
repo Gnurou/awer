@@ -65,6 +65,41 @@ impl SDL2RasterRenderer {
             raster: RasterBackend::new(),
         }))
     }
+
+    fn redraw(&mut self) {
+        // First generate the true color palette
+        let palette = self.raster.get_palette();
+        let palette_to_color = {
+            let mut palette_to_color = [0u32; gfx::PALETTE_SIZE];
+            for (i, color) in palette_to_color.iter_mut().enumerate() {
+                let &Color { r, g, b } = palette.lookup(i as u8);
+                *color = sdl2::pixels::Color::RGB(r, g, b).to_u32(&self.pixel_format);
+            }
+            palette_to_color
+        };
+
+        // Avoid borrowing self in the closure
+        let framebuffer = self.raster.get_framebuffer();
+        let bytes_per_pixel = self.bytes_per_pixel;
+
+        let render_into_texture = |texture: &mut [u8], pitch: usize| {
+            for (src_line, dst_line) in framebuffer
+                .pixels()
+                .chunks_exact(gfx::SCREEN_RESOLUTION[0])
+                .zip(texture.chunks_exact_mut(pitch))
+            {
+                for (src_pix, dst_pix) in src_line
+                    .iter()
+                    .zip(dst_line.chunks_exact_mut(bytes_per_pixel))
+                {
+                    let color = palette_to_color[*src_pix as usize];
+                    dst_pix.copy_from_slice(&color.to_ne_bytes()[0..bytes_per_pixel]);
+                }
+            }
+        };
+
+        self.texture.with_lock(None, render_into_texture).unwrap();
+    }
 }
 
 impl SDL2Renderer for SDL2RasterRenderer {
@@ -122,38 +157,7 @@ impl gfx::Backend for SDL2RasterRenderer {
     fn blitframebuffer(&mut self, page_id: usize) {
         self.raster.blitframebuffer(page_id);
 
-        // First generate the true color palette
-        let palette = self.raster.get_palette();
-        let palette_to_color = {
-            let mut palette_to_color = [0u32; gfx::PALETTE_SIZE];
-            for (i, color) in palette_to_color.iter_mut().enumerate() {
-                let &Color { r, g, b } = palette.lookup(i as u8);
-                *color = sdl2::pixels::Color::RGB(r, g, b).to_u32(&self.pixel_format);
-            }
-            palette_to_color
-        };
-
-        // Avoid borrowing self in the closure
-        let framebuffer = self.raster.get_framebuffer();
-        let bytes_per_pixel = self.bytes_per_pixel;
-
-        let render_into_texture = |texture: &mut [u8], pitch: usize| {
-            for (src_line, dst_line) in framebuffer
-                .pixels()
-                .chunks_exact(gfx::SCREEN_RESOLUTION[0])
-                .zip(texture.chunks_exact_mut(pitch))
-            {
-                for (src_pix, dst_pix) in src_line
-                    .iter()
-                    .zip(dst_line.chunks_exact_mut(bytes_per_pixel))
-                {
-                    let color = palette_to_color[*src_pix as usize];
-                    dst_pix.copy_from_slice(&color.to_ne_bytes()[0..bytes_per_pixel]);
-                }
-            }
-        };
-
-        self.texture.with_lock(None, render_into_texture).unwrap();
+        self.redraw();
     }
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
@@ -165,6 +169,7 @@ impl gfx::Backend for SDL2RasterRenderer {
     }
 
     fn set_snapshot(&mut self, snapshot: Box<dyn Any>) {
-        self.raster.set_snapshot(snapshot)
+        self.raster.set_snapshot(snapshot);
+        self.redraw();
     }
 }
