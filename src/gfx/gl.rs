@@ -114,6 +114,7 @@ impl IndexedTexture {
             );
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::BindTexture(gl::TEXTURE_2D, 0);
         }
 
         Self {
@@ -129,5 +130,24 @@ impl IndexedTexture {
 
     pub fn as_tex_id(&self) -> GLuint {
         self.texture
+    }
+
+    // TODO change self ref to mut!
+    pub fn set_data(&self, data: *const u8) {
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, self.texture);
+            gl::TexSubImage2D(
+                gl::TEXTURE_2D,
+                0,
+                0,
+                0,
+                self.width as GLint,
+                self.height as GLint,
+                gl::RED,
+                gl::UNSIGNED_BYTE,
+                data as *const _,
+            );
+            gl::BindTexture(gl::TEXTURE_2D, 0);
+        }
     }
 }
