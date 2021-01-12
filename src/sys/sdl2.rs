@@ -1,6 +1,11 @@
 use clap::ArgMatches;
 use log::error;
-use sdl2::{event::Event, keyboard::Keycode, rect::Rect, Sdl};
+use sdl2::{
+    event::{Event, WindowEvent},
+    keyboard::Keycode,
+    rect::Rect,
+    Sdl,
+};
 
 use crate::{
     gfx::{
@@ -80,6 +85,12 @@ impl Sys for SDL2Sys {
         let mut snapshot_cpt = 0;
         take_snapshot(&mut history, &vm, self.renderer.as_gfx());
 
+        // Ignore keys presses from being handled right after window has gained
+        // focus to avoid e.g escape being considered if esc was part of the
+        // shortcut that made us gain focus.
+        const KEYPRESS_COOLDOWN_TICKS: usize = 1;
+        let mut keypress_cooldown = KEYPRESS_COOLDOWN_TICKS;
+
         'run: loop {
             // Update input
             // TODO keep the key released events in a separate input state, so
@@ -90,11 +101,16 @@ impl Sys for SDL2Sys {
             for event in sdl_events.poll_iter() {
                 match event {
                     Event::Quit { .. } => break 'run,
+                    Event::Window {
+                        win_event: WindowEvent::FocusGained,
+                        ..
+                    } => keypress_cooldown = KEYPRESS_COOLDOWN_TICKS,
+
                     Event::KeyDown {
                         keycode: Some(key),
                         repeat: false,
                         ..
-                    } => match key {
+                    } if keypress_cooldown == 0 => match key {
                         Keycode::Escape => break 'run,
                         Keycode::Left => input.horizontal = LeftRightDir::Left,
                         Keycode::Right => input.horizontal = LeftRightDir::Right,
@@ -135,6 +151,11 @@ impl Sys for SDL2Sys {
                     },
                     _ => {}
                 }
+            }
+
+            // Decrease keypress cooldown if we just gained focus.
+            if keypress_cooldown > 0 {
+                keypress_cooldown -= 1;
             }
 
             // Update VM state
