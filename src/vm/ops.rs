@@ -190,7 +190,7 @@ pub fn op_resetthread(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) 
         Activate,
         Pause,
         Reset,
-    };
+    }
     let op = match cursor.read_u8().unwrap() {
         0 => ResetThreadOp::Activate,
         1 => ResetThreadOp::Pause,
