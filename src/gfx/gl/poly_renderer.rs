@@ -16,15 +16,17 @@ pub enum RenderingMode {
 pub struct PolyDrawCommand {
     poly: Polygon,
     pos: (i16, i16),
+    offset: (i16, i16),
     zoom: u16,
     color: u8,
 }
 
 impl PolyDrawCommand {
-    pub fn new(poly: Polygon, pos: (i16, i16), zoom: u16, color: u8) -> Self {
+    pub fn new(poly: Polygon, pos: (i16, i16), offset: (i16, i16), zoom: u16, color: u8) -> Self {
         Self {
             poly,
             pos,
+            offset,
             zoom,
             color,
         }
@@ -62,6 +64,7 @@ pub struct PolyRenderer {
     program: GLuint,
 
     pos_uniform: GLint,
+    offset_uniform: GLint,
     zoom_uniform: GLint,
     bb_uniform: GLint,
     color_uniform: GLint,
@@ -92,6 +95,7 @@ impl PolyRenderer {
         let mut target_fbo = 0;
         let mut source_fbo = 0;
         let pos_uniform;
+        let offset_uniform;
         let zoom_uniform;
         let bb_uniform;
         let color_uniform;
@@ -134,6 +138,7 @@ impl PolyRenderer {
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
 
             pos_uniform = get_uniform_location(program, "pos");
+            offset_uniform = get_uniform_location(program, "offset");
             zoom_uniform = get_uniform_location(program, "zoom");
             bb_uniform = get_uniform_location(program, "bb");
             color_uniform = get_uniform_location(program, "color_idx");
@@ -152,6 +157,7 @@ impl PolyRenderer {
             )),
             program,
             pos_uniform,
+            offset_uniform,
             zoom_uniform,
             bb_uniform,
             color_uniform,
@@ -205,6 +211,11 @@ impl PolyRenderer {
                 self.pos_uniform,
                 command.pos.0 as GLint,
                 command.pos.1 as GLint,
+            );
+            gl::Uniform2i(
+                self.offset_uniform,
+                command.offset.0 as GLint,
+                command.offset.1 as GLint,
             );
             gl::Uniform1ui(self.zoom_uniform, command.zoom as GLuint);
             gl::Uniform2ui(self.bb_uniform, poly.bbw as GLuint, poly.bbh as GLuint);

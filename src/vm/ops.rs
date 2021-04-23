@@ -479,6 +479,7 @@ pub fn op_sprs(
     draw_polygon(
         state.render_buffer,
         (x as i16, y as i16),
+        (0, 0),
         DEFAULT_ZOOM,
         None,
         data_cursor,
@@ -526,6 +527,7 @@ pub fn op_sprl(
     draw_polygon(
         state.render_buffer,
         (x, y),
+        (0, 0),
         zoom,
         None,
         data_cursor,
@@ -534,13 +536,6 @@ pub fn op_sprl(
     );
 
     false
-}
-
-fn coord_zoom(x: u16, y: u16, zoom: u16) -> (u16, u16) {
-    (
-        (x as u32 * zoom as u32 / 64) as u16,
-        (y as u32 * zoom as u32 / 64) as u16,
-    )
 }
 
 fn read_polygon(mut data_cursor: Cursor<&[u8]>) -> Polygon {
@@ -564,6 +559,7 @@ fn read_polygon(mut data_cursor: Cursor<&[u8]>) -> Polygon {
 fn draw_polygon(
     render_buffer: usize,
     pos: (i16, i16),
+    offset: (i16, i16),
     zoom: u16,
     color: Option<u8>,
     mut data_cursor: Cursor<&[u8]>,
@@ -583,10 +579,19 @@ fn draw_polygon(
             };
 
             let polygon = read_polygon(data_cursor);
-            gfx.fillpolygon(render_buffer, pos, color, zoom, &polygon);
+            gfx.fillpolygon(render_buffer, pos, offset, color, zoom, &polygon);
         }
         op if op == 0x02 => {
-            draw_polygon_hierarchy(render_buffer, pos, zoom, color, data_cursor, segment, gfx);
+            draw_polygon_hierarchy(
+                render_buffer,
+                pos,
+                offset,
+                zoom,
+                color,
+                data_cursor,
+                segment,
+                gfx,
+            );
         }
         _ => panic!("invalid draw_polygon op 0x{:x}", op),
     };
@@ -596,44 +601,36 @@ fn draw_polygon(
 fn draw_polygon_hierarchy(
     render_buffer: usize,
     pos: (i16, i16),
+    offset: (i16, i16),
     zoom: u16,
     color: Option<u8>,
     mut data_cursor: Cursor<&[u8]>,
     segment: &[u8],
     gfx: &mut dyn gfx::Backend,
 ) {
-    // TODO not great - we are forcing this zoom operation to be done on integer
-    // operands, which results in quite some precision loss. It would be better to
-    // pass it down to the gfx backend which could use the best suited type.
-    let p = coord_zoom(
-        data_cursor.read_u8().unwrap() as u16,
-        data_cursor.read_u8().unwrap() as u16,
-        zoom,
+    let offset = (
+        offset.0 - data_cursor.read_u8().unwrap() as i16,
+        offset.1 - data_cursor.read_u8().unwrap() as i16,
     );
-    let x = pos.0 - p.0 as i16;
-    let y = pos.1 - p.1 as i16;
     let nb_childs = data_cursor.read_u8().unwrap() + 1;
 
     trace!(
-        "draw_polygon_hierarchy ({}, {})x{}, {} childs",
-        x,
-        y,
+        "draw_polygon_hierarchy {:?} {:?})x{}, {} childs",
+        pos,
+        offset,
         zoom,
         nb_childs
     );
 
     for _i in 0..nb_childs {
-        let (read_color, offset) = match data_cursor.read_u16::<BE>().unwrap() {
+        let (read_color, poly_offset) = match data_cursor.read_u16::<BE>().unwrap() {
             word if word & 0x8000 != 0 => (true, word & 0x7fff),
             word => (false, word),
         };
-        let p = coord_zoom(
-            data_cursor.read_u8().unwrap() as u16,
-            data_cursor.read_u8().unwrap() as u16,
-            zoom,
+        let offset = (
+            offset.0 + data_cursor.read_u8().unwrap() as i16,
+            offset.1 + data_cursor.read_u8().unwrap() as i16,
         );
-        let px = x + p.0 as i16;
-        let py = y + p.1 as i16;
 
         let color = if read_color {
             Some(data_cursor.read_u8().unwrap() & 0x7f)
@@ -648,18 +645,20 @@ fn draw_polygon_hierarchy(
         }
 
         trace!(
-            "  child at ({}, {}), offset 0x{:x} color {:?}",
-            px,
-            py,
+            "  child at {:?}, poly 0x{:x} color {:?}",
             offset,
+            poly_offset,
             color
         );
 
         let mut new_cursor = Cursor::new(segment);
-        new_cursor.seek(SeekFrom::Start(offset as u64 * 2)).unwrap();
+        new_cursor
+            .seek(SeekFrom::Start(poly_offset as u64 * 2))
+            .unwrap();
         draw_polygon(
             render_buffer,
-            (px, py),
+            pos,
+            offset,
             zoom,
             color,
             new_cursor,

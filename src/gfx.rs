@@ -27,6 +27,7 @@ pub trait Backend {
         &mut self,
         dst_page_id: usize,
         pos: (i16, i16),
+        offset: (i16, i16),
         color_idx: u8,
         zoom: u16,
         polygon: &Polygon,

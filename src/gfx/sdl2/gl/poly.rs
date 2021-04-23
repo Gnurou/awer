@@ -117,6 +117,7 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
                 ],
             ),
             (w as i16 / 2, h as i16 / 2),
+            (0, 0),
             64,
             color_idx,
         )));
@@ -131,6 +132,7 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
         &mut self,
         dst_page_id: usize,
         pos: (i16, i16),
+        offset: (i16, i16),
         color_idx: u8,
         zoom: u16,
         polygon: &Polygon,
@@ -139,6 +141,7 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
         command.push(DrawCommand::Poly(PolyDrawCommand::new(
             polygon.clone(),
             pos,
+            offset,
             zoom,
             color_idx,
         )));

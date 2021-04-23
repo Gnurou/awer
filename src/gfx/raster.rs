@@ -13,8 +13,8 @@ pub struct IndexedImage([u8; SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1]]);
 
 /// Apply the zoom function on a point's coordinate `p`: multiply it by `zoom`,
 /// then divide by 64.
-fn scale(p: u16, zoom: u16) -> u16 {
-    ((p as u32 * zoom as u32) / 64) as u16
+fn scale(p: i16, zoom: u16) -> i16 {
+    ((p as i32 * zoom as i32) / 64) as i16
 }
 
 fn slope_step(p1: &Point<i32>, p2: &Point<i32>) -> i32 {
@@ -110,8 +110,14 @@ impl IndexedImage {
         }
     }
 
-    fn fill_polygon<F>(&mut self, pos: (i16, i16), zoom: u16, polygon: &Polygon, draw_func: F)
-    where
+    fn fill_polygon<F>(
+        &mut self,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        zoom: u16,
+        polygon: &Polygon,
+        draw_func: F,
+    ) where
         F: Fn(&mut u8, usize),
     {
         assert!(polygon.points.len() >= 4);
@@ -125,9 +131,12 @@ impl IndexedImage {
         }
 
         // Offset x and y by the polygon center.
-        let offset = (scale(polygon.bbw, zoom) / 2, scale(polygon.bbh, zoom) / 2);
-        let x = pos.0 - offset.0 as i16;
-        let y = pos.1 - offset.1 as i16;
+        let bbox_offset = (
+            scale(polygon.bbw as i16, zoom) / 2,
+            scale(polygon.bbh as i16, zoom) / 2,
+        );
+        let x = pos.0 - bbox_offset.0;
+        let y = pos.1 - bbox_offset.1;
 
         // The first and last points are always at the top. We will fill
         // the polygon line by line starting from them, and stop when the front
@@ -136,7 +145,12 @@ impl IndexedImage {
             .points
             .iter()
             // Add the x and y offsets.
-            .map(|p| Point::from((scale(p.x, zoom) as i16 + x, scale(p.y, zoom) as i16 + y)))
+            .map(|p| {
+                Point::from((
+                    scale((p.x as i16) + offset.0, zoom) as i16 + x,
+                    scale((p.y as i16) + offset.1, zoom) as i16 + y,
+                ))
+            })
             // Turn the point into i32 and add 16 bits of fixed decimals to x to
             // add some precision when computing the slope.
             .map(|p| Point::<i32>::from(((p.x as i32) << 16, p.y as i32)));
@@ -263,6 +277,7 @@ impl Backend for RasterBackend {
         &mut self,
         dst_page_id: usize,
         pos: (i16, i16),
+        offset: (i16, i16),
         color: u8,
         zoom: u16,
         polygon: &Polygon,
@@ -271,14 +286,14 @@ impl Backend for RasterBackend {
 
         match color {
             // Direct indexed color - fill the buffer with that color.
-            0x0..=0xf => dst.fill_polygon(pos, zoom, polygon, |pixel, _off| *pixel = color),
+            0x0..=0xf => dst.fill_polygon(pos, offset, zoom, polygon, |pixel, _off| *pixel = color),
             // 0x10 special color - set the MSB of the current color to create
             // transparency effect.
-            0x10 => dst.fill_polygon(pos, zoom, polygon, |pixel, _off| *pixel |= 0x8),
+            0x10 => dst.fill_polygon(pos, offset, zoom, polygon, |pixel, _off| *pixel |= 0x8),
             // 0x11 special color - copy the same pixel of buffer 0.
             0x11 => {
                 let src = self.buffers[0].borrow();
-                dst.fill_polygon(pos, zoom, polygon, |pixel, off| *pixel = src.0[off]);
+                dst.fill_polygon(pos, offset, zoom, polygon, |pixel, off| *pixel = src.0[off]);
             }
             color => panic!("Unexpected color 0x{:x}", color),
         };

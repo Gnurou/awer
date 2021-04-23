@@ -72,12 +72,13 @@ impl gfx::Backend for Sdl2GlRasterRenderer {
         &mut self,
         dst_page_id: usize,
         pos: (i16, i16),
+        offset: (i16, i16),
         color_idx: u8,
         zoom: u16,
         polygon: &gfx::polygon::Polygon,
     ) {
         self.raster
-            .fillpolygon(dst_page_id, pos, color_idx, zoom, polygon);
+            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, polygon);
     }
 
     fn blitframebuffer(&mut self, page_id: usize) {
