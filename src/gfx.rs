@@ -20,7 +20,18 @@ pub trait Backend {
     fn set_palette(&mut self, palette: &[u8; 32]);
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8);
     fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16);
-    fn fillpolygon(&mut self, dst_page_id: usize, x: i16, y: i16, color_idx: u8, polygon: &Polygon);
+    /// Draw `polygon` with color index `color_idx` on page `dst_page_id`. `x` and `y` are the
+    /// coordinates of the center of the polygon on the page. `zoom` is a zoom factor by which
+    /// every point of the polygon must be multiplied by, and then divided by 64.
+    fn fillpolygon(
+        &mut self,
+        dst_page_id: usize,
+        x: i16,
+        y: i16,
+        color_idx: u8,
+        zoom: u16,
+        polygon: &Polygon,
+    );
     fn blitframebuffer(&mut self, page_id: usize);
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]);
 

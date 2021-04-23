@@ -17,12 +17,19 @@ pub struct PolyDrawCommand {
     poly: Polygon,
     x: i16,
     y: i16,
+    zoom: u16,
     color: u8,
 }
 
 impl PolyDrawCommand {
-    pub fn new(poly: Polygon, x: i16, y: i16, color: u8) -> Self {
-        Self { poly, x, y, color }
+    pub fn new(poly: Polygon, x: i16, y: i16, zoom: u16, color: u8) -> Self {
+        Self {
+            poly,
+            x,
+            y,
+            zoom,
+            color,
+        }
     }
 }
 
@@ -57,6 +64,7 @@ pub struct PolyRenderer {
     program: GLuint,
 
     pos_uniform: GLint,
+    zoom_uniform: GLint,
     bb_uniform: GLint,
     color_uniform: GLint,
     self_uniform: GLint,
@@ -86,6 +94,7 @@ impl PolyRenderer {
         let mut target_fbo = 0;
         let mut source_fbo = 0;
         let pos_uniform;
+        let zoom_uniform;
         let bb_uniform;
         let color_uniform;
         let self_uniform;
@@ -127,6 +136,7 @@ impl PolyRenderer {
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
 
             pos_uniform = get_uniform_location(program, "pos");
+            zoom_uniform = get_uniform_location(program, "zoom");
             bb_uniform = get_uniform_location(program, "bb");
             color_uniform = get_uniform_location(program, "color_idx");
             self_uniform = get_uniform_location(program, "self");
@@ -144,6 +154,7 @@ impl PolyRenderer {
             )),
             program,
             pos_uniform,
+            zoom_uniform,
             bb_uniform,
             color_uniform,
             self_uniform,
@@ -193,6 +204,7 @@ impl PolyRenderer {
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
 
             gl::Uniform2i(self.pos_uniform, command.x as GLint, command.y as GLint);
+            gl::Uniform1ui(self.zoom_uniform, command.zoom as GLuint);
             gl::Uniform2ui(self.bb_uniform, poly.bbw as GLuint, poly.bbh as GLuint);
             gl::Uniform1ui(self.color_uniform, command.color as GLuint);
 

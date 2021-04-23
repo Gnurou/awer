@@ -3,12 +3,16 @@
 layout (location = 0) in ivec2 vertex;
 
 uniform ivec2 pos;
+uniform uint zoom;
 uniform uvec2 bb;
 uniform uint color_idx;
 
 void main() {
-    vec2 offset = bb / 2.0;
-    vec2 fpos = pos + vertex - offset;
+    // Compute zoom factor to apply to all our points.
+    float zoom_factor = float(zoom) / 64.0;
+
+    vec2 offset = bb * zoom_factor / 2.0;
+    vec2 fpos = pos + (vertex * zoom_factor) - offset;
 
     vec2 normalized_pos = vec2((fpos.x / 320.0) * 2 - 1.0, (fpos.y / 200.0) * 2 - 1.0);
 

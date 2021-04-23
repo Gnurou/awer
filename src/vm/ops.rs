@@ -545,7 +545,7 @@ fn coord_zoom(x: u16, y: u16, zoom: u16) -> (u16, u16) {
     )
 }
 
-fn read_polygon(mut data_cursor: Cursor<&[u8]>, zoom: u16) -> Polygon {
+fn read_polygon(mut data_cursor: Cursor<&[u8]>) -> Polygon {
     let bbw = data_cursor.read_u8().unwrap() as u16;
     let bbh = data_cursor.read_u8().unwrap() as u16;
     let nb_vertices = data_cursor.read_u8().unwrap();
@@ -556,11 +556,10 @@ fn read_polygon(mut data_cursor: Cursor<&[u8]>, zoom: u16) -> Polygon {
             data_cursor.read_u8().unwrap() as u16,
             data_cursor.read_u8().unwrap() as u16,
         );
-        let p = coord_zoom(x, y, zoom);
-        points.push(Point { x: p.0, y: p.1 });
+        points.push(Point { x, y });
     }
 
-    Polygon::new(coord_zoom(bbw, bbh, zoom), points)
+    Polygon::new((bbw, bbh), points)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -586,8 +585,8 @@ fn draw_polygon(
                 None => op & 0x3f,
             };
 
-            let polygon = read_polygon(data_cursor, zoom);
-            gfx.fillpolygon(render_buffer, x, y, color, &polygon);
+            let polygon = read_polygon(data_cursor);
+            gfx.fillpolygon(render_buffer, x, y, color, zoom, &polygon);
         }
         op if op == 0x02 => {
             draw_polygon_hierarchy(render_buffer, x, y, zoom, color, data_cursor, segment, gfx);
@@ -607,6 +606,9 @@ fn draw_polygon_hierarchy(
     segment: &[u8],
     gfx: &mut dyn gfx::Backend,
 ) {
+    // TODO not great - we are forcing this zoom operation to be done on integer
+    // operands, which results in quite some precision loss. It would be better to
+    // pass it down to the gfx backend which could use the best suited type.
     let p = coord_zoom(
         data_cursor.read_u8().unwrap() as u16,
         data_cursor.read_u8().unwrap() as u16,
@@ -617,9 +619,10 @@ fn draw_polygon_hierarchy(
     let nb_childs = data_cursor.read_u8().unwrap() + 1;
 
     trace!(
-        "draw_polygon_hierarchy ({}, {}), {} childs",
+        "draw_polygon_hierarchy ({}, {})x{}, {} childs",
         x,
         y,
+        zoom,
         nb_childs
     );
 

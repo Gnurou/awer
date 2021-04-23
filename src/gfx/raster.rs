@@ -11,6 +11,12 @@ use super::{polygon::Polygon, Backend, Palette, Point, SCREEN_RESOLUTION};
 #[derive(Clone)]
 pub struct IndexedImage([u8; SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1]]);
 
+/// Apply the zoom function on a point's coordinate `p`: multiply it by `zoom`,
+/// then divide by 64.
+fn scale(p: u16, zoom: u16) -> u16 {
+    ((p as u32 * zoom as u32) / 64) as u16
+}
+
 fn slope_step(p1: &Point<i32>, p2: &Point<i32>) -> i32 {
     let dy = p2.y - p1.y;
     let dx = p2.x - p1.x;
@@ -104,7 +110,7 @@ impl IndexedImage {
         }
     }
 
-    fn fill_polygon<F>(&mut self, x: i16, y: i16, polygon: &Polygon, draw_func: F)
+    fn fill_polygon<F>(&mut self, x: i16, y: i16, zoom: u16, polygon: &Polygon, draw_func: F)
     where
         F: Fn(&mut u8, usize),
     {
@@ -119,7 +125,7 @@ impl IndexedImage {
         }
 
         // Offset x and y by the polygon center.
-        let offset = (polygon.bbw / 2, polygon.bbh / 2);
+        let offset = (scale(polygon.bbw, zoom) / 2, scale(polygon.bbh, zoom) / 2);
         let x = x - offset.0 as i16;
         let y = y - offset.1 as i16;
 
@@ -130,7 +136,7 @@ impl IndexedImage {
             .points
             .iter()
             // Add the x and y offsets.
-            .map(|p| Point::from((p.x as i16 + x, p.y as i16 + y)))
+            .map(|p| Point::from((scale(p.x, zoom) as i16 + x, scale(p.y, zoom) as i16 + y)))
             // Turn the point into i32 and add 16 bits of fixed decimals to x to
             // add some precision when computing the slope.
             .map(|p| Point::<i32>::from(((p.x as i32) << 16, p.y as i32)));
@@ -253,19 +259,27 @@ impl Backend for RasterBackend {
         dst_slice.copy_from_slice(src_slice);
     }
 
-    fn fillpolygon(&mut self, dst_page_id: usize, x: i16, y: i16, color: u8, polygon: &Polygon) {
+    fn fillpolygon(
+        &mut self,
+        dst_page_id: usize,
+        x: i16,
+        y: i16,
+        color: u8,
+        zoom: u16,
+        polygon: &Polygon,
+    ) {
         let mut dst = self.buffers[dst_page_id].borrow_mut();
 
         match color {
             // Direct indexed color - fill the buffer with that color.
-            0x0..=0xf => dst.fill_polygon(x, y, polygon, |pixel, _off| *pixel = color),
+            0x0..=0xf => dst.fill_polygon(x, y, zoom, polygon, |pixel, _off| *pixel = color),
             // 0x10 special color - set the MSB of the current color to create
             // transparency effect.
-            0x10 => dst.fill_polygon(x, y, polygon, |pixel, _off| *pixel |= 0x8),
+            0x10 => dst.fill_polygon(x, y, zoom, polygon, |pixel, _off| *pixel |= 0x8),
             // 0x11 special color - copy the same pixel of buffer 0.
             0x11 => {
                 let src = self.buffers[0].borrow();
-                dst.fill_polygon(x, y, polygon, |pixel, off| *pixel = src.0[off]);
+                dst.fill_polygon(x, y, zoom, polygon, |pixel, off| *pixel = src.0[off]);
             }
             color => panic!("Unexpected color 0x{:x}", color),
         };

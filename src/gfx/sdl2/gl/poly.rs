@@ -118,6 +118,7 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
             ),
             w as i16 / 2,
             h as i16 / 2,
+            64,
             color_idx,
         )));
     }
@@ -133,6 +134,7 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
         x: i16,
         y: i16,
         color_idx: u8,
+        zoom: u16,
         polygon: &Polygon,
     ) {
         let command = &mut self.draw_commands[dst_page_id];
@@ -140,6 +142,7 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
             polygon.clone(),
             x,
             y,
+            zoom,
             color_idx,
         )));
     }
