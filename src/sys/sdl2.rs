@@ -17,7 +17,7 @@ use crate::{
         },
     },
     input::{ButtonState, InputState, LeftRightDir, UpDownDir},
-    vm::{VmSnapshot, Vm},
+    vm::{Vm, VmSnapshot},
 };
 
 use super::Sys;

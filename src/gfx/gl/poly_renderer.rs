@@ -311,45 +311,5 @@ impl PolyRenderer {
     }
 }
 
-static VERTEX_SHADER: &str = r#"
-#version 330 core
-
-layout (location = 0) in ivec2 vertex;
-
-uniform ivec2 pos;
-uniform uvec2 bb;
-uniform uint color_idx;
-
-void main() {
-    vec2 offset = bb / 2.0;
-    vec2 fpos = pos + vertex - offset;
-
-    vec2 normalized_pos = vec2((fpos.x / 320.0) * 2 - 1.0, (fpos.y / 200.0) * 2 - 1.0);
-
-    gl_Position = vec4(normalized_pos, 0.0, 1.0);
-}
-"#;
-
-static FRAGMENT_SHADER: &str = r#"
-#version 330 core
-
-uniform uint color_idx;
-uniform sampler2D self;
-uniform sampler2D buffer0;
-uniform vec2 viewport_size;
-
-layout (location = 0) out float color;
-
-void main() {
-    if (color_idx == 0x10u) {
-        uint source_color = uint(texture(self, gl_FragCoord.xy / viewport_size).r * 256.0);
-        color = (source_color | 0x8u) / 256.0;
-    }
-    else if (color_idx == 0x11u) {
-        color = texture(buffer0, gl_FragCoord.xy / viewport_size).r;
-    }
-    else {
-        color = (color_idx & 0xfu) / 256.0;
-    }
-}
-"#;
+static VERTEX_SHADER: &str = std::include_str!("poly_render.vert");
+static FRAGMENT_SHADER: &str = std::include_str!("poly_render.frag");
