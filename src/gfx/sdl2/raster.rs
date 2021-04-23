@@ -10,7 +10,7 @@ use sdl2::{
 
 use anyhow::{anyhow, Result};
 
-use crate::gfx::{self, raster::RasterBackend, sdl2::SDL2Renderer, Color};
+use crate::gfx::{self, raster::RasterBackend, sdl2::Sdl2Renderer, Color};
 
 use super::WINDOW_RESOLUTION;
 
@@ -20,7 +20,7 @@ use super::WINDOW_RESOLUTION;
 ///
 /// This way of doing does not rely on any particular SDL driver, i.e. it does
 /// not require OpenGL or even any kind of hardware acceleration.
-pub struct SDL2RasterRenderer {
+pub struct Sdl2RasterRenderer {
     canvas: Canvas<Window>,
     // Textures are owned by their texture creator, so we need to keep this
     // around.
@@ -32,7 +32,7 @@ pub struct SDL2RasterRenderer {
     raster: RasterBackend,
 }
 
-impl SDL2RasterRenderer {
+impl Sdl2RasterRenderer {
     /// Create a new raster renderer, using the given SDL context. This takes
     /// care of creating the window, canvas, and everything we need to draw.
     pub fn new(sdl_context: &Sdl) -> Result<Box<Self>> {
@@ -56,7 +56,7 @@ impl SDL2RasterRenderer {
             gfx::SCREEN_RESOLUTION[1] as u32,
         )?;
 
-        Ok(Box::new(SDL2RasterRenderer {
+        Ok(Box::new(Sdl2RasterRenderer {
             canvas,
             _texture_creator: texture_creator,
             texture,
@@ -102,7 +102,7 @@ impl SDL2RasterRenderer {
     }
 }
 
-impl SDL2Renderer for SDL2RasterRenderer {
+impl Sdl2Renderer for Sdl2RasterRenderer {
     fn blit_game(&mut self, dst: &Rect) {
         // Clear screen
         self.canvas
@@ -129,7 +129,7 @@ impl SDL2Renderer for SDL2RasterRenderer {
     }
 }
 
-impl gfx::Backend for SDL2RasterRenderer {
+impl gfx::Backend for Sdl2RasterRenderer {
     fn set_palette(&mut self, palette: &[u8; 32]) {
         self.raster.set_palette(palette)
     }

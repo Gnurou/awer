@@ -65,7 +65,7 @@ pub struct Thread {
 // We should be able to replace this state with an earlier state (from the same
 // scene) and have the game catch up painlessly.
 #[derive(Clone)]
-pub struct VMState {
+pub struct VmState {
     // TODO looks like registers should be initialized with random values
     // to give a random seed?
     regs: [i16; VM_NUM_VARIABLES],
@@ -81,19 +81,19 @@ pub struct VMState {
     front_buffer: usize,
 }
 
-pub struct VMSys {
+pub struct VmSys {
     resman: ResourceManager,
     palette: Vec<u8>,
     cinematic: Vec<u8>,
     video: Vec<u8>,
 }
 
-struct VMCode {
+struct VmCode {
     code: Vec<u8>,
 }
 
-impl VMCode {
-    fn new(code: Vec<u8>) -> VMCode {
+impl VmCode {
+    fn new(code: Vec<u8>) -> VmCode {
         Self { code }
     }
 
@@ -111,33 +111,33 @@ impl VMCode {
     }
 }
 
-pub struct VM {
-    state: VMState,
-    code: VMCode,
-    sys: VMSys,
+pub struct Vm {
+    state: VmState,
+    code: VmCode,
+    sys: VmSys,
     round: u64,
 }
 
-pub struct VMSnapshot {
-    vm_state: VMState,
+pub struct VmSnapshot {
+    vm_state: VmState,
     gfx_state: Box<dyn Any>,
 }
 
-impl VMSnapshot {
-    pub fn new(vm_state: VMState, gfx_state: Box<dyn Any>) -> Self {
-        VMSnapshot {
+impl VmSnapshot {
+    pub fn new(vm_state: VmState, gfx_state: Box<dyn Any>) -> Self {
+        VmSnapshot {
             vm_state,
             gfx_state,
         }
     }
 
-    pub fn restore(self, vm: &mut VM, gfx: &mut dyn gfx::Backend) {
+    pub fn restore(self, vm: &mut Vm, gfx: &mut dyn gfx::Backend) {
         vm.set_snapshot(self.vm_state);
         gfx.set_snapshot(self.gfx_state);
     }
 }
 
-impl fmt::Debug for VM {
+impl fmt::Debug for Vm {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for (i, r) in self.state.regs.iter().enumerate() {
             if i != 0 && i % 16 == 0 {
@@ -149,7 +149,7 @@ impl fmt::Debug for VM {
     }
 }
 
-impl VM {
+impl Vm {
     fn init_threads() -> [Thread; VM_NUM_THREADS] {
         // Really surprised that there is no better way of doing this. Since
         // Vec is not copyable, we cannot initialize the threads array using
@@ -167,20 +167,20 @@ impl VM {
         unsafe { transmute::<_, [Thread; VM_NUM_THREADS]>(threads) }
     }
 
-    pub fn new() -> Result<VM> {
+    pub fn new() -> Result<Vm> {
         let resman = ResourceManager::new()?;
 
-        Ok(VM {
-            state: VMState {
+        Ok(Vm {
+            state: VmState {
                 regs: [0; VM_NUM_VARIABLES],
-                threads: VM::init_threads(),
+                threads: Vm::init_threads(),
                 requested_scene: None,
                 render_buffer: 0,
                 back_buffer: 0,
                 front_buffer: 0,
             },
-            code: VMCode::new(Vec::new()),
-            sys: VMSys {
+            code: VmCode::new(Vec::new()),
+            sys: VmSys {
                 resman,
                 palette: Vec::new(),
                 cinematic: Vec::new(),
@@ -190,11 +190,11 @@ impl VM {
         })
     }
 
-    pub fn get_snapshot(&self) -> VMState {
+    pub fn get_snapshot(&self) -> VmState {
         self.state.clone()
     }
 
-    pub fn set_snapshot(&mut self, vm_state: VMState) {
+    pub fn set_snapshot(&mut self, vm_state: VmState) {
         self.state = vm_state;
     }
 
@@ -213,7 +213,7 @@ impl VM {
             let opcode = cursor.read_u8().unwrap();
 
             // State op - change the current state.
-            type StateOp = fn(u8, &mut Cursor<&[u8]>, &mut VMState) -> bool;
+            type StateOp = fn(u8, &mut Cursor<&[u8]>, &mut VmState) -> bool;
             let op: Option<StateOp> = match opcode {
                 0x00 => Some(op_seti),
                 0x01 => Some(op_set),
@@ -260,7 +260,7 @@ impl VM {
 
             // Gfx op - display stuff on screen.
             type GfxOp =
-                fn(u8, &mut Cursor<&[u8]>, &mut VMState, &VMSys, &mut dyn gfx::Backend) -> bool;
+                fn(u8, &mut Cursor<&[u8]>, &mut VmState, &VmSys, &mut dyn gfx::Backend) -> bool;
             let op: Option<GfxOp> = match opcode {
                 op if op & 0x80 == 0x80 => Some(op_sprs),
                 op if op & 0xc0 == 0x40 => Some(op_sprl),
@@ -454,7 +454,7 @@ impl VM {
         //self.set_reg(0xe4, 0x14);
 
         // Reset all threads
-        self.state.threads = VM::init_threads();
+        self.state.threads = Vm::init_threads();
         self.state.threads[0].state = ThreadState::Active(0);
     }
 

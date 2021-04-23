@@ -7,7 +7,7 @@ use sdl2::{rect::Rect, video::Window};
 /// Initial size of the window when using this renderer.
 pub const WINDOW_RESOLUTION: [u32; 2] = [1280, 960];
 
-pub trait SDL2Renderer {
+pub trait Sdl2Renderer {
     /// Blit the rendered framebuffer into the `dst` rectangle of the actual
     /// display.
     fn blit_game(&mut self, dst: &Rect);

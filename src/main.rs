@@ -54,7 +54,7 @@ fn main() {
 
     let mut sys: Box<dyn Sys> = sys::sdl2::new(&matches).unwrap();
 
-    let mut vm = Box::new(vm::VM::new().unwrap());
+    let mut vm = Box::new(vm::Vm::new().unwrap());
     vm.init(&scenes::SCENES[start_scene]);
 
     sys.game_loop(&mut vm);

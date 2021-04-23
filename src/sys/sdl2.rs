@@ -11,13 +11,13 @@ use crate::{
     gfx::{
         self,
         sdl2::{
-            gl::{RenderingMode, SDL2GLRenderer},
-            raster::SDL2RasterRenderer,
-            SDL2Renderer,
+            gl::{RenderingMode, Sdl2GlRenderer},
+            raster::Sdl2RasterRenderer,
+            Sdl2Renderer,
         },
     },
     input::{ButtonState, InputState, LeftRightDir, UpDownDir},
-    vm::{VMSnapshot, VM},
+    vm::{VmSnapshot, Vm},
 };
 
 use super::Sys;
@@ -31,9 +31,9 @@ use std::{
 const TICKS_PER_SECOND: u64 = 50;
 const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
 
-pub struct SDL2Sys {
+pub struct Sdl2Sys {
     sdl_context: Sdl,
-    renderer: Box<dyn SDL2Renderer>,
+    renderer: Box<dyn Sdl2Renderer>,
 }
 
 pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
@@ -43,32 +43,32 @@ pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
         })
         .ok()?;
 
-    let renderer: Box<dyn SDL2Renderer> = match matches.value_of("render").unwrap_or("raster") {
-        "raster" => SDL2RasterRenderer::new(&sdl_context).ok()?,
-        "gl_raster" => SDL2GLRenderer::new(&sdl_context, RenderingMode::Raster).ok()?,
-        "gl_poly" => SDL2GLRenderer::new(&sdl_context, RenderingMode::Poly).ok()?,
-        "gl_line" => SDL2GLRenderer::new(&sdl_context, RenderingMode::Line).ok()?,
+    let renderer: Box<dyn Sdl2Renderer> = match matches.value_of("render").unwrap_or("raster") {
+        "raster" => Sdl2RasterRenderer::new(&sdl_context).ok()?,
+        "gl_raster" => Sdl2GlRenderer::new(&sdl_context, RenderingMode::Raster).ok()?,
+        "gl_poly" => Sdl2GlRenderer::new(&sdl_context, RenderingMode::Poly).ok()?,
+        "gl_line" => Sdl2GlRenderer::new(&sdl_context, RenderingMode::Line).ok()?,
         _ => return None,
     };
 
-    Some(Box::new(SDL2Sys {
+    Some(Box::new(Sdl2Sys {
         sdl_context,
         renderer,
     }))
 }
 
-fn take_snapshot(history: &mut VecDeque<VMSnapshot>, vm: &VM, gfx: &dyn gfx::Backend) {
+fn take_snapshot(history: &mut VecDeque<VmSnapshot>, vm: &Vm, gfx: &dyn gfx::Backend) {
     const MAX_GAME_SNAPSHOTS: usize = 50;
 
-    history.push_front(VMSnapshot::new(vm.get_snapshot(), gfx.get_snapshot()));
+    history.push_front(VmSnapshot::new(vm.get_snapshot(), gfx.get_snapshot()));
 
     while history.len() > MAX_GAME_SNAPSHOTS {
         history.pop_back();
     }
 }
 
-impl Sys for SDL2Sys {
-    fn game_loop(&mut self, vm: &mut crate::vm::VM) {
+impl Sys for Sdl2Sys {
+    fn game_loop(&mut self, vm: &mut crate::vm::Vm) {
         // Events, time and input
         let mut sdl_events = self.sdl_context.event_pump().unwrap();
         let mut last_tick_time = Instant::now();
@@ -81,7 +81,7 @@ impl Sys for SDL2Sys {
 
         // State rewind
         const TICKS_PER_SNAPSHOT: usize = 200;
-        let mut history: VecDeque<VMSnapshot> = VecDeque::new();
+        let mut history: VecDeque<VmSnapshot> = VecDeque::new();
         let mut snapshot_cpt = 0;
         take_snapshot(&mut history, &vm, self.renderer.as_gfx());
 

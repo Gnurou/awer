@@ -11,7 +11,7 @@ use crate::gfx::{
     Palette,
 };
 
-pub struct SDL2GLRasterRenderer {
+pub struct Sdl2GlRasterRenderer {
     raster: RasterBackend,
     current_framebuffer: IndexedImage,
     current_palette: Palette,
@@ -26,9 +26,9 @@ struct State {
     current_palette: Palette,
 }
 
-impl SDL2GLRasterRenderer {
-    pub fn new() -> Result<SDL2GLRasterRenderer> {
-        Ok(SDL2GLRasterRenderer {
+impl Sdl2GlRasterRenderer {
+    pub fn new() -> Result<Sdl2GlRasterRenderer> {
+        Ok(Sdl2GlRasterRenderer {
             raster: RasterBackend::new(),
             current_framebuffer: Default::default(),
             current_palette: Default::default(),
@@ -55,7 +55,7 @@ impl SDL2GLRasterRenderer {
     }
 }
 
-impl gfx::Backend for SDL2GLRasterRenderer {
+impl gfx::Backend for Sdl2GlRasterRenderer {
     fn set_palette(&mut self, palette: &[u8; 32]) {
         self.raster.set_palette(palette);
     }

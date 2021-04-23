@@ -6,7 +6,7 @@ use crate::res;
 
 use log::{trace, warn};
 
-pub fn op_seti(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
+pub fn op_seti(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let var_id = cursor.read_u8().unwrap() as usize;
     let value = cursor.read_i16::<BE>().unwrap();
 
@@ -16,7 +16,7 @@ pub fn op_seti(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool
     false
 }
 
-pub fn op_set(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
+pub fn op_set(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let dst_id = cursor.read_u8().unwrap() as usize;
     let src_id = cursor.read_u8().unwrap() as usize;
 
@@ -26,7 +26,7 @@ pub fn op_set(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool 
     false
 }
 
-pub fn op_add(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
+pub fn op_add(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let dst_id = cursor.read_u8().unwrap() as usize;
     let src_id = cursor.read_u8().unwrap() as usize;
 
@@ -42,7 +42,7 @@ pub fn op_add(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool 
     false
 }
 
-pub fn op_addi(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
+pub fn op_addi(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let var_id = cursor.read_u8().unwrap() as usize;
     let value = cursor.read_i16::<BE>().unwrap();
 
@@ -87,7 +87,7 @@ pub fn op_break(thread: &mut Thread, cursor: &mut Cursor<&[u8]>) -> bool {
     true
 }
 
-pub fn op_jmp(_op: u8, cursor: &mut Cursor<&[u8]>, _state: &mut VMState) -> bool {
+pub fn op_jmp(_op: u8, cursor: &mut Cursor<&[u8]>, _state: &mut VmState) -> bool {
     let dst = cursor.read_u16::<BE>().unwrap() as u64;
     trace!("op_jmp {:x}", dst);
 
@@ -95,7 +95,7 @@ pub fn op_jmp(_op: u8, cursor: &mut Cursor<&[u8]>, _state: &mut VMState) -> bool
     false
 }
 
-pub fn op_setvec(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
+pub fn op_setvec(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let thread_id = cursor.read_u8().unwrap() as usize;
     let pc_offset = cursor.read_u16::<BE>().unwrap();
     trace!("op_setvec |{:02x}| <- {:04x}", thread_id, pc_offset);
@@ -106,7 +106,7 @@ pub fn op_setvec(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bo
 }
 
 // Originally called "dbra"
-pub fn op_jnz(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
+pub fn op_jnz(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let var_id = cursor.read_u8().unwrap() as usize;
     let dst = cursor.read_u16::<BE>().unwrap() as u64;
 
@@ -120,7 +120,7 @@ pub fn op_jnz(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool 
 }
 
 // Originally called "si" ("if" in French)
-pub fn op_condjmp(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
+pub fn op_condjmp(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let op = cursor.read_u8().unwrap();
     let reg = cursor.read_u8().unwrap() as usize;
     let b = state.regs[reg];
@@ -180,7 +180,7 @@ pub fn op_condjmp(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> b
 }
 
 // Pauses/activates/resets a series of threads from a given index.
-pub fn op_resetthread(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
+pub fn op_resetthread(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let first_thread = cursor.read_u8().unwrap() as usize;
     let last_thread = cursor.read_u8().unwrap() as usize;
     //let last_thread = (cursor.read_u8().unwrap() & 0x3f) as usize;
@@ -228,7 +228,7 @@ pub fn op_resetthread(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) 
     false
 }
 
-pub fn op_and(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
+pub fn op_and(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let var_id = cursor.read_u8().unwrap() as usize;
     let val = cursor.read_i16::<BE>().unwrap();
 
@@ -238,7 +238,7 @@ pub fn op_and(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool 
     false
 }
 
-pub fn op_or(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
+pub fn op_or(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let var_id = cursor.read_u8().unwrap() as usize;
     let val = cursor.read_i16::<BE>().unwrap();
 
@@ -248,7 +248,7 @@ pub fn op_or(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
     false
 }
 
-pub fn op_shl(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
+pub fn op_shl(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let var_id = cursor.read_u8().unwrap() as usize;
     let val = cursor.read_u16::<BE>().unwrap();
 
@@ -258,7 +258,7 @@ pub fn op_shl(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool 
     false
 }
 
-pub fn op_shr(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
+pub fn op_shr(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let var_id = cursor.read_u8().unwrap() as usize;
     let val = cursor.read_u16::<BE>().unwrap();
 
@@ -276,7 +276,7 @@ pub fn op_killthread(thread: &mut Thread, _cursor: &mut Cursor<&[u8]>) -> bool {
     true
 }
 
-pub fn op_sub(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool {
+pub fn op_sub(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let dst_id = cursor.read_u8().unwrap() as usize;
     let src_id = cursor.read_u8().unwrap() as usize;
 
@@ -295,8 +295,8 @@ pub fn op_sub(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VMState) -> bool 
 pub fn op_setpalette(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
-    _state: &mut VMState,
-    sys: &VMSys,
+    _state: &mut VmState,
+    sys: &VmSys,
     gfx: &mut dyn gfx::Backend,
 ) -> bool {
     // Why the right shift here?
@@ -315,7 +315,7 @@ pub fn op_setpalette(
 
 /// Returns a buffer index between 0 and 3 depending on the optional
 /// opcode.
-fn lookup_buffer(state: &VMState, buffer_id: u8) -> usize {
+fn lookup_buffer(state: &VmState, buffer_id: u8) -> usize {
     match buffer_id {
         // 0xff means the back buffer, currently being rendered.
         0xff => state.back_buffer,
@@ -337,8 +337,8 @@ fn lookup_buffer(state: &VMState, buffer_id: u8) -> usize {
 pub fn op_selectvideopage(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
-    state: &mut VMState,
-    _sys: &VMSys,
+    state: &mut VmState,
+    _sys: &VmSys,
     _gfx: &mut dyn gfx::Backend,
 ) -> bool {
     let buffer_id = cursor.read_u8().unwrap();
@@ -357,8 +357,8 @@ pub fn op_selectvideopage(
 pub fn op_fillvideopage(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
-    state: &mut VMState,
-    _sys: &VMSys,
+    state: &mut VmState,
+    _sys: &VmSys,
     gfx: &mut dyn gfx::Backend,
 ) -> bool {
     let page_id = cursor.read_u8().unwrap();
@@ -373,8 +373,8 @@ pub fn op_fillvideopage(
 pub fn op_copyvideopage(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
-    state: &mut VMState,
-    _sys: &VMSys,
+    state: &mut VmState,
+    _sys: &VmSys,
     gfx: &mut dyn gfx::Backend,
 ) -> bool {
     // TODO source buffer sometimes have bit 0x40 set. Why?
@@ -408,8 +408,8 @@ pub fn op_copyvideopage(
 pub fn op_blitframebuffer(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
-    state: &mut VMState,
-    _sys: &VMSys,
+    state: &mut VmState,
+    _sys: &VmSys,
     gfx: &mut dyn gfx::Backend,
 ) -> bool {
     let page_id = cursor.read_u8().unwrap();
@@ -437,8 +437,8 @@ pub fn op_blitframebuffer(
 pub fn op_drawstring(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
-    state: &mut VMState,
-    _sys: &VMSys,
+    state: &mut VmState,
+    _sys: &VmSys,
     _gfx: &mut dyn gfx::Backend,
 ) -> bool {
     let string_id = cursor.read_u16::<BE>().unwrap();
@@ -459,8 +459,8 @@ const DEFAULT_ZOOM: u16 = 0x40;
 pub fn op_sprs(
     op: u8,
     cursor: &mut Cursor<&[u8]>,
-    state: &mut VMState,
-    sys: &VMSys,
+    state: &mut VmState,
+    sys: &VmSys,
     gfx: &mut dyn gfx::Backend,
 ) -> bool {
     let offset = (((((op & 0x7f) as u16) << 8) | cursor.read_u8().unwrap() as u16) * 2) as usize;
@@ -493,8 +493,8 @@ pub fn op_sprs(
 pub fn op_sprl(
     op: u8,
     cursor: &mut Cursor<&[u8]>,
-    state: &mut VMState,
-    sys: &VMSys,
+    state: &mut VmState,
+    sys: &VmSys,
     gfx: &mut dyn gfx::Backend,
 ) -> bool {
     let offset = (cursor.read_u16::<BE>().unwrap() * 2) as usize;
@@ -662,7 +662,7 @@ fn draw_polygon_hierarchy(
     }
 }
 
-pub fn op_playsound(_op: u8, cursor: &mut Cursor<&[u8]>, _state: &mut VMState) -> bool {
+pub fn op_playsound(_op: u8, cursor: &mut Cursor<&[u8]>, _state: &mut VmState) -> bool {
     let res_id = cursor.read_u16::<BE>().unwrap();
     let freq = cursor.read_u8().unwrap();
     let vol = cursor.read_u8().unwrap();
@@ -675,7 +675,7 @@ pub fn op_playsound(_op: u8, cursor: &mut Cursor<&[u8]>, _state: &mut VMState) -
 
     false
 }
-pub fn op_playmusic(_op: u8, cursor: &mut Cursor<&[u8]>, _state: &mut VMState) -> bool {
+pub fn op_playmusic(_op: u8, cursor: &mut Cursor<&[u8]>, _state: &mut VmState) -> bool {
     let res_id = cursor.read_u16::<BE>().unwrap();
     let delay = cursor.read_u16::<BE>().unwrap();
     let pos = cursor.read_u8().unwrap();
@@ -702,8 +702,8 @@ pub fn op_playmusic(_op: u8, cursor: &mut Cursor<&[u8]>, _state: &mut VMState) -
 pub fn op_loadresource(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
-    state: &mut VMState,
-    sys: &mut VMSys,
+    state: &mut VmState,
+    sys: &mut VmSys,
     gfx: &mut dyn gfx::Backend,
 ) -> bool {
     let res_id = cursor.read_u16::<BE>().unwrap() as usize;

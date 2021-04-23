@@ -17,7 +17,7 @@ use anyhow::Result;
 
 pub use crate::gfx::gl::poly_renderer::RenderingMode;
 
-pub struct SDL2GLPolyRenderer {
+pub struct Sdl2GlPolyRenderer {
     rendering_mode: RenderingMode,
 
     draw_commands: [Vec<DrawCommand>; 4],
@@ -41,9 +41,9 @@ struct State {
 
 const TEXTURE_SIZE: (usize, usize) = (1280, 960);
 
-impl SDL2GLPolyRenderer {
-    pub fn new(rendering_mode: RenderingMode) -> Result<SDL2GLPolyRenderer> {
-        Ok(SDL2GLPolyRenderer {
+impl Sdl2GlPolyRenderer {
+    pub fn new(rendering_mode: RenderingMode) -> Result<Sdl2GlPolyRenderer> {
+        Ok(Sdl2GlPolyRenderer {
             rendering_mode,
 
             draw_commands: Default::default(),
@@ -91,7 +91,7 @@ impl SDL2GLPolyRenderer {
     }
 }
 
-impl gfx::Backend for SDL2GLPolyRenderer {
+impl gfx::Backend for Sdl2GlPolyRenderer {
     fn set_palette(&mut self, palette: &[u8; 32]) {
         self.candidate_palette = {
             let mut p: Palette = Default::default();

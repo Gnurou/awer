@@ -13,7 +13,7 @@ use anyhow::{anyhow, Result};
 
 use crate::gfx::{self, polygon::Polygon};
 
-use super::{SDL2Renderer, WINDOW_RESOLUTION};
+use super::{Sdl2Renderer, WINDOW_RESOLUTION};
 
 #[derive(Clone, Copy)]
 pub enum RenderingMode {
@@ -33,13 +33,13 @@ pub enum RenderingMode {
 ///
 /// In the future it should also be able to render a DrawList into polygons at
 /// any resolution - ideally we would be able to switch modes on the fly...
-pub struct SDL2GLRenderer {
+pub struct Sdl2GlRenderer {
     rendering_mode: RenderingMode,
     window: Window,
     _opengl_context: GLContext,
 
-    raster_renderer: raster::SDL2GLRasterRenderer,
-    poly_renderer: poly::SDL2GLPolyRenderer,
+    raster_renderer: raster::Sdl2GlRasterRenderer,
+    poly_renderer: poly::Sdl2GlPolyRenderer,
 }
 
 struct State {
@@ -47,7 +47,7 @@ struct State {
     poly_renderer: Box<dyn Any>,
 }
 
-impl SDL2GLRenderer {
+impl Sdl2GlRenderer {
     pub fn new(sdl_context: &Sdl, rendering_mode: RenderingMode) -> Result<Box<Self>> {
         let sdl_video = sdl_context.video().map_err(|s| anyhow!(s))?;
 
@@ -73,13 +73,13 @@ impl SDL2GLRenderer {
             gl::Disable(gl::STENCIL_TEST);
         }
 
-        Ok(Box::new(SDL2GLRenderer {
+        Ok(Box::new(Sdl2GlRenderer {
             rendering_mode,
             window,
             _opengl_context: opengl_context,
 
-            raster_renderer: raster::SDL2GLRasterRenderer::new()?,
-            poly_renderer: poly::SDL2GLPolyRenderer::new(match rendering_mode {
+            raster_renderer: raster::Sdl2GlRasterRenderer::new()?,
+            poly_renderer: poly::Sdl2GlPolyRenderer::new(match rendering_mode {
                 RenderingMode::Raster | RenderingMode::Poly => poly::RenderingMode::Poly,
                 RenderingMode::Line => poly::RenderingMode::Line,
             })?,
@@ -87,7 +87,7 @@ impl SDL2GLRenderer {
     }
 }
 
-impl SDL2Renderer for SDL2GLRenderer {
+impl Sdl2Renderer for Sdl2GlRenderer {
     fn blit_game(&mut self, dst: &Rect) {
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
@@ -118,7 +118,7 @@ impl SDL2Renderer for SDL2GLRenderer {
     }
 }
 
-impl gfx::Backend for SDL2GLRenderer {
+impl gfx::Backend for Sdl2GlRenderer {
     fn set_palette(&mut self, palette: &[u8; 32]) {
         self.raster_renderer.set_palette(palette);
         self.poly_renderer.set_palette(palette);
