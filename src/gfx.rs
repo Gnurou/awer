@@ -26,8 +26,7 @@ pub trait Backend {
     fn fillpolygon(
         &mut self,
         dst_page_id: usize,
-        x: i16,
-        y: i16,
+        pos: (i16, i16),
         color_idx: u8,
         zoom: u16,
         polygon: &Polygon,

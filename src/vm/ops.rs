@@ -478,8 +478,7 @@ pub fn op_sprs(
     data_cursor.seek(SeekFrom::Start(offset as u64)).unwrap();
     draw_polygon(
         state.render_buffer,
-        x as i16,
-        y as i16,
+        (x as i16, y as i16),
         DEFAULT_ZOOM,
         None,
         data_cursor,
@@ -526,8 +525,7 @@ pub fn op_sprl(
     data_cursor.seek(SeekFrom::Start(offset as u64)).unwrap();
     draw_polygon(
         state.render_buffer,
-        x as i16,
-        y as i16,
+        (x, y),
         zoom,
         None,
         data_cursor,
@@ -565,8 +563,7 @@ fn read_polygon(mut data_cursor: Cursor<&[u8]>) -> Polygon {
 #[allow(clippy::too_many_arguments)]
 fn draw_polygon(
     render_buffer: usize,
-    x: i16,
-    y: i16,
+    pos: (i16, i16),
     zoom: u16,
     color: Option<u8>,
     mut data_cursor: Cursor<&[u8]>,
@@ -586,10 +583,10 @@ fn draw_polygon(
             };
 
             let polygon = read_polygon(data_cursor);
-            gfx.fillpolygon(render_buffer, x, y, color, zoom, &polygon);
+            gfx.fillpolygon(render_buffer, pos, color, zoom, &polygon);
         }
         op if op == 0x02 => {
-            draw_polygon_hierarchy(render_buffer, x, y, zoom, color, data_cursor, segment, gfx);
+            draw_polygon_hierarchy(render_buffer, pos, zoom, color, data_cursor, segment, gfx);
         }
         _ => panic!("invalid draw_polygon op 0x{:x}", op),
     };
@@ -598,8 +595,7 @@ fn draw_polygon(
 #[allow(clippy::too_many_arguments)]
 fn draw_polygon_hierarchy(
     render_buffer: usize,
-    ox: i16,
-    oy: i16,
+    pos: (i16, i16),
     zoom: u16,
     color: Option<u8>,
     mut data_cursor: Cursor<&[u8]>,
@@ -614,8 +610,8 @@ fn draw_polygon_hierarchy(
         data_cursor.read_u8().unwrap() as u16,
         zoom,
     );
-    let x = ox - p.0 as i16;
-    let y = oy - p.1 as i16;
+    let x = pos.0 - p.0 as i16;
+    let y = pos.1 - p.1 as i16;
     let nb_childs = data_cursor.read_u8().unwrap() + 1;
 
     trace!(
@@ -661,7 +657,15 @@ fn draw_polygon_hierarchy(
 
         let mut new_cursor = Cursor::new(segment);
         new_cursor.seek(SeekFrom::Start(offset as u64 * 2)).unwrap();
-        draw_polygon(render_buffer, px, py, zoom, color, new_cursor, segment, gfx);
+        draw_polygon(
+            render_buffer,
+            (px, py),
+            zoom,
+            color,
+            new_cursor,
+            segment,
+            gfx,
+        );
     }
 }
 

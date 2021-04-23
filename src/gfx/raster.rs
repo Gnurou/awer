@@ -110,7 +110,7 @@ impl IndexedImage {
         }
     }
 
-    fn fill_polygon<F>(&mut self, x: i16, y: i16, zoom: u16, polygon: &Polygon, draw_func: F)
+    fn fill_polygon<F>(&mut self, pos: (i16, i16), zoom: u16, polygon: &Polygon, draw_func: F)
     where
         F: Fn(&mut u8, usize),
     {
@@ -118,7 +118,7 @@ impl IndexedImage {
 
         // Optimization for single-pixel polygons
         if polygon.bbw == 0 && polygon.bbh == 0 {
-            if let Ok(offset) = IndexedImage::offset(x, y) {
+            if let Ok(offset) = IndexedImage::offset(pos.0, pos.1) {
                 draw_func(&mut self.0[offset], offset);
             }
             return;
@@ -126,8 +126,8 @@ impl IndexedImage {
 
         // Offset x and y by the polygon center.
         let offset = (scale(polygon.bbw, zoom) / 2, scale(polygon.bbh, zoom) / 2);
-        let x = x - offset.0 as i16;
-        let y = y - offset.1 as i16;
+        let x = pos.0 - offset.0 as i16;
+        let y = pos.1 - offset.1 as i16;
 
         // The first and last points are always at the top. We will fill
         // the polygon line by line starting from them, and stop when the front
@@ -262,8 +262,7 @@ impl Backend for RasterBackend {
     fn fillpolygon(
         &mut self,
         dst_page_id: usize,
-        x: i16,
-        y: i16,
+        pos: (i16, i16),
         color: u8,
         zoom: u16,
         polygon: &Polygon,
@@ -272,14 +271,14 @@ impl Backend for RasterBackend {
 
         match color {
             // Direct indexed color - fill the buffer with that color.
-            0x0..=0xf => dst.fill_polygon(x, y, zoom, polygon, |pixel, _off| *pixel = color),
+            0x0..=0xf => dst.fill_polygon(pos, zoom, polygon, |pixel, _off| *pixel = color),
             // 0x10 special color - set the MSB of the current color to create
             // transparency effect.
-            0x10 => dst.fill_polygon(x, y, zoom, polygon, |pixel, _off| *pixel |= 0x8),
+            0x10 => dst.fill_polygon(pos, zoom, polygon, |pixel, _off| *pixel |= 0x8),
             // 0x11 special color - copy the same pixel of buffer 0.
             0x11 => {
                 let src = self.buffers[0].borrow();
-                dst.fill_polygon(x, y, zoom, polygon, |pixel, off| *pixel = src.0[off]);
+                dst.fill_polygon(pos, zoom, polygon, |pixel, off| *pixel = src.0[off]);
             }
             color => panic!("Unexpected color 0x{:x}", color),
         };

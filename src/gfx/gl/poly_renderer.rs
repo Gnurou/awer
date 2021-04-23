@@ -15,18 +15,16 @@ pub enum RenderingMode {
 #[derive(Clone)]
 pub struct PolyDrawCommand {
     poly: Polygon,
-    x: i16,
-    y: i16,
+    pos: (i16, i16),
     zoom: u16,
     color: u8,
 }
 
 impl PolyDrawCommand {
-    pub fn new(poly: Polygon, x: i16, y: i16, zoom: u16, color: u8) -> Self {
+    pub fn new(poly: Polygon, pos: (i16, i16), zoom: u16, color: u8) -> Self {
         Self {
             poly,
-            x,
-            y,
+            pos,
             zoom,
             color,
         }
@@ -203,7 +201,11 @@ impl PolyRenderer {
             );
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
 
-            gl::Uniform2i(self.pos_uniform, command.x as GLint, command.y as GLint);
+            gl::Uniform2i(
+                self.pos_uniform,
+                command.pos.0 as GLint,
+                command.pos.1 as GLint,
+            );
             gl::Uniform1ui(self.zoom_uniform, command.zoom as GLuint);
             gl::Uniform2ui(self.bb_uniform, poly.bbw as GLuint, poly.bbh as GLuint);
             gl::Uniform1ui(self.color_uniform, command.color as GLuint);
