@@ -543,14 +543,13 @@ fn read_polygon(mut data_cursor: Cursor<&[u8]>) -> Polygon {
     let bbh = data_cursor.read_u8().unwrap() as u16;
     let nb_vertices = data_cursor.read_u8().unwrap();
 
-    let mut points = Vec::new();
-    for _i in 0..nb_vertices {
-        let (x, y) = (
-            data_cursor.read_u8().unwrap() as u16,
-            data_cursor.read_u8().unwrap() as u16,
-        );
-        points.push(Point { x, y });
-    }
+    let points = (0..nb_vertices)
+        .into_iter()
+        .map(|_| Point {
+            x: data_cursor.read_u8().unwrap() as u16,
+            y: data_cursor.read_u8().unwrap() as u16,
+        })
+        .collect();
 
     Polygon::new((bbw, bbh), points)
 }
