@@ -19,8 +19,11 @@ use super::gfx;
 
 use super::res::ResourceManager;
 
-use crate::input::*;
 use crate::scenes;
+use crate::{
+    input::*,
+    strings::{self, GameStrings},
+};
 
 use byteorder::{ReadBytesExt, BE};
 
@@ -86,6 +89,7 @@ pub struct VmSys {
     palette: Vec<u8>,
     cinematic: Vec<u8>,
     video: Vec<u8>,
+    strings: GameStrings,
 }
 
 struct VmCode {
@@ -185,6 +189,7 @@ impl Vm {
                 palette: Vec::new(),
                 cinematic: Vec::new(),
                 video: Vec::new(),
+                strings: strings::load_strings().unwrap_or_default(),
             },
             round: 0,
         })

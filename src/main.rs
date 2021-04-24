@@ -4,6 +4,7 @@ mod gfx;
 mod input;
 mod res;
 mod scenes;
+mod strings;
 mod sys;
 mod vm;
 

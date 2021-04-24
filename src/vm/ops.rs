@@ -438,7 +438,7 @@ pub fn op_drawstring(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
-    _sys: &VmSys,
+    sys: &VmSys,
     _gfx: &mut dyn gfx::Backend,
 ) -> bool {
     let string_id = cursor.read_u16::<BE>().unwrap();
@@ -450,6 +450,11 @@ pub fn op_drawstring(
         "op_drawstring 0x{:04x}, ({}, {}) 0x{:x} -> {} - not yet implemented",
         string_id, x, y, color, state.render_buffer
     );
+
+    match sys.strings.get(&(string_id as usize)) {
+        None => log::error!("Cannot find string 0x{:04x}", string_id),
+        Some(string) => info!("{}", string),
+    };
 
     false
 }
