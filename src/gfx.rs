@@ -17,8 +17,12 @@ pub trait GfxSnapshot: Any {}
 impl GfxSnapshot for () {}
 
 pub trait Backend {
+    /// Set the current palette of the game, effective immediately.
     fn set_palette(&mut self, palette: &[u8; 32]);
+    /// Fill video page `page_id` entirely with color `color_idx`.
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8);
+    /// Copy video page `src_page_id` into `dst_page_id`. `vscroll` is a vertical offset
+    /// for the copy.
     fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16);
     /// Draw `polygon` with color index `color_idx` on page `dst_page_id`. `x` and `y` are the
     /// coordinates of the center of the polygon on the page. `zoom` is a zoom factor by which
@@ -34,7 +38,12 @@ pub trait Backend {
     );
     /// Draw character `c` at position `pos` of page `dst_page_id` with color `color_idx`.
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8);
+    /// Make `page_id` the current framebuffer, i.e. the buffer that will be shown next
+    /// on screen.
     fn blitframebuffer(&mut self, page_id: usize);
+    /// Blit `buffer` (a bitmap of full screen size) into `dst_page_id`. This is used
+    /// as an alternative to creating scenes using polys notably in later scenes of
+    /// the game (maybe because of lack of time?).
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]);
 
     /// Get a snapshot object from the state of the backend. The `set_snapshot()`
