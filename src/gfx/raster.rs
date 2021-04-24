@@ -146,9 +146,14 @@ impl IndexedImage {
             .iter()
             // Add the x and y offsets.
             .map(|p| {
+                // It is tempting to simplify this into
+                // "scale(p.x + offset.0, zoom) + x" but this results in some
+                // objects appearing larger than they should. The game does the
+                // scaling separately on these two parameters, so we need to do
+                // the same in order to obtain the same rendering.
                 Point::from((
-                    scale(p.x + offset.0, zoom) + x,
-                    scale(p.y + offset.1, zoom) + y,
+                    scale(p.x, zoom) + scale(offset.0, zoom) + x,
+                    scale(p.y, zoom) + scale(offset.1, zoom) + y,
                 ))
             })
             // Turn the point into i32 and add 16 bits of fixed decimals to x to
