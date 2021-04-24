@@ -88,7 +88,7 @@ impl IndexedImage {
 
     /// Draw a horizontal line at ordinate y, between x1 (included) and x2 (excluded)
     /// If x1 >= x2, nothing is drawn.
-    fn draw_hline<F>(&mut self, y: i16, x1: i16, x2: i16, draw_func: &F)
+    fn draw_hline<F>(&mut self, y: i16, x1: i16, x2: i16, draw_func: F)
     where
         F: Fn(&mut u8, usize),
     {
