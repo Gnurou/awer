@@ -577,6 +577,15 @@ fn draw_polygon(
                 None => op & 0x3f,
             };
 
+            trace!(
+                "draw_polygon {:?} {:?}x{}, 0x{:x} @{}",
+                pos,
+                offset,
+                zoom,
+                color,
+                data_cursor.position(),
+            );
+
             let polygon = read_polygon(data_cursor);
             gfx.fillpolygon(render_buffer, pos, offset, color, zoom, &polygon);
         }
@@ -614,7 +623,7 @@ fn draw_polygon_hierarchy(
     let nb_childs = data_cursor.read_u8().unwrap() + 1;
 
     trace!(
-        "draw_polygon_hierarchy {:?} {:?})x{}, {} childs",
+        "draw_polygon_hierarchy {:?} {:?}x{}, {} childs",
         pos,
         offset,
         zoom,
