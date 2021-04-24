@@ -1,5 +1,6 @@
 use clap::{App, Arg};
 
+mod font;
 mod gfx;
 mod input;
 mod res;

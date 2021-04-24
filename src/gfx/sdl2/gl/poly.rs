@@ -147,6 +147,10 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
         )));
     }
 
+    fn draw_char(&mut self, _dst_page_id: usize, _pos: (i16, i16), _color_idx: u8, _c: u8) {
+        // TODO
+    }
+
     fn blitframebuffer(&mut self, page_id: usize) {
         self.framebuffer_index = page_id;
         self.current_palette = self.candidate_palette.clone();

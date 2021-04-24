@@ -299,6 +299,42 @@ impl Backend for RasterBackend {
         };
     }
 
+    fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color: u8, c: u8) {
+        use crate::font::*;
+
+        // Only direct colors are valid for fonts.
+        if color > 0xf {
+            log::error!("Unexpected font color 0x{:x}", color);
+            return;
+        }
+
+        // Our font starts at the first supported character.
+        let font_offset = match c {
+            FONT_FIRST_CHAR..=FONT_LAST_CHAR => c - FONT_FIRST_CHAR,
+            c => {
+                log::error!(
+                    "Character '{}' (0x{:x}) is not covered by font!",
+                    c as char,
+                    c
+                );
+                return;
+            }
+        } as usize
+            * CHAR_HEIGHT;
+
+        // Each character is encoded with 8 bytes, 1 byte per line.
+        let char_bitmap = &FONT[font_offset..font_offset + CHAR_HEIGHT];
+
+        let mut dst = self.buffers[dst_page_id].borrow_mut();
+        for (i, char_line) in char_bitmap.iter().map(|b| b.reverse_bits()).enumerate() {
+            dst.draw_hline(pos.1 + i as i16, pos.0, pos.0 + 8, |pixel, off| {
+                if (char_line >> (off & 0x7) & 0x1) == 1 {
+                    *pixel = color
+                }
+            })
+        }
+    }
+
     fn blitframebuffer(&mut self, page_id: usize) {
         self.framebuffer_index = page_id;
     }

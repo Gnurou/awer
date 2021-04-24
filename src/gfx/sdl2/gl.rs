@@ -151,6 +151,12 @@ impl gfx::Backend for Sdl2GlRenderer {
             .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, polygon);
     }
 
+    fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8) {
+        self.raster_renderer
+            .draw_char(dst_page_id, pos, color_idx, c);
+        self.poly_renderer.draw_char(dst_page_id, pos, color_idx, c);
+    }
+
     fn blitframebuffer(&mut self, page_id: usize) {
         self.raster_renderer.blitframebuffer(page_id);
         self.poly_renderer.blitframebuffer(page_id);

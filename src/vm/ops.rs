@@ -439,22 +439,50 @@ pub fn op_drawstring(
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
     sys: &VmSys,
-    _gfx: &mut dyn gfx::Backend,
+    gfx: &mut dyn gfx::Backend,
 ) -> bool {
+    use crate::font::{CHAR_HEIGHT, CHAR_WIDTH};
+
     let string_id = cursor.read_u16::<BE>().unwrap();
-    let x = cursor.read_u8().unwrap();
-    let y = cursor.read_u8().unwrap();
+    let start_x = cursor.read_u8().unwrap() as i16 * CHAR_WIDTH as i16;
+    let mut y = cursor.read_u8().unwrap() as i16;
+    let mut x = start_x;
     let color = cursor.read_u8().unwrap();
 
-    warn!(
-        "op_drawstring 0x{:04x}, ({}, {}) 0x{:x} -> {} - not yet implemented",
-        string_id, x, y, color, state.render_buffer
+    trace!(
+        "op_drawstring 0x{:04x}, ({}, {}) 0x{:x} -> {}",
+        string_id,
+        x,
+        y,
+        color,
+        state.render_buffer
     );
 
-    match sys.strings.get(&(string_id as usize)) {
-        None => log::error!("Cannot find string 0x{:04x}", string_id),
-        Some(string) => info!("{}", string),
+    let string = match sys.strings.get(&(string_id as usize)) {
+        None => {
+            log::error!("Cannot find string 0x{:04x}", string_id);
+            return false;
+        }
+        Some(string) => string,
     };
+
+    for c in string.chars() {
+        match c {
+            '\n' => {
+                y += CHAR_HEIGHT as i16;
+                x = start_x;
+            }
+            c if c.is_ascii() => {
+                gfx.draw_char(state.render_buffer, (x, y), color, c as u8);
+                x += CHAR_WIDTH as i16;
+            }
+            c => log::error!(
+                "Invalid non-ASCII character '{}' in string 0x{:04x}",
+                c,
+                string_id
+            ),
+        }
+    }
 
     false
 }

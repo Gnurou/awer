@@ -32,6 +32,8 @@ pub trait Backend {
         zoom: u16,
         polygon: &Polygon,
     );
+    /// Draw character `c` at position `pos` of page `dst_page_id` with color `color_idx`.
+    fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8);
     fn blitframebuffer(&mut self, page_id: usize);
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]);
 
