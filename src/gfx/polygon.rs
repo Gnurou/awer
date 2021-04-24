@@ -25,7 +25,7 @@ use std::slice::Iter;
 pub struct Polygon {
     pub bbw: u16,
     pub bbh: u16,
-    pub points: Vec<Point<u16>>,
+    pub points: Vec<Point<i16>>,
 }
 
 impl Debug for Polygon {
@@ -35,7 +35,7 @@ impl Debug for Polygon {
 }
 
 impl Polygon {
-    pub fn new(bb: (u16, u16), points: Vec<Point<u16>>) -> Polygon {
+    pub fn new(bb: (u16, u16), points: Vec<Point<i16>>) -> Polygon {
         Polygon {
             bbw: bb.0,
             bbh: bb.1,
@@ -46,7 +46,7 @@ impl Polygon {
     #[allow(dead_code)]
     pub fn line_iter<T>(&self) -> PolygonIter<T>
     where
-        Point<T>: From<Point<u16>>,
+        Point<T>: From<Point<i16>>,
     {
         let mut iter = self.points.iter();
         let next_line = match (iter.next(), iter.next_back()) {
@@ -72,9 +72,9 @@ impl Polygon {
 // TODO: Windows type implements DoubleEndedIterator! We can use that. Maybe
 //       we need to reverse the back iterator to get the correct lines though.
 pub struct PolygonIter<'a, T> {
-    iter: Iter<'a, Point<u16>>,
-    next_cw: Option<&'a Point<u16>>,
-    next_ccw: Option<&'a Point<u16>>,
+    iter: Iter<'a, Point<i16>>,
+    next_cw: Option<&'a Point<i16>>,
+    next_ccw: Option<&'a Point<i16>>,
     // The line to return on the next call to next().
     next_line: Option<(Point<T>, Point<T>)>,
 
@@ -85,7 +85,7 @@ impl<'a, T> Iterator for PolygonIter<'a, T>
 where
     T: Copy + Default + PartialEq,
     T: Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T> + Div<T, Output = T>,
-    Point<T>: From<Point<u16>>,
+    Point<T>: From<Point<i16>>,
 {
     type Item = (Point<T>, Point<T>);
 

@@ -86,8 +86,8 @@ impl<T: Copy> From<[T; 2]> for Point<T> {
     }
 }
 
-impl From<Point<u16>> for Point<f64> {
-    fn from(p: Point<u16>) -> Self {
+impl From<Point<i16>> for Point<f64> {
+    fn from(p: Point<i16>) -> Self {
         Point {
             x: p.x.into(),
             y: p.y.into(),

@@ -147,8 +147,8 @@ impl IndexedImage {
             // Add the x and y offsets.
             .map(|p| {
                 Point::from((
-                    scale((p.x as i16) + offset.0, zoom) as i16 + x,
-                    scale((p.y as i16) + offset.1, zoom) as i16 + y,
+                    scale(p.x + offset.0, zoom) + x,
+                    scale(p.y + offset.1, zoom) + y,
                 ))
             })
             // Turn the point into i32 and add 16 bits of fixed decimals to x to

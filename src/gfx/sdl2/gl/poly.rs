@@ -104,11 +104,11 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
         let commands = &mut self.draw_commands[page_id];
         commands.clear();
 
-        let w = gfx::SCREEN_RESOLUTION[0] as u16;
-        let h = gfx::SCREEN_RESOLUTION[1] as u16;
+        let w = gfx::SCREEN_RESOLUTION[0] as i16;
+        let h = gfx::SCREEN_RESOLUTION[1] as i16;
         commands.push(DrawCommand::Poly(PolyDrawCommand::new(
             Polygon::new(
-                (w, h),
+                (w as u16, h as u16),
                 vec![
                     Point { x: 0, y: 0 },
                     Point { x: w, y: 0 },
@@ -116,7 +116,7 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
                     Point { x: 0, y: h },
                 ],
             ),
-            (w as i16 / 2, h as i16 / 2),
+            (w / 2, h / 2),
             (0, 0),
             64,
             color_idx,

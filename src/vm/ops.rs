@@ -464,8 +464,8 @@ pub fn op_sprs(
     gfx: &mut dyn gfx::Backend,
 ) -> bool {
     let offset = (((((op & 0x7f) as u16) << 8) | cursor.read_u8().unwrap() as u16) * 2) as usize;
-    let mut x = cursor.read_u8().unwrap() as u16;
-    let mut y = cursor.read_u8().unwrap() as u16;
+    let mut x = cursor.read_u8().unwrap() as i16;
+    let mut y = cursor.read_u8().unwrap() as i16;
 
     if y > 199 {
         y = 199;
@@ -478,7 +478,7 @@ pub fn op_sprs(
     data_cursor.seek(SeekFrom::Start(offset as u64)).unwrap();
     draw_polygon(
         state.render_buffer,
-        (x as i16, y as i16),
+        (x, y),
         (0, 0),
         DEFAULT_ZOOM,
         None,
@@ -546,8 +546,8 @@ fn read_polygon(mut data_cursor: Cursor<&[u8]>) -> Polygon {
     let points = (0..nb_vertices)
         .into_iter()
         .map(|_| Point {
-            x: data_cursor.read_u8().unwrap() as u16,
-            y: data_cursor.read_u8().unwrap() as u16,
+            x: data_cursor.read_u8().unwrap() as i16,
+            y: data_cursor.read_u8().unwrap() as i16,
         })
         .collect();
 
