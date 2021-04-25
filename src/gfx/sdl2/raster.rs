@@ -161,7 +161,6 @@ impl gfx::Backend for Sdl2RasterRenderer {
 
     fn blitframebuffer(&mut self, page_id: usize) {
         self.raster.blitframebuffer(page_id);
-
         self.redraw();
     }
 

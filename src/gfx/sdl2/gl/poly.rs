@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use gfx::{raster::IndexedImage, sdl2::gl::PolyDrawCommand};
+use gfx::raster::IndexedImage;
 use gl::types::{GLint, GLuint};
 use sdl2::rect::Rect;
 
@@ -17,7 +17,47 @@ use anyhow::Result;
 
 pub use crate::gfx::gl::poly_renderer::RenderingMode;
 
-use super::DrawCommand;
+/// Draw command for a polygon, requesting it to be drawn at coordinates (`x`,
+/// `y`) and with color `color`.
+#[derive(Clone)]
+struct PolyDrawCommand {
+    poly: Polygon,
+    pos: (i16, i16),
+    offset: (i16, i16),
+    zoom: u16,
+    color: u8,
+}
+
+impl PolyDrawCommand {
+    pub fn new(poly: Polygon, pos: (i16, i16), offset: (i16, i16), zoom: u16, color: u8) -> Self {
+        Self {
+            poly,
+            pos,
+            offset,
+            zoom,
+            color,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct BlitBufferCommand {
+    image: Box<IndexedImage>,
+}
+
+impl From<IndexedImage> for BlitBufferCommand {
+    fn from(image: IndexedImage) -> Self {
+        Self {
+            image: Box::new(image),
+        }
+    }
+}
+
+#[derive(Clone)]
+enum DrawCommand {
+    Poly(PolyDrawCommand),
+    BlitBuffer(BlitBufferCommand),
+}
 
 pub struct Sdl2GlPolyRenderer {
     rendering_mode: RenderingMode,
@@ -106,7 +146,7 @@ impl Sdl2GlPolyRenderer {
         );
     }
 
-    pub fn run_command_list<'a, C: IntoIterator<Item = &'a DrawCommand>>(
+    fn run_command_list<'a, C: IntoIterator<Item = &'a DrawCommand>>(
         &self,
         draw_commands: C,
         rendering_mode: RenderingMode,
