@@ -216,7 +216,14 @@ pub fn op_resetthread(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) 
             // TODO BUG: if a thread is active but has not run yet, and we pause
             // it here, wouldn't the PC be the one pre-run?
             ThreadState::Paused(pc) => pc,
-            _ => continue,
+            _ => {
+                // We must switch the thread to inactive regardless of whether
+                // we have a PC or not!
+                if let ResetThreadOp::Reset = op {
+                    thread.requested_state = Some(ThreadState::Inactive);
+                }
+                continue;
+            }
         };
         thread.requested_state = Some(match op {
             ResetThreadOp::Activate => ThreadState::Active(pc),
