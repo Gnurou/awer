@@ -4,7 +4,7 @@ use super::*;
 use crate::gfx::{polygon::Polygon, Point};
 use crate::res;
 
-use log::{trace, warn};
+use log::{error, trace, warn};
 
 pub fn op_seti(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let var_id = cursor.read_u8().unwrap() as usize;
@@ -328,7 +328,7 @@ fn lookup_buffer(state: &VmState, buffer_id: u8) -> usize {
         // 0xc0, "just update video address for this frame" (?)
         buffer_id if buffer_id & 0xfc == 0xc0 => (buffer_id & 0x3) as usize,
         _ => {
-            warn!("unmanaged buffer ID {:x}!", buffer_id);
+            error!("unmanaged buffer ID {:x}!", buffer_id);
             buffer_id as usize & 0x3
         }
     }
