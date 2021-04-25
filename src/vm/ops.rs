@@ -325,8 +325,9 @@ fn lookup_buffer(state: &VmState, buffer_id: u8) -> usize {
         0..=3 => buffer_id as usize,
         // 0x40, "only restore touched areas" (?)
         buffer_id if buffer_id & 0xfc == 0x40 => (buffer_id & 0x3) as usize,
-        // 0xc0, "just update video address for this frame" (?)
-        buffer_id if buffer_id & 0xfc == 0xc0 => (buffer_id & 0x3) as usize,
+        // 0x80 or 0xc0, "just update video address for this frame" (?)
+        // Used when copying with a vscroll, e.g. during earthquakes of first part.
+        buffer_id if buffer_id & 0xf8 == 0x80 => (buffer_id & 0x3) as usize,
         _ => {
             error!("unmanaged buffer ID {:x}!", buffer_id);
             buffer_id as usize & 0x3
