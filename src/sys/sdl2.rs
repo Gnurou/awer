@@ -189,11 +189,11 @@ impl Sys for Sdl2Sys {
             }
 
             fn div_by_screen_ratio(x: u32) -> u32 {
-                x * 3 / 4
+                x * 5 / 8
             }
 
             fn mul_by_screen_ratio(x: u32) -> u32 {
-                x * 4 / 3
+                x * 8 / 5
             }
 
             // Wait until the time slice for the current game tick is elapsed

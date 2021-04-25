@@ -5,7 +5,7 @@ use crate::gfx;
 use sdl2::{rect::Rect, video::Window};
 
 /// Initial size of the window when using this renderer.
-pub const WINDOW_RESOLUTION: [u32; 2] = [1280, 960];
+pub const WINDOW_RESOLUTION: [u32; 2] = [1280, 800];
 
 pub trait Sdl2Renderer {
     /// Blit the rendered framebuffer into the `dst` rectangle of the actual
