@@ -257,6 +257,10 @@ impl Backend for RasterBackend {
     }
 
     fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16) {
+        if src_page_id == dst_page_id {
+            log::error!("cannot copy page into itself!");
+            return;
+        }
         let src = &self.buffers[src_page_id].borrow_mut();
         let src_len = src.0.len();
         let dst = &mut self.buffers[dst_page_id].borrow_mut();
@@ -297,8 +301,12 @@ impl Backend for RasterBackend {
             0x10 => dst.fill_polygon(pos, offset, zoom, polygon, |pixel, _off| *pixel |= 0x8),
             // 0x11 special color - copy the same pixel of buffer 0.
             0x11 => {
-                let src = self.buffers[0].borrow();
-                dst.fill_polygon(pos, offset, zoom, polygon, |pixel, off| *pixel = src.0[off]);
+                // Do not try to copy page 0 into itself - not only the page won't change,
+                // but this will actually panic as we try to double-borrow the page.
+                if dst_page_id != 0 {
+                    let src = self.buffers[0].borrow();
+                    dst.fill_polygon(pos, offset, zoom, polygon, |pixel, off| *pixel = src.0[off]);
+                }
             }
             color => panic!("Unexpected color 0x{:x}", color),
         };
