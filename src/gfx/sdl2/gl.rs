@@ -11,9 +11,51 @@ use sdl2::{
 
 use anyhow::{anyhow, Result};
 
-use crate::gfx::{self, polygon::Polygon};
+use crate::gfx::{self, polygon::Polygon, raster::IndexedImage};
 
 use super::{Sdl2Renderer, WINDOW_RESOLUTION};
+
+/// Draw command for a polygon, requesting it to be drawn at coordinates (`x`,
+/// `y`) and with color `color`.
+#[derive(Clone)]
+pub struct PolyDrawCommand {
+    poly: Polygon,
+    pos: (i16, i16),
+    offset: (i16, i16),
+    zoom: u16,
+    color: u8,
+}
+
+impl PolyDrawCommand {
+    pub fn new(poly: Polygon, pos: (i16, i16), offset: (i16, i16), zoom: u16, color: u8) -> Self {
+        Self {
+            poly,
+            pos,
+            offset,
+            zoom,
+            color,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct BlitBufferCommand {
+    image: Box<IndexedImage>,
+}
+
+impl From<IndexedImage> for BlitBufferCommand {
+    fn from(image: IndexedImage) -> Self {
+        Self {
+            image: Box::new(image),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum DrawCommand {
+    Poly(PolyDrawCommand),
+    BlitBuffer(BlitBufferCommand),
+}
 
 #[derive(Clone, Copy)]
 pub enum RenderingMode {

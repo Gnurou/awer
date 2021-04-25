@@ -1,14 +1,14 @@
 use std::any::Any;
 
-use gfx::raster::IndexedImage;
+use gfx::{raster::IndexedImage, sdl2::gl::PolyDrawCommand};
+use gl::types::{GLint, GLuint};
 use sdl2::rect::Rect;
 
 use crate::gfx::{
     self,
     gl::{
-        indexed_frame_renderer::IndexedFrameRenderer,
-        poly_renderer::{DrawCommand, PolyDrawCommand, PolyRenderer},
-        IndexedTexture, Viewport,
+        bitmap_renderer::BitmapRenderer, indexed_frame_renderer::IndexedFrameRenderer,
+        poly_renderer::PolyRenderer, IndexedTexture, Viewport,
     },
     polygon::Polygon,
     Palette, Point,
@@ -16,6 +16,8 @@ use crate::gfx::{
 use anyhow::Result;
 
 pub use crate::gfx::gl::poly_renderer::RenderingMode;
+
+use super::DrawCommand;
 
 pub struct Sdl2GlPolyRenderer {
     rendering_mode: RenderingMode,
@@ -26,9 +28,13 @@ pub struct Sdl2GlPolyRenderer {
     candidate_palette: Palette,
     current_palette: Palette,
 
+    target_fbo: GLuint,
+
     render_texture_buffer0: IndexedTexture,
     render_texture_framebuffer: IndexedTexture,
+
     poly_renderer: PolyRenderer,
+    bitmap_renderer: BitmapRenderer,
     frame_renderer: IndexedFrameRenderer,
 }
 
@@ -39,10 +45,29 @@ struct State {
     current_palette: Palette,
 }
 
-const TEXTURE_SIZE: (usize, usize) = (1280, 960);
+// TODO resize this dynamically as the window size changes!
+const TEXTURE_SIZE: (usize, usize) = (1920, 1280);
+//const TEXTURE_SIZE: (usize, usize) = (3840, 2560);
+
+impl Drop for Sdl2GlPolyRenderer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteFramebuffers(1, &self.target_fbo);
+        }
+    }
+}
 
 impl Sdl2GlPolyRenderer {
     pub fn new(rendering_mode: RenderingMode) -> Result<Sdl2GlPolyRenderer> {
+        let mut target_fbo = 0;
+
+        unsafe {
+            gl::GenFramebuffers(1, &mut target_fbo);
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, target_fbo);
+            gl::DrawBuffers(1, [gl::COLOR_ATTACHMENT0].as_ptr());
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
+        }
+
         Ok(Sdl2GlPolyRenderer {
             rendering_mode,
 
@@ -51,9 +76,13 @@ impl Sdl2GlPolyRenderer {
             candidate_palette: Default::default(),
             current_palette: Default::default(),
 
+            target_fbo,
+
             render_texture_buffer0: IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
             render_texture_framebuffer: IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
+
             poly_renderer: PolyRenderer::new()?,
+            bitmap_renderer: BitmapRenderer::new()?,
             frame_renderer: IndexedFrameRenderer::new()?,
         })
     }
@@ -72,22 +101,87 @@ impl Sdl2GlPolyRenderer {
         );
     }
 
+    pub fn run_command_list<'a, C: IntoIterator<Item = &'a DrawCommand>>(
+        &self,
+        draw_commands: C,
+        rendering_mode: RenderingMode,
+    ) {
+        #[derive(PartialEq)]
+        enum CurrentRenderer {
+            None,
+            Poly,
+            Bitmap,
+        }
+        let mut current_renderer = CurrentRenderer::None;
+
+        for command in draw_commands {
+            match command {
+                DrawCommand::Poly(poly) => {
+                    if current_renderer != CurrentRenderer::Poly {
+                        current_renderer = CurrentRenderer::Poly;
+                        self.poly_renderer
+                            .set_active(&self.render_texture_buffer0, &self.render_texture_buffer0);
+                    }
+
+                    self.poly_renderer.draw_poly(
+                        &poly.poly,
+                        poly.pos,
+                        poly.offset,
+                        poly.zoom,
+                        poly.color,
+                        rendering_mode,
+                    );
+                }
+                DrawCommand::BlitBuffer(buffer) => {
+                    if current_renderer != CurrentRenderer::Bitmap {
+                        current_renderer = CurrentRenderer::Bitmap;
+                        //self.bitmap_renderer.set_active(&self.render_texture_buffer0, &self.render_texture_buffer0);
+                    }
+
+                    self.bitmap_renderer.draw_bitmap(&buffer.image);
+                }
+            }
+        }
+    }
+
+    fn set_render_target(&self, target_texture: &IndexedTexture) {
+        unsafe {
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, self.target_fbo);
+            gl::FramebufferTexture(
+                gl::DRAW_FRAMEBUFFER,
+                gl::COLOR_ATTACHMENT0,
+                target_texture.as_tex_id(),
+                0,
+            );
+            if gl::CheckFramebufferStatus(gl::DRAW_FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
+                panic!("Error while setting framebuffer up");
+            }
+        }
+    }
+
     fn redraw(&mut self) {
+        unsafe {
+            let dimensions = self.render_texture_framebuffer.dimensions();
+            gl::Viewport(0, 0, dimensions.0 as GLint, dimensions.1 as GLint);
+        }
+
         // First render buffer 0, since it may be needed to render the final
         // buffer.
-        self.poly_renderer.render_into(
-            &self.draw_commands[0],
-            &self.render_texture_buffer0,
-            &self.render_texture_buffer0,
+        self.set_render_target(&self.render_texture_buffer0);
+        self.run_command_list(&self.draw_commands[0], self.rendering_mode);
+
+        // Then render the framebuffer, which can now use buffer0 as a source
+        // texture.
+        self.set_render_target(&self.render_texture_framebuffer);
+        self.run_command_list(
+            &self.draw_commands[self.framebuffer_index],
             self.rendering_mode,
         );
 
-        self.poly_renderer.render_into(
-            &self.draw_commands[self.framebuffer_index],
-            &self.render_texture_framebuffer,
-            &self.render_texture_buffer0,
-            self.rendering_mode,
-        );
+        // TODO move into proper method?
+        unsafe {
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
+        }
     }
 }
 

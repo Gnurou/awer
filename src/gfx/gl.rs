@@ -1,4 +1,5 @@
 //! Structs and code to help render the game using OpenGL.
+pub mod bitmap_renderer;
 pub mod indexed_frame_renderer;
 pub mod poly_renderer;
 

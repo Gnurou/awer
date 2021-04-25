@@ -1,4 +1,4 @@
-use std::{cell::RefCell, iter::once};
+use std::iter::once;
 
 use crate::gfx::{polygon::Polygon, Point, SCREEN_RESOLUTION};
 
@@ -10,47 +10,6 @@ pub enum RenderingMode {
     Poly,
     Line,
 }
-/// Draw command for a polygon, requesting it to be drawn at coordinates (`x`,
-/// `y`) and with color `color`.
-#[derive(Clone)]
-pub struct PolyDrawCommand {
-    poly: Polygon,
-    pos: (i16, i16),
-    offset: (i16, i16),
-    zoom: u16,
-    color: u8,
-}
-
-impl PolyDrawCommand {
-    pub fn new(poly: Polygon, pos: (i16, i16), offset: (i16, i16), zoom: u16, color: u8) -> Self {
-        Self {
-            poly,
-            pos,
-            offset,
-            zoom,
-            color,
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct BlitBufferCommand {
-    image: Box<IndexedImage>,
-}
-
-impl From<IndexedImage> for BlitBufferCommand {
-    fn from(image: IndexedImage) -> Self {
-        Self {
-            image: Box::new(image),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub enum DrawCommand {
-    Poly(PolyDrawCommand),
-    BlitBuffer(BlitBufferCommand),
-}
 
 /// Allows to render a list of game polys into an 8-bpp OpenGL framebuffer at
 /// any resolution, using the GPU. The rendering is still using indexed colors
@@ -58,9 +17,6 @@ pub enum DrawCommand {
 pub struct PolyRenderer {
     vao: GLuint,
     vbo: GLuint,
-    target_fbo: GLuint,
-    source_fbo: GLuint,
-    source_texture: RefCell<IndexedTexture>,
     program: GLuint,
 
     pos_uniform: GLint,
@@ -75,8 +31,6 @@ pub struct PolyRenderer {
 impl Drop for PolyRenderer {
     fn drop(&mut self) {
         unsafe {
-            gl::DeleteFramebuffers(1, &self.source_fbo);
-            gl::DeleteFramebuffers(1, &self.target_fbo);
             gl::DeleteBuffers(1, &self.vbo);
             gl::DeleteVertexArrays(1, &self.vao);
             gl::DeleteProgram(self.program);
@@ -92,7 +46,6 @@ impl PolyRenderer {
 
         let mut vao = 0;
         let mut vbo = 0;
-        let mut target_fbo = 0;
         let mut source_fbo = 0;
         let pos_uniform;
         let offset_uniform;
@@ -102,11 +55,6 @@ impl PolyRenderer {
         let self_uniform;
         let buffer0_uniform;
         unsafe {
-            gl::GenFramebuffers(1, &mut target_fbo);
-            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, target_fbo);
-            gl::DrawBuffers(1, [gl::COLOR_ATTACHMENT0].as_ptr());
-            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
-
             gl::GenFramebuffers(1, &mut source_fbo);
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, source_fbo);
             gl::DrawBuffers(1, [gl::COLOR_ATTACHMENT0].as_ptr());
@@ -149,12 +97,6 @@ impl PolyRenderer {
         Ok(PolyRenderer {
             vao,
             vbo,
-            target_fbo,
-            source_fbo,
-            source_texture: RefCell::new(IndexedTexture::new(
-                SCREEN_RESOLUTION[0],
-                SCREEN_RESOLUTION[1],
-            )),
             program,
             pos_uniform,
             offset_uniform,
@@ -166,9 +108,15 @@ impl PolyRenderer {
         })
     }
 
-    fn draw_poly(&self, command: &PolyDrawCommand, rendering_mode: RenderingMode) {
-        let poly = &command.poly;
-
+    pub fn draw_poly(
+        &self,
+        poly: &Polygon,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        zoom: u16,
+        color: u8,
+        rendering_mode: RenderingMode,
+    ) {
         let draw_type = if poly.bbw == 0 || poly.bbh == 0 {
             gl::LINE_LOOP
         } else {
@@ -198,6 +146,7 @@ impl PolyRenderer {
 
         unsafe {
             // Vertices
+            gl::BindVertexArray(self.vao);
             gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
             gl::BufferSubData(
                 gl::ARRAY_BUFFER,
@@ -207,24 +156,16 @@ impl PolyRenderer {
             );
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
 
-            gl::Uniform2i(
-                self.pos_uniform,
-                command.pos.0 as GLint,
-                command.pos.1 as GLint,
-            );
-            gl::Uniform2i(
-                self.offset_uniform,
-                command.offset.0 as GLint,
-                command.offset.1 as GLint,
-            );
-            gl::Uniform1ui(self.zoom_uniform, command.zoom as GLuint);
+            gl::Uniform2i(self.pos_uniform, pos.0 as GLint, pos.1 as GLint);
+            gl::Uniform2i(self.offset_uniform, offset.0 as GLint, offset.1 as GLint);
+            gl::Uniform1ui(self.zoom_uniform, zoom as GLuint);
             gl::Uniform2ui(self.bb_uniform, poly.bbw as GLuint, poly.bbh as GLuint);
-            gl::Uniform1ui(self.color_uniform, command.color as GLuint);
+            gl::Uniform1ui(self.color_uniform, color as GLuint);
 
             // If the next polygon is transparent, make sure that all previous
             // commands are completed to ensure our self-referencing texture
             // will have up-to-date data.
-            if command.color == 0x10 {
+            if color == 0x10 {
                 gl::Finish();
             }
 
@@ -234,86 +175,22 @@ impl PolyRenderer {
                 gl::UNSIGNED_SHORT,
                 indices.as_ptr() as *const _,
             );
+
+            gl::BindVertexArray(0);
         }
     }
 
-    fn draw_buffer(&self, command: &BlitBufferCommand, dimensions: (usize, usize)) {
-        // TODO super inefficient as we do this for every frame!
-        // The texture should rather be in the command, and be refcounted?
-        self.source_texture
-            .borrow_mut()
-            .set_data(&*command.image, 0, 0);
-
-        unsafe {
-            gl::BindFramebuffer(gl::READ_FRAMEBUFFER, self.source_fbo);
-            gl::FramebufferTexture(
-                gl::READ_FRAMEBUFFER,
-                gl::COLOR_ATTACHMENT0,
-                self.source_texture.borrow().as_tex_id(),
-                0,
-            );
-            if gl::CheckFramebufferStatus(gl::READ_FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
-                panic!("Error while setting framebuffer up");
-            }
-            gl::BlitFramebuffer(
-                0,
-                0,
-                SCREEN_RESOLUTION[0] as GLint,
-                SCREEN_RESOLUTION[1] as GLint,
-                0,
-                0,
-                dimensions.0 as GLint,
-                dimensions.1 as GLint,
-                gl::COLOR_BUFFER_BIT,
-                gl::NEAREST,
-            );
-            gl::BindFramebuffer(gl::READ_FRAMEBUFFER, 0);
-        }
-    }
-
-    fn draw(
-        &self,
-        command: &DrawCommand,
-        dimensions: (usize, usize),
-        rendering_mode: RenderingMode,
-    ) {
-        match command {
-            DrawCommand::Poly(poly) => self.draw_poly(&poly, rendering_mode),
-            DrawCommand::BlitBuffer(buffer) => self.draw_buffer(&buffer, dimensions),
-        }
-    }
-
-    pub fn render_into<'a, C: IntoIterator<Item = &'a DrawCommand>>(
-        &self,
-        draw_commands: C,
-        target_texture: &IndexedTexture,
-        buffer0: &IndexedTexture,
-        rendering_mode: RenderingMode,
-    ) {
+    pub fn set_active(&self, target_texture: &IndexedTexture, buffer0: &IndexedTexture) {
         let dimensions = target_texture.dimensions();
         unsafe {
-            gl::Viewport(0, 0, dimensions.0 as GLint, dimensions.1 as GLint);
-
-            // Setup destination framebuffer
-            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, self.target_fbo);
-            gl::FramebufferTexture(
-                gl::DRAW_FRAMEBUFFER,
-                gl::COLOR_ATTACHMENT0,
-                target_texture.as_tex_id(),
-                0,
-            );
-            if gl::CheckFramebufferStatus(gl::DRAW_FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
-                panic!("Error while setting framebuffer up");
-            }
-
             gl::UseProgram(self.program);
 
-            // Setup texture to target buffer
+            // Setup target texture to self (for transparency effect)
             gl::Uniform1i(self.self_uniform, 0);
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, target_texture.as_tex_id());
 
-            // Setup texture to buffer0
+            // Setup buffer0 (for pixel copy from buffer0)
             gl::Uniform1i(self.buffer0_uniform, 1);
             gl::ActiveTexture(gl::TEXTURE0 + 1);
             gl::BindTexture(gl::TEXTURE_2D, buffer0.as_tex_id());
@@ -321,17 +198,6 @@ impl PolyRenderer {
 
             let viewport_uniform = get_uniform_location(self.program, "viewport_size");
             gl::Uniform2f(viewport_uniform, dimensions.0 as f32, dimensions.1 as f32);
-
-            gl::BindVertexArray(self.vao);
-        }
-
-        for command in draw_commands {
-            self.draw(&command, dimensions, rendering_mode);
-        }
-
-        unsafe {
-            gl::BindVertexArray(0);
-            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
         }
     }
 }
