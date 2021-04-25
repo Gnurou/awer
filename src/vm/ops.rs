@@ -325,8 +325,7 @@ fn lookup_buffer(state: &VmState, buffer_id: u8) -> usize {
         0..=3 => buffer_id as usize,
         // 0x40, "only restore touched areas" (?)
         buffer_id if buffer_id & 0xfc == 0x40 => (buffer_id & 0x3) as usize,
-        // 0x80 or 0xc0, "just update video address for this frame" (?)
-        // Used when copying with a vscroll, e.g. during earthquakes of first part.
+        // 0x80 is used when copying with a vscroll, e.g. during earthquakes of first part.
         buffer_id if buffer_id & 0xf8 == 0x80 => (buffer_id & 0x3) as usize,
         _ => {
             error!("unmanaged buffer ID {:x}!", buffer_id);
@@ -383,7 +382,9 @@ pub fn op_copyvideopage(
     let dst_page_id = cursor.read_u8().unwrap();
     let src_page_id_resolved = lookup_buffer(state, src_page_id);
     let dst_page_id_resolved = lookup_buffer(state, dst_page_id);
-    let vscroll = if dst_page_id >= 0xfe {
+    // Bit 0x80 indicates that we are interested in vscroll, only if we are
+    // copying from a regular page.
+    let vscroll = if src_page_id >= 0xfe || src_page_id & 0x80 == 0 {
         0
     } else {
         state.regs[VM_VARIABLE_SCROLL_Y]
