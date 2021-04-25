@@ -105,7 +105,10 @@ impl Sys for Sdl2Sys {
                         win_event: WindowEvent::FocusGained,
                         ..
                     } => keypress_cooldown = KEYPRESS_COOLDOWN_TICKS,
-
+                    Event::Window {
+                        win_event: WindowEvent::Resized(w, h),
+                        ..
+                    } => self.renderer.window_resized(w as usize, h as usize),
                     Event::KeyDown {
                         keycode: Some(key),
                         repeat: false,

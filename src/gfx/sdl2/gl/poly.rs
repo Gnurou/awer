@@ -45,10 +45,6 @@ struct State {
     current_palette: Palette,
 }
 
-// TODO resize this dynamically as the window size changes!
-const TEXTURE_SIZE: (usize, usize) = (1920, 1280);
-//const TEXTURE_SIZE: (usize, usize) = (3840, 2560);
-
 impl Drop for Sdl2GlPolyRenderer {
     fn drop(&mut self) {
         unsafe {
@@ -58,7 +54,11 @@ impl Drop for Sdl2GlPolyRenderer {
 }
 
 impl Sdl2GlPolyRenderer {
-    pub fn new(rendering_mode: RenderingMode) -> Result<Sdl2GlPolyRenderer> {
+    pub fn new(
+        rendering_mode: RenderingMode,
+        width: usize,
+        height: usize,
+    ) -> Result<Sdl2GlPolyRenderer> {
         let mut target_fbo = 0;
 
         unsafe {
@@ -78,13 +78,18 @@ impl Sdl2GlPolyRenderer {
 
             target_fbo,
 
-            render_texture_buffer0: IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
-            render_texture_framebuffer: IndexedTexture::new(TEXTURE_SIZE.0, TEXTURE_SIZE.1),
+            render_texture_buffer0: IndexedTexture::new(width, height),
+            render_texture_framebuffer: IndexedTexture::new(width, height),
 
             poly_renderer: PolyRenderer::new()?,
             bitmap_renderer: BitmapRenderer::new()?,
             frame_renderer: IndexedFrameRenderer::new()?,
         })
+    }
+
+    pub fn resize_render_textures(&mut self, width: usize, height: usize) {
+        self.render_texture_buffer0 = IndexedTexture::new(width, height);
+        self.render_texture_framebuffer = IndexedTexture::new(width, height);
     }
 
     pub fn blit(&mut self, dst: &Rect) {

@@ -21,4 +21,7 @@ pub trait Sdl2Renderer {
 
     /// Returns the window the renderer will render into.
     fn window(&self) -> &Window;
+
+    /// Called when the window has been resized. Default implementation does nothing.
+    fn window_resized(&mut self, _width: usize, _height: usize) {}
 }

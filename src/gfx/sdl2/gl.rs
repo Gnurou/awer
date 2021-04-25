@@ -115,16 +115,25 @@ impl Sdl2GlRenderer {
             gl::Disable(gl::STENCIL_TEST);
         }
 
+        let window_size = window.size();
         Ok(Box::new(Sdl2GlRenderer {
             rendering_mode,
             window,
             _opengl_context: opengl_context,
 
             raster_renderer: raster::Sdl2GlRasterRenderer::new()?,
-            poly_renderer: poly::Sdl2GlPolyRenderer::new(match rendering_mode {
-                RenderingMode::Raster | RenderingMode::Poly => poly::RenderingMode::Poly,
-                RenderingMode::Line => poly::RenderingMode::Line,
-            })?,
+            poly_renderer: {
+                let rendering_mode = match rendering_mode {
+                    RenderingMode::Raster | RenderingMode::Poly => poly::RenderingMode::Poly,
+                    RenderingMode::Line => poly::RenderingMode::Line,
+                };
+
+                poly::Sdl2GlPolyRenderer::new(
+                    rendering_mode,
+                    window_size.0 as usize,
+                    window_size.1 as usize,
+                )?
+            },
         }))
     }
 }
@@ -157,6 +166,10 @@ impl Sdl2Renderer for Sdl2GlRenderer {
 
     fn window(&self) -> &Window {
         &self.window
+    }
+
+    fn window_resized(&mut self, width: usize, height: usize) {
+        self.poly_renderer.resize_render_textures(width, height);
     }
 }
 
