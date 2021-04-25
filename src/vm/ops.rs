@@ -330,7 +330,7 @@ fn lookup_buffer(state: &VmState, buffer_id: u8) -> usize {
         buffer_id if buffer_id & 0xf8 == 0x80 => (buffer_id & 0x3) as usize,
         _ => {
             error!("unmanaged buffer ID {:x}!", buffer_id);
-            buffer_id as usize & 0x3
+            (buffer_id & 0x3) as usize
         }
     }
 }
