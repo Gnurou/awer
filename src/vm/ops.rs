@@ -199,7 +199,7 @@ pub fn op_resetthread(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) 
     };
 
     trace!(
-        "op_resetthread {:?} [{}..{}]",
+        "op_resetthread {:?} [{:x}..{:x}]",
         op,
         first_thread,
         last_thread
