@@ -262,12 +262,12 @@ impl Backend for RasterBackend {
         let dst = &mut self.buffers[dst_page_id].borrow_mut();
         let dst_len = dst.0.len();
 
-        let src_start = if vscroll > 0 {
+        let src_start = if vscroll < 0 {
             vscroll.abs() as usize * SCREEN_RESOLUTION[0]
         } else {
             0
         };
-        let dst_start = if vscroll < 0 {
+        let dst_start = if vscroll > 0 {
             vscroll.abs() as usize * SCREEN_RESOLUTION[0]
         } else {
             0
