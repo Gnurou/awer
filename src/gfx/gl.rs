@@ -1,5 +1,6 @@
 //! Structs and code to help render the game using OpenGL.
 pub mod bitmap_renderer;
+pub mod font_renderer;
 pub mod indexed_frame_renderer;
 pub mod poly_renderer;
 
@@ -154,6 +155,17 @@ impl IndexedTexture {
     pub fn set_data<S: IndexedTextureSource>(&mut self, source: &S, xoffset: i32, yoffset: i32) {
         let dimensions = source.dimensions();
 
+        self.set_raw_data(source.data(), dimensions.0, dimensions.1, xoffset, yoffset)
+    }
+
+    pub fn set_raw_data(
+        &mut self,
+        data: *const u8,
+        width: usize,
+        height: usize,
+        xoffset: i32,
+        yoffset: i32,
+    ) {
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, self.texture);
             gl::TexSubImage2D(
@@ -161,11 +173,11 @@ impl IndexedTexture {
                 0,
                 xoffset as GLint,
                 yoffset as GLint,
-                dimensions.0 as GLint,
-                dimensions.1 as GLint,
+                width as GLint,
+                height as GLint,
                 gl::RED,
                 gl::UNSIGNED_BYTE,
-                source.data() as *const _,
+                data as *const _,
             );
             gl::BindTexture(gl::TEXTURE_2D, 0);
         }

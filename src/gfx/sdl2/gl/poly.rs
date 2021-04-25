@@ -7,8 +7,9 @@ use sdl2::rect::Rect;
 use crate::gfx::{
     self,
     gl::{
-        bitmap_renderer::BitmapRenderer, indexed_frame_renderer::IndexedFrameRenderer,
-        poly_renderer::PolyRenderer, IndexedTexture, Viewport,
+        bitmap_renderer::BitmapRenderer, font_renderer::FontRenderer,
+        indexed_frame_renderer::IndexedFrameRenderer, poly_renderer::PolyRenderer, IndexedTexture,
+        Viewport,
     },
     polygon::Polygon,
     Palette, Point,
@@ -54,9 +55,23 @@ impl From<IndexedImage> for BlitBufferCommand {
 }
 
 #[derive(Clone)]
+struct CharDrawCommand {
+    pos: (i16, i16),
+    color: u8,
+    c: u8,
+}
+
+impl CharDrawCommand {
+    pub fn new(pos: (i16, i16), color: u8, c: u8) -> Self {
+        Self { pos, color, c }
+    }
+}
+
+#[derive(Clone)]
 enum DrawCommand {
     Poly(PolyDrawCommand),
     BlitBuffer(BlitBufferCommand),
+    Char(CharDrawCommand),
 }
 
 pub struct Sdl2GlPolyRenderer {
@@ -75,6 +90,7 @@ pub struct Sdl2GlPolyRenderer {
 
     poly_renderer: PolyRenderer,
     bitmap_renderer: BitmapRenderer,
+    font_renderer: FontRenderer,
     frame_renderer: IndexedFrameRenderer,
 }
 
@@ -123,6 +139,7 @@ impl Sdl2GlPolyRenderer {
 
             poly_renderer: PolyRenderer::new()?,
             bitmap_renderer: BitmapRenderer::new()?,
+            font_renderer: FontRenderer::new()?,
             frame_renderer: IndexedFrameRenderer::new()?,
         })
     }
@@ -155,6 +172,7 @@ impl Sdl2GlPolyRenderer {
         enum CurrentRenderer {
             None,
             Poly,
+            Char,
             Bitmap,
         }
         let mut current_renderer = CurrentRenderer::None;
@@ -184,6 +202,14 @@ impl Sdl2GlPolyRenderer {
                     }
 
                     self.bitmap_renderer.draw_bitmap(&buffer.image);
+                }
+                DrawCommand::Char(c) => {
+                    if current_renderer != CurrentRenderer::Char {
+                        current_renderer = CurrentRenderer::Char;
+                        self.font_renderer.set_active();
+                    }
+
+                    self.font_renderer.draw_char(c.pos, c.color, c.c);
                 }
             }
         }
@@ -286,8 +312,9 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
         )));
     }
 
-    fn draw_char(&mut self, _dst_page_id: usize, _pos: (i16, i16), _color_idx: u8, _c: u8) {
-        // TODO
+    fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color: u8, c: u8) {
+        let command_queue = &mut self.draw_commands[dst_page_id];
+        command_queue.push(DrawCommand::Char(CharDrawCommand::new(pos, color, c)));
     }
 
     fn blitframebuffer(&mut self, page_id: usize) {
