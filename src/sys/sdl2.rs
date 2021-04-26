@@ -91,6 +91,7 @@ impl Sys for Sdl2Sys {
         const KEYPRESS_COOLDOWN_TICKS: usize = 1;
         let mut keypress_cooldown = KEYPRESS_COOLDOWN_TICKS;
 
+        let mut pending_events: Vec<Event> = Vec::new();
         'run: loop {
             // Update input
             // TODO keep the key released events in a separate input state, so
@@ -98,17 +99,19 @@ impl Sys for Sdl2Sys {
             // press/release occured within the same game tick.
             // TODO use wait_event_timeout() or wait_timeout_iter() to process
             // events in real-time while maintaining game cadence.
+
+            pending_events.clear();
             for event in sdl_events.poll_iter() {
+                pending_events.push(event);
+            }
+
+            for event in &pending_events {
                 match event {
                     Event::Quit { .. } => break 'run,
                     Event::Window {
                         win_event: WindowEvent::FocusGained,
                         ..
                     } => keypress_cooldown = KEYPRESS_COOLDOWN_TICKS,
-                    Event::Window {
-                        win_event: WindowEvent::Resized(w, h),
-                        ..
-                    } => self.renderer.window_resized(w as usize, h as usize),
                     Event::KeyDown {
                         keycode: Some(key),
                         repeat: false,
@@ -155,6 +158,8 @@ impl Sys for Sdl2Sys {
                     _ => {}
                 }
             }
+
+            self.renderer.handle_events(&pending_events);
 
             // Decrease keypress cooldown if we just gained focus.
             if keypress_cooldown > 0 {

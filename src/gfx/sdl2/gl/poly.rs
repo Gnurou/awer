@@ -144,6 +144,10 @@ impl Sdl2GlPolyRenderer {
         })
     }
 
+    pub fn set_rendering_mode(&mut self, rendering_mode: RenderingMode) {
+        self.rendering_mode = rendering_mode;
+    }
+
     pub fn resize_render_textures(&mut self, width: usize, height: usize) {
         self.render_texture_buffer0 = IndexedTexture::new(width, height);
         self.render_texture_framebuffer = IndexedTexture::new(width, height);
@@ -230,7 +234,7 @@ impl Sdl2GlPolyRenderer {
         }
     }
 
-    fn redraw(&mut self) {
+    pub fn redraw(&mut self) {
         unsafe {
             let dimensions = self.render_texture_framebuffer.dimensions();
             gl::Viewport(0, 0, dimensions.0 as GLint, dimensions.1 as GLint);

@@ -2,7 +2,7 @@ pub mod gl;
 pub mod raster;
 
 use crate::gfx;
-use sdl2::{rect::Rect, video::Window};
+use sdl2::{event::Event, rect::Rect, video::Window};
 
 /// Initial size of the window when using this renderer.
 pub const WINDOW_RESOLUTION: [u32; 2] = [1280, 800];
@@ -22,6 +22,7 @@ pub trait Sdl2Renderer {
     /// Returns the window the renderer will render into.
     fn window(&self) -> &Window;
 
-    /// Called when the window has been resized. Default implementation does nothing.
-    fn window_resized(&mut self, _width: usize, _height: usize) {}
+    /// Gives the renderer a change to handle its own input, to e.g. change
+    /// rendering parameters. Also useful to catch window resize events.
+    fn handle_events(&mut self, _events: &[Event]) {}
 }

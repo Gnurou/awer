@@ -4,6 +4,8 @@ mod raster;
 use std::any::Any;
 
 use sdl2::{
+    event::{Event, WindowEvent},
+    keyboard::Keycode,
     rect::Rect,
     video::{GLContext, GLProfile, Window},
     Sdl,
@@ -126,8 +128,38 @@ impl Sdl2Renderer for Sdl2GlRenderer {
         &self.window
     }
 
-    fn window_resized(&mut self, width: usize, height: usize) {
-        self.poly_renderer.resize_render_textures(width, height);
+    fn handle_events(&mut self, events: &[Event]) {
+        for event in events {
+            match event {
+                Event::Window {
+                    win_event: WindowEvent::Resized(w, h),
+                    ..
+                } => self
+                    .poly_renderer
+                    .resize_render_textures(*w as usize, *h as usize),
+                Event::KeyDown {
+                    keycode: Some(key),
+                    repeat: false,
+                    ..
+                } => match key {
+                    Keycode::F1 => self.rendering_mode = RenderingMode::Raster,
+                    Keycode::F2 => {
+                        self.rendering_mode = RenderingMode::Poly;
+                        self.poly_renderer
+                            .set_rendering_mode(poly::RenderingMode::Poly);
+                        self.poly_renderer.redraw();
+                    }
+                    Keycode::F3 => {
+                        self.rendering_mode = RenderingMode::Line;
+                        self.poly_renderer
+                            .set_rendering_mode(poly::RenderingMode::Line);
+                        self.poly_renderer.redraw();
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
     }
 }
 
