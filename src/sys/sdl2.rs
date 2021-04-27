@@ -158,7 +158,7 @@ impl Sys for Sdl2Sys {
                     _ => {}
                 }
             }
-
+            vm.update_input(&input);
             self.renderer.handle_events(&pending_events);
 
             // Decrease keypress cooldown if we just gained focus.
@@ -166,16 +166,29 @@ impl Sys for Sdl2Sys {
                 keypress_cooldown -= 1;
             }
 
+            let mut duration_since_last_tick = Instant::now().duration_since(last_tick_time);
+
+            // Wait until the time slice for the current game tick is elapsed
+            if duration_since_last_tick < DURATION_PER_TICK {
+                thread::sleep(DURATION_PER_TICK - duration_since_last_tick);
+            }
+            duration_since_last_tick = Instant::now().duration_since(last_tick_time);
+
             // Update VM state
-            vm.update_input(&input);
-            let cycles = if pause {
+            let ticks_to_run = if pause {
+                last_tick_time = Instant::now();
                 0
             } else if fast_mode {
+                last_tick_time = Instant::now();
                 8
             } else {
-                1
+                let ticks_to_run = duration_since_last_tick.as_millis() as u32
+                    / DURATION_PER_TICK.as_millis() as u32;
+                last_tick_time += DURATION_PER_TICK * ticks_to_run;
+                std::cmp::min(ticks_to_run, 16)
             };
-            for _ in 0..cycles {
+
+            for _ in 0..ticks_to_run {
                 snapshot_cpt += 1;
                 if snapshot_cpt == TICKS_PER_SNAPSHOT {
                     take_snapshot(&mut history, &vm, self.renderer.as_gfx());
@@ -200,14 +213,6 @@ impl Sys for Sdl2Sys {
             fn mul_by_screen_ratio(x: u32) -> u32 {
                 x * 8 / 5
             }
-
-            // Wait until the time slice for the current game tick is elapsed
-            // TODO wait for ticks_to_wait?
-            let duration_since_last_tick = Instant::now().duration_since(last_tick_time);
-            if duration_since_last_tick < DURATION_PER_TICK {
-                thread::sleep(DURATION_PER_TICK - duration_since_last_tick);
-            }
-            last_tick_time = Instant::now();
 
             // Compute destination rectangle of game screen
             let viewport = {
