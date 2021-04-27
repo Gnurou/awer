@@ -516,16 +516,14 @@ pub fn op_sprs(
 
     trace!("op_sprs@0x{:x} {:?} | {}", offset, (x, y), DEFAULT_ZOOM);
 
-    let mut data_cursor = Cursor::new(&sys.cinematic[..]);
-    data_cursor.seek(SeekFrom::Start(offset as u64)).unwrap();
     draw_polygon(
         state.render_buffer,
         (x, y),
         (0, 0),
         DEFAULT_ZOOM,
         None,
-        data_cursor,
         &sys.cinematic,
+        offset,
         gfx,
     );
 
@@ -564,16 +562,14 @@ pub fn op_sprl(
 
     trace!("op_sprl@0x{:x} {:?} | {}", offset, (x, y), zoom);
 
-    let mut data_cursor = Cursor::new(segment);
-    data_cursor.seek(SeekFrom::Start(offset as u64)).unwrap();
     draw_polygon(
         state.render_buffer,
         (x, y),
         (0, 0),
         zoom,
         None,
-        data_cursor,
         segment,
+        offset,
         gfx,
     );
 
@@ -603,11 +599,20 @@ fn draw_polygon(
     offset: (i16, i16),
     zoom: u16,
     color: Option<u8>,
-    mut data_cursor: Cursor<&[u8]>,
     segment: &[u8],
+    start_offset: usize,
     gfx: &mut dyn gfx::Backend,
 ) {
-    let op = data_cursor.read_u8().unwrap();
+    let mut cursor = Cursor::new(segment);
+    match cursor.seek(SeekFrom::Start(start_offset as u64)) {
+        Ok(_) => (),
+        Err(e) => {
+            log::error!("Error while seeking to draw polygon: {}", e);
+            return;
+        }
+    }
+
+    let op = cursor.read_u8().unwrap();
 
     match op {
         op if op & 0xc0 == 0xc0 => {
@@ -625,10 +630,10 @@ fn draw_polygon(
                 offset,
                 zoom,
                 color,
-                data_cursor.position(),
+                cursor.position(),
             );
 
-            let polygon = read_polygon(data_cursor);
+            let polygon = read_polygon(cursor);
             gfx.fillpolygon(render_buffer, pos, offset, color, zoom, &polygon);
         }
         op if op == 0x02 => {
@@ -638,7 +643,7 @@ fn draw_polygon(
                 offset,
                 zoom,
                 color,
-                data_cursor,
+                cursor,
                 segment,
                 gfx,
             );
@@ -654,15 +659,15 @@ fn draw_polygon_hierarchy(
     offset: (i16, i16),
     zoom: u16,
     color: Option<u8>,
-    mut data_cursor: Cursor<&[u8]>,
+    mut cursor: Cursor<&[u8]>,
     segment: &[u8],
     gfx: &mut dyn gfx::Backend,
 ) {
     let offset = (
-        offset.0 - data_cursor.read_u8().unwrap() as i16,
-        offset.1 - data_cursor.read_u8().unwrap() as i16,
+        offset.0 - cursor.read_u8().unwrap() as i16,
+        offset.1 - cursor.read_u8().unwrap() as i16,
     );
-    let nb_childs = data_cursor.read_u8().unwrap() + 1;
+    let nb_childs = cursor.read_u8().unwrap() + 1;
 
     trace!(
         "draw_polygon_hierarchy {:?} {:?}x{}, {} childs",
@@ -673,17 +678,17 @@ fn draw_polygon_hierarchy(
     );
 
     for _i in 0..nb_childs {
-        let (read_color, poly_offset) = match data_cursor.read_u16::<BE>().unwrap() {
+        let (read_color, poly_offset) = match cursor.read_u16::<BE>().unwrap() {
             word if word & 0x8000 != 0 => (true, word & 0x7fff),
             word => (false, word),
         };
         let offset = (
-            offset.0 + data_cursor.read_u8().unwrap() as i16,
-            offset.1 + data_cursor.read_u8().unwrap() as i16,
+            offset.0 + cursor.read_u8().unwrap() as i16,
+            offset.1 + cursor.read_u8().unwrap() as i16,
         );
 
         let color = if read_color {
-            Some(data_cursor.read_u8().unwrap() & 0x7f)
+            Some(cursor.read_u8().unwrap() & 0x7f)
         } else {
             color
         };
@@ -691,7 +696,7 @@ fn draw_polygon_hierarchy(
         // TODO: We have a dead byte after the color?
         // Nope, this is a "mask number" apparently
         if read_color {
-            data_cursor.read_u8().unwrap();
+            cursor.read_u8().unwrap();
         }
 
         trace!(
@@ -701,18 +706,14 @@ fn draw_polygon_hierarchy(
             color
         );
 
-        let mut new_cursor = Cursor::new(segment);
-        new_cursor
-            .seek(SeekFrom::Start(poly_offset as u64 * 2))
-            .unwrap();
         draw_polygon(
             render_buffer,
             pos,
             offset,
             zoom,
             color,
-            new_cursor,
             segment,
+            poly_offset as usize * 2,
             gfx,
         );
     }
