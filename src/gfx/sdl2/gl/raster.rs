@@ -8,7 +8,7 @@ use crate::gfx::{
     self,
     gl::{indexed_frame_renderer::*, IndexedTexture, Viewport},
     raster::{IndexedImage, RasterBackend},
-    Palette,
+    Palette, Point,
 };
 
 pub struct Sdl2GlRasterRenderer {
@@ -75,10 +75,11 @@ impl gfx::Backend for Sdl2GlRasterRenderer {
         offset: (i16, i16),
         color_idx: u8,
         zoom: u16,
-        polygon: &gfx::polygon::Polygon,
+        bb: (u8, u8),
+        points: &[Point<u8>],
     ) {
         self.raster
-            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, polygon);
+            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points);
     }
 
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8) {

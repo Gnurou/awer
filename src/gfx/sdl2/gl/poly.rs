@@ -304,11 +304,18 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
         offset: (i16, i16),
         color_idx: u8,
         zoom: u16,
-        polygon: &Polygon,
+        bb: (u8, u8),
+        points: &[Point<u8>],
     ) {
         let command = &mut self.draw_commands[dst_page_id];
         command.push(DrawCommand::Poly(PolyDrawCommand::new(
-            polygon.clone(),
+            Polygon::new(
+                (bb.0 as u16, bb.1 as u16),
+                points
+                    .iter()
+                    .map(|p| Point::new(p.x as i16, p.y as i16))
+                    .collect(),
+            ),
             pos,
             offset,
             zoom,

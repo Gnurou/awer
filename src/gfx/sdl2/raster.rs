@@ -10,7 +10,7 @@ use sdl2::{
 
 use anyhow::{anyhow, Result};
 
-use crate::gfx::{self, raster::RasterBackend, sdl2::Sdl2Renderer, Color};
+use crate::gfx::{self, raster::RasterBackend, sdl2::Sdl2Renderer, Color, Point};
 
 use super::WINDOW_RESOLUTION;
 
@@ -149,10 +149,11 @@ impl gfx::Backend for Sdl2RasterRenderer {
         offset: (i16, i16),
         color_idx: u8,
         zoom: u16,
-        polygon: &gfx::polygon::Polygon,
+        bb: (u8, u8),
+        points: &[Point<u8>],
     ) {
         self.raster
-            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, polygon)
+            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points)
     }
 
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8) {

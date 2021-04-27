@@ -13,7 +13,7 @@ use sdl2::{
 
 use anyhow::{anyhow, Result};
 
-use crate::gfx::{self, polygon::Polygon};
+use crate::gfx::{self, Point};
 
 use super::{Sdl2Renderer, WINDOW_RESOLUTION};
 
@@ -188,12 +188,13 @@ impl gfx::Backend for Sdl2GlRenderer {
         offset: (i16, i16),
         color_idx: u8,
         zoom: u16,
-        polygon: &Polygon,
+        bb: (u8, u8),
+        points: &[Point<u8>],
     ) {
         self.raster_renderer
-            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, polygon);
+            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points);
         self.poly_renderer
-            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, polygon);
+            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points);
     }
 
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8) {

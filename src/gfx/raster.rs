@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 
-use super::{polygon::Polygon, Backend, Palette, Point, SCREEN_RESOLUTION};
+use super::{Backend, Palette, Point, SCREEN_RESOLUTION};
 
 #[derive(Clone)]
 pub struct IndexedImage([u8; SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1]]);
@@ -115,15 +115,17 @@ impl IndexedImage {
         pos: (i16, i16),
         offset: (i16, i16),
         zoom: u16,
-        polygon: &Polygon,
+        bb: (u8, u8),
+        points: &[Point<u8>],
         draw_func: F,
     ) where
         F: Fn(&mut u8, usize),
     {
-        assert!(polygon.points.len() >= 4);
+        assert!(points.len() >= 4);
+        assert!(points.len() % 2 == 0);
 
         // Optimization for single-pixel polygons
-        if polygon.bbw == 0 && polygon.bbh == 0 {
+        if bb.0 == 0 && bb.1 == 0 {
             if let Ok(offset) = IndexedImage::offset(pos.0, pos.1) {
                 draw_func(&mut self.0[offset], offset);
             }
@@ -131,18 +133,14 @@ impl IndexedImage {
         }
 
         // Offset x and y by the polygon center.
-        let bbox_offset = (
-            scale(polygon.bbw as i16, zoom) / 2,
-            scale(polygon.bbh as i16, zoom) / 2,
-        );
+        let bbox_offset = (scale(bb.0 as i16, zoom) / 2, scale(bb.1 as i16, zoom) / 2);
         let x = pos.0 - bbox_offset.0;
         let y = pos.1 - bbox_offset.1;
 
         // The first and last points are always at the top. We will fill
         // the polygon line by line starting from them, and stop when the front
         // and back join at the bottom of the polygon.
-        let mut points = polygon
-            .points
+        let mut points = points
             .iter()
             // Add the x and y offsets.
             .map(|p| {
@@ -152,8 +150,8 @@ impl IndexedImage {
                 // scaling separately on these two parameters, so we need to do
                 // the same in order to obtain the same rendering.
                 Point::from((
-                    scale(p.x, zoom) + scale(offset.0, zoom) + x,
-                    scale(p.y, zoom) + scale(offset.1, zoom) + y,
+                    scale(p.x as i16, zoom) + scale(offset.0, zoom) + x,
+                    scale(p.y as i16, zoom) + scale(offset.1, zoom) + y,
                 ))
             })
             // Turn the point into i32 and add 16 bits of fixed decimals to x to
@@ -289,23 +287,28 @@ impl Backend for RasterBackend {
         offset: (i16, i16),
         color: u8,
         zoom: u16,
-        polygon: &Polygon,
+        bb: (u8, u8),
+        points: &[Point<u8>],
     ) {
         let mut dst = self.buffers[dst_page_id].borrow_mut();
 
         match color {
             // Direct indexed color - fill the buffer with that color.
-            0x0..=0xf => dst.fill_polygon(pos, offset, zoom, polygon, |pixel, _off| *pixel = color),
+            0x0..=0xf => {
+                dst.fill_polygon(pos, offset, zoom, bb, points, |pixel, _off| *pixel = color)
+            }
             // 0x10 special color - set the MSB of the current color to create
             // transparency effect.
-            0x10 => dst.fill_polygon(pos, offset, zoom, polygon, |pixel, _off| *pixel |= 0x8),
+            0x10 => dst.fill_polygon(pos, offset, zoom, bb, points, |pixel, _off| *pixel |= 0x8),
             // 0x11 special color - copy the same pixel of buffer 0.
             0x11 => {
                 // Do not try to copy page 0 into itself - not only the page won't change,
                 // but this will actually panic as we try to double-borrow the page.
                 if dst_page_id != 0 {
                     let src = self.buffers[0].borrow();
-                    dst.fill_polygon(pos, offset, zoom, polygon, |pixel, off| *pixel = src.0[off]);
+                    dst.fill_polygon(pos, offset, zoom, bb, points, |pixel, off| {
+                        *pixel = src.0[off]
+                    });
                 }
             }
             color => panic!("Unexpected color 0x{:x}", color),

@@ -613,7 +613,6 @@ fn draw_polygon(
     }
 
     let op = cursor.read_u8().unwrap();
-
     match op {
         op if op & 0xc0 == 0xc0 => {
             // TODO match other properties of the color (e.g. blend) from op
@@ -633,8 +632,17 @@ fn draw_polygon(
                 cursor.position(),
             );
 
-            let polygon = read_polygon(cursor);
-            gfx.fillpolygon(render_buffer, pos, offset, color, zoom, &polygon);
+            let bb = (cursor.read_u8().unwrap(), cursor.read_u8().unwrap());
+            let nb_points = cursor.read_u8().unwrap() as usize;
+            let points_start = cursor.position() as usize;
+            let points = unsafe {
+                std::slice::from_raw_parts(
+                    segment[points_start..points_start + (nb_points * 2)].as_ptr()
+                        as *const gfx::Point<u8>,
+                    nb_points,
+                )
+            };
+            gfx.fillpolygon(render_buffer, pos, offset, color, zoom, bb, points);
         }
         op if op == 0x02 => {
             draw_polygon_hierarchy(

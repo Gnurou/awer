@@ -6,7 +6,6 @@ pub mod raster;
 pub mod sdl2;
 
 use log::debug;
-use polygon::Polygon;
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter, Result};
 
@@ -34,7 +33,8 @@ pub trait Backend {
         offset: (i16, i16),
         color_idx: u8,
         zoom: u16,
-        polygon: &Polygon,
+        bb: (u8, u8),
+        points: &[Point<u8>],
     );
     /// Draw character `c` at position `pos` of page `dst_page_id` with color `color_idx`.
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8);
@@ -61,6 +61,9 @@ pub trait Backend {
     fn set_snapshot(&mut self, _snapshot: Box<dyn Any>) {}
 }
 
+// We need repr(C) because we are going to interpret raw arrays of values as
+// arrays of Points.
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Point<T> {
     pub x: T,
@@ -107,7 +110,7 @@ impl From<Point<i16>> for Point<f64> {
 }
 
 impl<T> Point<T> {
-    fn new(x: T, y: T) -> Self {
+    pub fn new(x: T, y: T) -> Self {
         Point { x, y }
     }
 }
