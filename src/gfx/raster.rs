@@ -359,7 +359,7 @@ impl Backend for RasterBackend {
         assert_eq!(buffer.len(), 32000);
         let mut dst = self.buffers[dst_page_id].borrow_mut();
         dst.set_content(buffer)
-            .unwrap_or_else(|e| eprintln!("blit_buffer failed: {}", e));
+            .unwrap_or_else(|e| log::error!("blit_buffer failed: {}", e));
     }
 
     fn get_snapshot(&self) -> Box<dyn Any> {
@@ -370,7 +370,7 @@ impl Backend for RasterBackend {
         if let Ok(snapshot) = snapshot.downcast::<Self>() {
             *self = *snapshot;
         } else {
-            eprintln!("Attempting to restore invalid gfx snapshot, ignoring");
+            log::error!("Attempting to restore invalid gfx snapshot, ignoring");
         }
     }
 }

@@ -225,7 +225,7 @@ impl gfx::Backend for Sdl2GlRenderer {
             self.raster_renderer.set_snapshot(state.raster_renderer);
             self.poly_renderer.set_snapshot(state.poly_renderer);
         } else {
-            eprintln!("Attempting to restore invalid gfx snapshot, ignoring");
+            log::error!("Attempting to restore invalid gfx snapshot, ignoring");
         }
     }
 }

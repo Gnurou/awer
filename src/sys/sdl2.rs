@@ -39,7 +39,7 @@ pub struct Sdl2Sys {
 pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
     let sdl_context = sdl2::init()
         .map_err(|e| {
-            eprintln!("Failed to initialize SDL: {}", e);
+            log::error!("Failed to initialize SDL: {}", e);
         })
         .ok()?;
 

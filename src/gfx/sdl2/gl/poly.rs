@@ -339,7 +339,7 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
         let mut image: IndexedImage = Default::default();
         image
             .set_content(buffer)
-            .unwrap_or_else(|e| eprintln!("blit_buffer failed: {}", e));
+            .unwrap_or_else(|e| log::error!("blit_buffer failed: {}", e));
 
         self.draw_commands[dst_page_id].push(DrawCommand::BlitBuffer(image.into()));
     }
@@ -360,7 +360,7 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
             self.candidate_palette = state.candidate_palette;
             self.current_palette = state.current_palette;
         } else {
-            eprintln!("Attempting to restore invalid gfx snapshot, ignoring");
+            log::error!("Attempting to restore invalid gfx snapshot, ignoring");
         }
 
         self.redraw();

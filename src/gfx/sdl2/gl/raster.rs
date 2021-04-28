@@ -113,7 +113,7 @@ impl gfx::Backend for Sdl2GlRasterRenderer {
             self.current_framebuffer = state.current_framebuffer;
             self.current_palette = state.current_palette;
         } else {
-            eprintln!("Attempting to restore invalid gfx snapshot, ignoring");
+            log::error!("Attempting to restore invalid gfx snapshot, ignoring");
         }
     }
 }
