@@ -186,8 +186,10 @@ impl Sdl2GlPolyRenderer {
                 DrawCommand::Poly(poly) => {
                     if current_renderer != CurrentRenderer::Poly {
                         current_renderer = CurrentRenderer::Poly;
-                        self.poly_renderer
-                            .set_active(&self.render_texture_buffer0, &self.render_texture_buffer0);
+                        self.poly_renderer.set_active(
+                            &self.render_texture_framebuffer,
+                            &self.render_texture_buffer0,
+                        );
                     }
 
                     self.poly_renderer.draw_poly(
