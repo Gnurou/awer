@@ -90,7 +90,7 @@ impl IndexedImage {
     /// If x1 >= x2, nothing is drawn.
     fn draw_hline<F>(&mut self, y: i16, x1: i16, x2: i16, draw_func: F)
     where
-        F: Fn(&mut u8, usize),
+        F: Fn(&mut [u8], usize),
     {
         let line_offset = match IndexedImage::offset(0, y) {
             Ok(offset) => offset,
@@ -103,11 +103,7 @@ impl IndexedImage {
         let x_stop = min(max(x2, 0) as usize, SCREEN_RESOLUTION[0]);
 
         let slice = &mut self.0[line_offset + x_start..line_offset + x_stop];
-        let mut offset = line_offset + x_start;
-        for pixel in slice {
-            draw_func(pixel, offset);
-            offset += 1;
-        }
+        draw_func(slice, line_offset + x_start);
     }
 
     fn fill_polygon<F>(
@@ -119,7 +115,7 @@ impl IndexedImage {
         points: &[Point<u8>],
         draw_func: F,
     ) where
-        F: Fn(&mut u8, usize),
+        F: Fn(&mut [u8], usize),
     {
         assert!(points.len() >= 4);
         assert!(points.len() % 2 == 0);
@@ -127,7 +123,7 @@ impl IndexedImage {
         // Optimization for single-pixel polygons
         if bb.0 == 0 && bb.1 == 0 {
             if let Ok(offset) = IndexedImage::offset(pos.0, pos.1) {
-                draw_func(&mut self.0[offset], offset);
+                draw_func(&mut self.0[offset..offset + 1], offset);
             }
             return;
         }
@@ -295,19 +291,23 @@ impl Backend for RasterBackend {
         match color {
             // Direct indexed color - fill the buffer with that color.
             0x0..=0xf => {
-                dst.fill_polygon(pos, offset, zoom, bb, points, |pixel, _off| *pixel = color)
+                dst.fill_polygon(pos, offset, zoom, bb, points, |line, _off| line.fill(color))
             }
             // 0x10 special color - set the MSB of the current color to create
             // transparency effect.
-            0x10 => dst.fill_polygon(pos, offset, zoom, bb, points, |pixel, _off| *pixel |= 0x8),
+            0x10 => dst.fill_polygon(pos, offset, zoom, bb, points, |line, _off| {
+                for pixel in line {
+                    *pixel |= 0x8
+                }
+            }),
             // 0x11 special color - copy the same pixel of buffer 0.
             0x11 => {
                 // Do not try to copy page 0 into itself - not only the page won't change,
                 // but this will actually panic as we try to double-borrow the page.
                 if dst_page_id != 0 {
                     let src = self.buffers[0].borrow();
-                    dst.fill_polygon(pos, offset, zoom, bb, points, |pixel, off| {
-                        *pixel = src.0[off]
+                    dst.fill_polygon(pos, offset, zoom, bb, points, |line, off| {
+                        line.copy_from_slice(&src.0[off..off + line.len()]);
                     });
                 }
             }
@@ -343,9 +343,11 @@ impl Backend for RasterBackend {
 
         let mut dst = self.buffers[dst_page_id].borrow_mut();
         for (i, char_line) in char_bitmap.iter().map(|b| b.reverse_bits()).enumerate() {
-            dst.draw_hline(pos.1 + i as i16, pos.0, pos.0 + 8, |pixel, off| {
-                if (char_line >> (off & 0x7) & 0x1) == 1 {
-                    *pixel = color
+            dst.draw_hline(pos.1 + i as i16, pos.0, pos.0 + 8, |slice, off| {
+                for (i, pixel) in slice.iter_mut().enumerate() {
+                    if (char_line >> ((off + i) & 0x7) & 0x1) == 1 {
+                        *pixel = color
+                    }
                 }
             })
         }
