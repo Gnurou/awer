@@ -783,7 +783,7 @@ pub fn op_loadresource(
     }
 
     // Switch to a new scene.
-    const LOAD_SCENE_OFFSET: usize = 16000;
+    const LOAD_SCENE_OFFSET: usize = 0x3e80;
     if res_id >= LOAD_SCENE_OFFSET {
         state.requested_scene = Some(res_id - LOAD_SCENE_OFFSET);
         return false;
