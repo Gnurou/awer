@@ -151,6 +151,7 @@ impl Sdl2GlPolyRenderer {
     pub fn resize_render_textures(&mut self, width: usize, height: usize) {
         self.render_texture_buffer0 = IndexedTexture::new(width, height);
         self.render_texture_framebuffer = IndexedTexture::new(width, height);
+        self.redraw();
     }
 
     pub fn blit(&mut self, dst: &Rect) {
