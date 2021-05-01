@@ -26,6 +26,10 @@ pub trait Backend {
     /// Draw `polygon` with color index `color_idx` on page `dst_page_id`. `x` and `y` are the
     /// coordinates of the center of the polygon on the page. `zoom` is a zoom factor by which
     /// every point of the polygon must be multiplied by, and then divided by 64.
+    ///
+    /// This has too many arguments, but we are going to fix this later as we switch to a
+    /// higher-level method for polygon filling.
+    #[allow(clippy::clippy::too_many_arguments)]
     fn fillpolygon(
         &mut self,
         dst_page_id: usize,
