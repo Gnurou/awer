@@ -686,26 +686,21 @@ fn draw_polygon_hierarchy(
     );
 
     for _i in 0..nb_childs {
-        let (read_color, poly_offset) = match cursor.read_u16::<BE>().unwrap() {
-            word if word & 0x8000 != 0 => (true, word & 0x7fff),
-            word => (false, word),
-        };
+        let word = cursor.read_u16::<BE>().unwrap();
+        let (read_color, poly_offset) = (word & 0x8000 != 0, word & 0x7fff);
         let offset = (
             offset.0 + cursor.read_u8().unwrap() as i16,
             offset.1 + cursor.read_u8().unwrap() as i16,
         );
 
         let color = if read_color {
-            Some(cursor.read_u8().unwrap() & 0x7f)
+            let color = Some(cursor.read_u8().unwrap() & 0x7f);
+            // This is a "mask number" apparently?
+            cursor.read_u8().unwrap();
+            color
         } else {
             color
         };
-
-        // TODO: We have a dead byte after the color?
-        // Nope, this is a "mask number" apparently
-        if read_color {
-            cursor.read_u8().unwrap();
-        }
 
         trace!(
             "  child at {:?}, poly 0x{:x} color {:?}",
