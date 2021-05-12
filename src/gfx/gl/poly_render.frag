@@ -1,6 +1,7 @@
 #version 330 core
 
-uniform uint color_idx;
+flat in uint color_idx;
+
 uniform sampler2D self;
 uniform sampler2D buffer0;
 uniform vec2 viewport_size;

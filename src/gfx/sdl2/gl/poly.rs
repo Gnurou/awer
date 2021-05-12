@@ -204,6 +204,9 @@ impl Sdl2GlPolyRenderer {
                 }
                 DrawCommand::BlitBuffer(buffer) => {
                     if current_renderer != CurrentRenderer::Bitmap {
+                        if current_renderer == CurrentRenderer::Poly {
+                            self.poly_renderer.draw();
+                        }
                         current_renderer = CurrentRenderer::Bitmap;
                         //self.bitmap_renderer.set_active(&self.render_texture_buffer0, &self.render_texture_buffer0);
                     }
@@ -212,6 +215,9 @@ impl Sdl2GlPolyRenderer {
                 }
                 DrawCommand::Char(c) => {
                     if current_renderer != CurrentRenderer::Char {
+                        if current_renderer == CurrentRenderer::Poly {
+                            self.poly_renderer.draw();
+                        }
                         current_renderer = CurrentRenderer::Char;
                         self.font_renderer.set_active();
                     }
@@ -220,6 +226,8 @@ impl Sdl2GlPolyRenderer {
                 }
             }
         }
+
+        self.poly_renderer.draw();
     }
 
     fn set_render_target(&self, target_texture: &IndexedTexture) {

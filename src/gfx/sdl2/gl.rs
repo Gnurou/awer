@@ -73,6 +73,8 @@ impl Sdl2GlRenderer {
 
             gl::Disable(gl::DEPTH_TEST);
             gl::Disable(gl::STENCIL_TEST);
+            gl::Enable(gl::PRIMITIVE_RESTART);
+            gl::Enable(gl::PRIMITIVE_RESTART_FIXED_INDEX);
         }
 
         let window_size = window.size();

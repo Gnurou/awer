@@ -1,8 +1,29 @@
-use std::iter::once;
+use std::cell::{Cell, RefCell};
 
-use crate::gfx::{polygon::Polygon, Point, SCREEN_RESOLUTION};
+use crate::gfx::{polygon::Polygon, SCREEN_RESOLUTION};
 
 use super::*;
+
+#[repr(C, packed)]
+struct VertexShaderInput {
+    pos: (i16, i16),
+    vertex: (i16, i16),
+    bb: (u16, u16),
+    zoom: f32,
+    color: u8,
+}
+
+impl VertexShaderInput {
+    fn new(pos: (i16, i16), vertex: (i16, i16), bb: (u16, u16), zoom: f32, color: u8) -> Self {
+        VertexShaderInput {
+            pos,
+            vertex,
+            bb,
+            zoom,
+            color,
+        }
+    }
+}
 
 /// How to render the polygons - either filled polygons, or outlines only.
 #[derive(Clone, Copy)]
@@ -19,13 +40,12 @@ pub struct PolyRenderer {
     vbo: GLuint,
     program: GLuint,
 
-    pos_uniform: GLint,
-    offset_uniform: GLint,
-    zoom_uniform: GLint,
-    bb_uniform: GLint,
-    color_uniform: GLint,
     self_uniform: GLint,
     buffer0_uniform: GLint,
+
+    vertices_array: RefCell<Vec<VertexShaderInput>>,
+    indices_array: RefCell<Vec<u16>>,
+    draw_type: Cell<GLuint>,
 }
 
 impl Drop for PolyRenderer {
@@ -47,11 +67,6 @@ impl PolyRenderer {
         let mut vao = 0;
         let mut vbo = 0;
         let mut source_fbo = 0;
-        let pos_uniform;
-        let offset_uniform;
-        let zoom_uniform;
-        let bb_uniform;
-        let color_uniform;
         let self_uniform;
         let buffer0_uniform;
         unsafe {
@@ -64,32 +79,64 @@ impl PolyRenderer {
             gl::BindVertexArray(vao);
             gl::GenBuffers(1, &mut vbo);
             gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-            // We shall have no poly with more than 256 points.
-            gl::BufferData(
-                gl::ARRAY_BUFFER,
-                (256 * mem::size_of::<Point<u16>>()) as GLsizeiptr,
-                std::ptr::null() as *const _,
-                gl::STREAM_DRAW,
-            );
 
-            // vertex attribute
+            // pos attribute
             gl::EnableVertexAttribArray(0);
-            gl::VertexAttribIPointer(
+            gl::VertexAttribPointer(
                 0,
                 2,
                 gl::SHORT,
-                (mem::size_of::<u16>() * 2) as GLsizei,
-                std::ptr::null(),
+                gl::FALSE,
+                mem::size_of::<VertexShaderInput>() as GLsizei,
+                memoffset::offset_of!(VertexShaderInput, pos) as *const _,
+            );
+
+            // vertex attribute
+            gl::EnableVertexAttribArray(1);
+            gl::VertexAttribPointer(
+                1,
+                2,
+                gl::SHORT,
+                gl::FALSE,
+                mem::size_of::<VertexShaderInput>() as GLsizei,
+                memoffset::offset_of!(VertexShaderInput, vertex) as *const _,
+            );
+
+            // bounding box attribute
+            gl::EnableVertexAttribArray(2);
+            gl::VertexAttribPointer(
+                2,
+                2,
+                gl::UNSIGNED_SHORT,
+                gl::FALSE,
+                mem::size_of::<VertexShaderInput>() as GLsizei,
+                memoffset::offset_of!(VertexShaderInput, bb) as *const _,
+            );
+
+            // zoom attribute
+            gl::EnableVertexAttribArray(3);
+            gl::VertexAttribPointer(
+                3,
+                1,
+                gl::FLOAT,
+                gl::FALSE,
+                mem::size_of::<VertexShaderInput>() as GLsizei,
+                memoffset::offset_of!(VertexShaderInput, zoom) as *const _,
+            );
+
+            // color attribute
+            gl::EnableVertexAttribArray(4);
+            gl::VertexAttribIPointer(
+                4,
+                1,
+                gl::UNSIGNED_BYTE,
+                mem::size_of::<VertexShaderInput>() as GLsizei,
+                memoffset::offset_of!(VertexShaderInput, color) as *const _,
             );
 
             gl::BindVertexArray(0);
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
 
-            pos_uniform = get_uniform_location(program, "pos");
-            offset_uniform = get_uniform_location(program, "offset");
-            zoom_uniform = get_uniform_location(program, "zoom");
-            bb_uniform = get_uniform_location(program, "bb");
-            color_uniform = get_uniform_location(program, "color_idx");
             self_uniform = get_uniform_location(program, "self");
             buffer0_uniform = get_uniform_location(program, "buffer0");
         }
@@ -98,13 +145,11 @@ impl PolyRenderer {
             vao,
             vbo,
             program,
-            pos_uniform,
-            offset_uniform,
-            zoom_uniform,
-            bb_uniform,
-            color_uniform,
             self_uniform,
             buffer0_uniform,
+            vertices_array: Default::default(),
+            indices_array: Default::default(),
+            draw_type: Cell::new(gl::TRIANGLE_STRIP),
         })
     }
 
@@ -117,9 +162,19 @@ impl PolyRenderer {
         color: u8,
         rendering_mode: RenderingMode,
     ) {
-        let draw_type = if poly.bbw == 0 || poly.bbh == 0 {
+        // If the next polygon is transparent, make sure that all previous
+        // commands are completed to ensure our self-referencing texture
+        // will have up-to-date data.
+        if color == 0x10 {
+            self.draw();
+            unsafe {
+                gl::Finish();
+            }
+        }
+
+        let draw_type = /*if poly.bbw == 0 || poly.bbh == 0 {
             gl::LINE_LOOP
-        } else {
+        } else */{
             match rendering_mode {
                 RenderingMode::Poly => gl::TRIANGLE_STRIP,
                 RenderingMode::Line => {
@@ -134,50 +189,88 @@ impl PolyRenderer {
             }
         };
 
-        let len = poly.points.len() as u16;
-        let indices: Vec<u16> = match draw_type {
-            gl::TRIANGLE_STRIP => (0..poly.points.len() as u16 / 2)
-                .into_iter()
-                .flat_map(|i| once(len - (i + 1)).chain(once(i)))
-                .collect(),
-            gl::LINE_LOOP => (0..poly.points.len() as u16).into_iter().collect(),
-            _ => panic!(),
+        if draw_type != self.draw_type.get() {
+            if !self.vertices_array.borrow().is_empty() {
+                self.draw();
+            }
+            self.draw_type.set(draw_type);
+        }
+
+        // If our number of vertices would exceed the number of indexes we support, perform a draw
+        // call and start clean. We use >= here because the last element is used to indicate a
+        // primitive restart.
+        if self.vertices_array.borrow().len() + poly.points.len() >= u16::MAX as usize {
+            self.draw();
+        }
+
+        let zoom = zoom as f32 / 64.0;
+        let mut vertices = self.vertices_array.borrow_mut();
+        let mut indices = self.indices_array.borrow_mut();
+        let index_start = vertices.len();
+        let poly_len = poly.points.len();
+        vertices.extend(poly.points.iter().map(|p| {
+            VertexShaderInput::new(
+                (pos.0, pos.1),
+                (p.x + offset.0, p.y + offset.1),
+                (poly.bbw, poly.bbh),
+                zoom,
+                color,
+            )
+        }));
+        match draw_type {
+            gl::TRIANGLE_STRIP => indices.extend((0..poly_len / 2).into_iter().flat_map(|i| {
+                std::array::IntoIter::new([
+                    (index_start + poly_len - (i + 1)) as u16,
+                    (index_start + i) as u16,
+                ])
+            })),
+            gl::LINE_LOOP => {
+                indices.extend((0..poly_len).into_iter().map(|i| (index_start + i) as u16));
+            }
+            _ => unreachable!(),
         };
+        // Insert a primitive restart to avoid being joined to the next poly.
+        indices.push(u16::MAX);
+
+        drop(indices);
+        drop(vertices);
+    }
+
+    // Send all the pending vertices to the GPU for rendering.
+    pub fn draw(&self) {
+        let mut vertices = self.vertices_array.borrow_mut();
+        let mut indices = self.indices_array.borrow_mut();
+
+        log::debug!(
+            "Sending {} indices ({} vertices) to GPU",
+            indices.len(),
+            vertices.len()
+        );
 
         unsafe {
             // Vertices
             gl::BindVertexArray(self.vao);
             gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
-            gl::BufferSubData(
+            gl::BufferData(
                 gl::ARRAY_BUFFER,
-                0,
-                (poly.points.len() * mem::size_of::<Point<u16>>()) as GLsizeiptr,
-                poly.points.as_ptr() as *const _,
+                (vertices.len() * mem::size_of::<VertexShaderInput>()) as GLsizeiptr,
+                vertices.as_ptr() as *const _,
+                gl::STREAM_DRAW,
             );
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
 
-            gl::Uniform2i(self.pos_uniform, pos.0 as GLint, pos.1 as GLint);
-            gl::Uniform2i(self.offset_uniform, offset.0 as GLint, offset.1 as GLint);
-            gl::Uniform1ui(self.zoom_uniform, zoom as GLuint);
-            gl::Uniform2ui(self.bb_uniform, poly.bbw as GLuint, poly.bbh as GLuint);
-            gl::Uniform1ui(self.color_uniform, color as GLuint);
-
-            // If the next polygon is transparent, make sure that all previous
-            // commands are completed to ensure our self-referencing texture
-            // will have up-to-date data.
-            if color == 0x10 {
-                gl::Finish();
-            }
-
             gl::DrawElements(
-                draw_type,
-                indices.len() as GLint,
+                self.draw_type.get(),
+                indices.len() as GLsizei,
                 gl::UNSIGNED_SHORT,
-                indices.as_ptr() as *const _,
+                indices.as_ptr() as *const GLvoid,
             );
 
             gl::BindVertexArray(0);
         }
+
+        indices.clear();
+        vertices.clear();
     }
 
     pub fn set_active(&self, target_texture: &IndexedTexture, buffer0: &IndexedTexture) {
