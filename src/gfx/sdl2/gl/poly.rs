@@ -344,6 +344,7 @@ impl gfx::Backend for Sdl2GlPolyRenderer {
             .set_content(buffer)
             .unwrap_or_else(|e| log::error!("blit_buffer failed: {}", e));
 
+        self.draw_commands[dst_page_id].clear();
         self.draw_commands[dst_page_id].push(DrawCommand::BlitBuffer(image.into()));
     }
 
