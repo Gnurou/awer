@@ -39,7 +39,7 @@ fn main() {
         )
         .get_matches();
 
-    let start_scene = usize::from_str_radix(matches.value_of("scene").unwrap_or("0"), 10)
+    let start_scene = matches.value_of("scene").unwrap_or("0").parse::<usize>()
         .expect("expected integer for scene option.");
 
     let start_scene = match start_scene {
