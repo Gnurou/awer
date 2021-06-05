@@ -216,7 +216,7 @@ impl Sys for Sdl2Sys {
 
             // Compute destination rectangle of game screen
             let viewport = {
-                let (w, h) = self.renderer.window().size();
+                let (w, h) = self.renderer.window().drawable_size();
                 Rect::new(0, 0, w, h)
             };
             let viewport_dst = if div_by_screen_ratio(viewport.width()) < viewport.height() {
