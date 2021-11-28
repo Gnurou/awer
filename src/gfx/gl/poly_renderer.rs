@@ -2,7 +2,7 @@ use std::cell::{Cell, RefCell};
 
 use crate::gfx::{polygon::Polygon, SCREEN_RESOLUTION};
 
-use super::*;
+use super::{renderer::Renderer, *};
 
 #[repr(C, packed)]
 struct VertexShaderInput {
@@ -55,6 +55,33 @@ impl Drop for PolyRenderer {
             gl::DeleteVertexArrays(1, &self.vao);
             gl::DeleteProgram(self.program);
         }
+    }
+}
+
+impl Renderer for PolyRenderer {
+    fn activate(&self, target_texture: &IndexedTexture, buffer0: &IndexedTexture) {
+        let dimensions = target_texture.dimensions();
+        unsafe {
+            gl::UseProgram(self.program);
+
+            // Setup target texture to self (for transparency effect)
+            gl::Uniform1i(self.self_uniform, 0);
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, target_texture.as_tex_id());
+
+            // Setup buffer0 (for pixel copy from buffer0)
+            gl::Uniform1i(self.buffer0_uniform, 1);
+            gl::ActiveTexture(gl::TEXTURE0 + 1);
+            gl::BindTexture(gl::TEXTURE_2D, buffer0.as_tex_id());
+            // TODO when can we unbind the textures?
+
+            let viewport_uniform = get_uniform_location(self.program, "viewport_size");
+            gl::Uniform2f(viewport_uniform, dimensions.0 as f32, dimensions.1 as f32);
+        }
+    }
+
+    fn deactivate(&self) {
+        self.draw();
     }
 }
 
@@ -271,27 +298,6 @@ impl PolyRenderer {
 
         indices.clear();
         vertices.clear();
-    }
-
-    pub fn set_active(&self, target_texture: &IndexedTexture, buffer0: &IndexedTexture) {
-        let dimensions = target_texture.dimensions();
-        unsafe {
-            gl::UseProgram(self.program);
-
-            // Setup target texture to self (for transparency effect)
-            gl::Uniform1i(self.self_uniform, 0);
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, target_texture.as_tex_id());
-
-            // Setup buffer0 (for pixel copy from buffer0)
-            gl::Uniform1i(self.buffer0_uniform, 1);
-            gl::ActiveTexture(gl::TEXTURE0 + 1);
-            gl::BindTexture(gl::TEXTURE_2D, buffer0.as_tex_id());
-            // TODO when can we unbind the textures?
-
-            let viewport_uniform = get_uniform_location(self.program, "viewport_size");
-            gl::Uniform2f(viewport_uniform, dimensions.0 as f32, dimensions.1 as f32);
-        }
     }
 }
 

@@ -8,8 +8,8 @@ use crate::gfx::{
     self,
     gl::{
         bitmap_renderer::BitmapRenderer, font_renderer::FontRenderer,
-        indexed_frame_renderer::IndexedFrameRenderer, poly_renderer::PolyRenderer, IndexedTexture,
-        Viewport,
+        indexed_frame_renderer::IndexedFrameRenderer, poly_renderer::PolyRenderer,
+        renderer::CurrentRenderer, IndexedTexture, Viewport,
     },
     polygon::Polygon,
     Palette, Point,
@@ -173,26 +173,16 @@ impl Sdl2GlPolyRenderer {
         draw_commands: C,
         rendering_mode: RenderingMode,
     ) {
-        #[derive(PartialEq)]
-        enum CurrentRenderer {
-            None,
-            Poly,
-            Char,
-            Bitmap,
-        }
-        let mut current_renderer = CurrentRenderer::None;
+        let mut current_renderer = CurrentRenderer::new();
 
         for command in draw_commands {
             match command {
                 DrawCommand::Poly(poly) => {
-                    if current_renderer != CurrentRenderer::Poly {
-                        current_renderer = CurrentRenderer::Poly;
-                        self.poly_renderer.set_active(
-                            &self.render_texture_framebuffer,
-                            &self.render_texture_buffer0,
-                        );
-                    }
-
+                    current_renderer.use_poly(
+                        &self.poly_renderer,
+                        &self.render_texture_framebuffer,
+                        &self.render_texture_buffer0,
+                    );
                     self.poly_renderer.draw_poly(
                         &poly.poly,
                         poly.pos,
@@ -203,31 +193,23 @@ impl Sdl2GlPolyRenderer {
                     );
                 }
                 DrawCommand::BlitBuffer(buffer) => {
-                    if current_renderer != CurrentRenderer::Bitmap {
-                        if current_renderer == CurrentRenderer::Poly {
-                            self.poly_renderer.draw();
-                        }
-                        current_renderer = CurrentRenderer::Bitmap;
-                        //self.bitmap_renderer.set_active(&self.render_texture_buffer0, &self.render_texture_buffer0);
-                    }
-
+                    current_renderer.use_bitmap(
+                        &self.bitmap_renderer,
+                        &self.render_texture_framebuffer,
+                        &self.render_texture_buffer0,
+                    );
                     self.bitmap_renderer.draw_bitmap(&buffer.image);
                 }
                 DrawCommand::Char(c) => {
-                    if current_renderer != CurrentRenderer::Char {
-                        if current_renderer == CurrentRenderer::Poly {
-                            self.poly_renderer.draw();
-                        }
-                        current_renderer = CurrentRenderer::Char;
-                        self.font_renderer.set_active();
-                    }
-
+                    current_renderer.use_font(
+                        &self.font_renderer,
+                        &self.render_texture_framebuffer,
+                        &self.render_texture_buffer0,
+                    );
                     self.font_renderer.draw_char(c.pos, c.color, c.c);
                 }
             }
         }
-
-        self.poly_renderer.draw();
     }
 
     fn set_render_target(&self, target_texture: &IndexedTexture) {

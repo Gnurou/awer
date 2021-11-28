@@ -4,7 +4,7 @@ use gl::types::{GLint, GLuint};
 
 use crate::gfx::{raster::IndexedImage, SCREEN_RESOLUTION};
 
-use super::IndexedTexture;
+use super::{renderer::Renderer, IndexedTexture};
 use anyhow::Result;
 
 /// A renderer for arbitrary bitmaps. Useful to quickly draw the title screen
@@ -21,6 +21,8 @@ impl Drop for BitmapRenderer {
         }
     }
 }
+
+impl Renderer for BitmapRenderer {}
 
 impl BitmapRenderer {
     pub fn new() -> Result<BitmapRenderer> {

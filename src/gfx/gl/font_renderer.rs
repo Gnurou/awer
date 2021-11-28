@@ -1,4 +1,4 @@
-use super::*;
+use super::{renderer::Renderer, IndexedTexture, *};
 
 use std::mem;
 
@@ -24,6 +24,14 @@ pub struct FontRenderer {
     vao: GLuint,
     vbo: GLuint,
     program: GLuint,
+}
+
+impl Renderer for FontRenderer {
+    fn activate(&self, _target_texture: &IndexedTexture, _buffer0: &IndexedTexture) {
+        unsafe {
+            gl::UseProgram(self.program);
+        }
+    }
 }
 
 impl FontRenderer {
@@ -96,12 +104,6 @@ impl FontRenderer {
         }
 
         Ok(FontRenderer { vao, vbo, program })
-    }
-
-    pub fn set_active(&self) {
-        unsafe {
-            gl::UseProgram(self.program);
-        }
     }
 
     pub fn draw_char(&self, pos: (i16, i16), color: u8, c: u8) {
