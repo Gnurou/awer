@@ -83,7 +83,7 @@ impl Sys for Sdl2Sys {
         const TICKS_PER_SNAPSHOT: usize = 200;
         let mut history: VecDeque<VmSnapshot> = VecDeque::new();
         let mut snapshot_cpt = 0;
-        take_snapshot(&mut history, &vm, self.renderer.as_gfx());
+        take_snapshot(&mut history, vm, self.renderer.as_gfx());
 
         // Ignore keys presses from being handled right after window has gained
         // focus to avoid e.g escape being considered if esc was part of the
@@ -191,7 +191,7 @@ impl Sys for Sdl2Sys {
             for _ in 0..ticks_to_run {
                 snapshot_cpt += 1;
                 if snapshot_cpt == TICKS_PER_SNAPSHOT {
-                    take_snapshot(&mut history, &vm, self.renderer.as_gfx());
+                    take_snapshot(&mut history, vm, self.renderer.as_gfx());
                     snapshot_cpt = 0;
                 }
 

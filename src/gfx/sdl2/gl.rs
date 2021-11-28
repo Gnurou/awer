@@ -108,9 +108,9 @@ impl Sdl2Renderer for Sdl2GlRenderer {
         }
 
         match self.rendering_mode {
-            RenderingMode::Raster => self.raster_renderer.blit(&dst),
-            RenderingMode::Poly => self.poly_renderer.blit(&dst),
-            RenderingMode::Line => self.poly_renderer.blit(&dst),
+            RenderingMode::Raster => self.raster_renderer.blit(dst),
+            RenderingMode::Poly => self.poly_renderer.blit(dst),
+            RenderingMode::Line => self.poly_renderer.blit(dst),
         };
     }
 

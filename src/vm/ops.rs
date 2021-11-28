@@ -429,9 +429,7 @@ pub fn op_blitframebuffer(
 
     // If we passed 0xff, the front and back buffers are swapped.
     if page_id == 0xff {
-        let tmp = state.back_buffer;
-        state.back_buffer = state.front_buffer;
-        state.front_buffer = tmp;
+        std::mem::swap(&mut state.front_buffer, &mut state.back_buffer);
     }
 
     state.front_buffer = new_front;

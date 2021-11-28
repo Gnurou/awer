@@ -29,7 +29,7 @@ pub trait Backend {
     ///
     /// This has too many arguments, but we are going to fix this later as we switch to a
     /// higher-level method for polygon filling.
-    #[allow(clippy::clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     fn fillpolygon(
         &mut self,
         dst_page_id: usize,

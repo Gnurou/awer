@@ -125,7 +125,7 @@ impl Sdl2Renderer for Sdl2RasterRenderer {
     }
 
     fn window(&self) -> &Window {
-        &self.canvas.window()
+        self.canvas.window()
     }
 }
 
