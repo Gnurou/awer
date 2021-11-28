@@ -39,7 +39,10 @@ fn main() {
         )
         .get_matches();
 
-    let start_scene = matches.value_of("scene").unwrap_or("0").parse::<usize>()
+    let start_scene = matches
+        .value_of("scene")
+        .unwrap_or("0")
+        .parse::<usize>()
         .expect("expected integer for scene option.");
 
     let start_scene = match start_scene {
