@@ -1,5 +1,9 @@
+use crate::gfx::{polygon::Polygon, raster::IndexedImage};
+
 use super::{
-    bitmap_renderer::BitmapRenderer, font_renderer::FontRenderer, poly_renderer::PolyRenderer,
+    bitmap_renderer::BitmapRenderer,
+    font_renderer::FontRenderer,
+    poly_renderer::{PolyRenderer, RenderingMode},
     IndexedTexture,
 };
 
@@ -8,78 +12,142 @@ pub trait Renderer {
     fn deactivate(&self) {}
 }
 
-pub enum CurrentRenderer<'a> {
+enum CurrentRenderer {
     None,
-    Poly(&'a PolyRenderer),
-    Bitmap(&'a BitmapRenderer),
-    Font(&'a FontRenderer),
+    Poly,
+    Bitmap,
+    Font,
 }
 
-impl<'a> Drop for CurrentRenderer<'a> {
+pub struct Renderers {
+    current: CurrentRenderer,
+    poly: PolyRenderer,
+    bitmap: BitmapRenderer,
+    font: FontRenderer,
+}
+
+impl Drop for Renderers {
     fn drop(&mut self) {
         self.deactivate();
     }
 }
 
-impl<'a> CurrentRenderer<'a> {
-    pub fn new() -> Self {
-        Self::None
+impl Renderers {
+    pub fn new(poly: PolyRenderer, bitmap: BitmapRenderer, font: FontRenderer) -> Self {
+        Self {
+            current: CurrentRenderer::None,
+            poly,
+            bitmap,
+            font,
+        }
     }
 
     fn deactivate(&mut self) {
-        match self {
+        match self.current {
             CurrentRenderer::None => (),
-            CurrentRenderer::Poly(renderer) => renderer.deactivate(),
-            CurrentRenderer::Bitmap(renderer) => renderer.deactivate(),
-            CurrentRenderer::Font(renderer) => renderer.deactivate(),
+            CurrentRenderer::Poly => self.poly.deactivate(),
+            CurrentRenderer::Bitmap => self.bitmap.deactivate(),
+            CurrentRenderer::Font => self.font.deactivate(),
+        }
+        self.current = CurrentRenderer::None;
+    }
+
+    fn use_poly(
+        &mut self,
+        target_texture: &IndexedTexture,
+        buffer0: &IndexedTexture,
+    ) -> &mut PolyRenderer {
+        match self.current {
+            CurrentRenderer::Poly => (),
+            _ => {
+                self.deactivate();
+                self.poly.activate(target_texture, buffer0);
+                self.current = CurrentRenderer::Poly;
+            }
+        }
+        &mut self.poly
+    }
+
+    fn use_bitmap(
+        &mut self,
+        target_texture: &IndexedTexture,
+        buffer0: &IndexedTexture,
+    ) -> &mut BitmapRenderer {
+        match self.current {
+            CurrentRenderer::Bitmap => (),
+            _ => {
+                self.deactivate();
+                self.bitmap.activate(target_texture, buffer0);
+                self.current = CurrentRenderer::Bitmap;
+            }
+        }
+        &mut self.bitmap
+    }
+
+    fn use_font(
+        &mut self,
+        target_texture: &IndexedTexture,
+        buffer0: &IndexedTexture,
+    ) -> &mut FontRenderer {
+        match self.current {
+            CurrentRenderer::Font => (),
+            _ => {
+                self.deactivate();
+                self.font.activate(target_texture, buffer0);
+                self.current = CurrentRenderer::Font;
+            }
+        }
+        &mut self.font
+    }
+}
+pub struct DrawCommandRunner<'a> {
+    renderers: &'a mut Renderers,
+    target: &'a IndexedTexture,
+    buffer0: &'a IndexedTexture,
+}
+
+impl<'a> Drop for DrawCommandRunner<'a> {
+    fn drop(&mut self) {
+        self.renderers.deactivate();
+    }
+}
+
+impl<'a> DrawCommandRunner<'a> {
+    pub fn new(
+        renderers: &'a mut Renderers,
+        target: &'a IndexedTexture,
+        buffer0: &'a IndexedTexture,
+    ) -> Self {
+        Self {
+            renderers,
+            target,
+            buffer0,
         }
     }
 
-    pub fn use_poly(
+    pub fn draw_poly(
         &mut self,
-        renderer: &'a PolyRenderer,
-        target_texture: &IndexedTexture,
-        buffer0: &IndexedTexture,
+        poly: &Polygon,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        zoom: u16,
+        color: u8,
+        rendering_mode: RenderingMode,
     ) {
-        match self {
-            CurrentRenderer::Poly(_) => (),
-            _ => {
-                self.deactivate();
-                *self = CurrentRenderer::Poly(renderer);
-                renderer.activate(target_texture, buffer0);
-            }
-        }
+        self.renderers
+            .use_poly(self.target, self.buffer0)
+            .draw_poly(poly, pos, offset, zoom, color, rendering_mode)
     }
 
-    pub fn use_bitmap(
-        &mut self,
-        renderer: &'a BitmapRenderer,
-        target_texture: &IndexedTexture,
-        buffer0: &IndexedTexture,
-    ) {
-        match self {
-            CurrentRenderer::Bitmap(_) => (),
-            _ => {
-                self.deactivate();
-                *self = CurrentRenderer::Bitmap(renderer);
-                renderer.activate(target_texture, buffer0);
-            }
-        }
+    pub fn draw_bitmap(&mut self, image: &IndexedImage) {
+        self.renderers
+            .use_bitmap(self.target, self.buffer0)
+            .draw_bitmap(image)
     }
 
-    pub fn use_font(
-        &mut self,
-        renderer: &'a FontRenderer,
-        target_texture: &IndexedTexture,
-        buffer0: &IndexedTexture,
-    ) {
-        match self {
-            CurrentRenderer::Font(_) => (),
-            _ => {
-                self.deactivate();
-                *self = CurrentRenderer::Font(renderer);
-                renderer.activate(target_texture, buffer0);
-            }
-        }
+    pub fn draw_char(&mut self, pos: (i16, i16), color: u8, c: u8) {
+        self.renderers
+            .use_font(self.target, self.buffer0)
+            .draw_char(pos, color, c)
     }
 }

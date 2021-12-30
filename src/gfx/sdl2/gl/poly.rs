@@ -7,9 +7,12 @@ use sdl2::rect::Rect;
 use crate::gfx::{
     self,
     gl::{
-        bitmap_renderer::BitmapRenderer, font_renderer::FontRenderer,
-        indexed_frame_renderer::IndexedFrameRenderer, poly_renderer::PolyRenderer,
-        renderer::CurrentRenderer, IndexedTexture, Viewport,
+        bitmap_renderer::BitmapRenderer,
+        font_renderer::FontRenderer,
+        indexed_frame_renderer::IndexedFrameRenderer,
+        poly_renderer::PolyRenderer,
+        renderer::{Renderers, DrawCommandRunner},
+        IndexedTexture, Viewport,
     },
     polygon::Polygon,
     Palette, Point,
@@ -88,9 +91,7 @@ pub struct Sdl2GlPolyRenderer {
     render_texture_buffer0: IndexedTexture,
     render_texture_framebuffer: IndexedTexture,
 
-    poly_renderer: PolyRenderer,
-    bitmap_renderer: BitmapRenderer,
-    font_renderer: FontRenderer,
+    renderers: Renderers,
     frame_renderer: IndexedFrameRenderer,
 }
 
@@ -137,9 +138,11 @@ impl Sdl2GlPolyRenderer {
             render_texture_buffer0: IndexedTexture::new(width, height),
             render_texture_framebuffer: IndexedTexture::new(width, height),
 
-            poly_renderer: PolyRenderer::new()?,
-            bitmap_renderer: BitmapRenderer::new()?,
-            font_renderer: FontRenderer::new()?,
+            renderers: Renderers::new(
+                PolyRenderer::new()?,
+                BitmapRenderer::new()?,
+                FontRenderer::new()?,
+            ),
             frame_renderer: IndexedFrameRenderer::new()?,
         })
     }
@@ -168,22 +171,17 @@ impl Sdl2GlPolyRenderer {
         );
     }
 
-    fn run_command_list<'a, C: IntoIterator<Item = &'a DrawCommand>>(
-        &self,
-        draw_commands: C,
-        rendering_mode: RenderingMode,
-    ) {
-        let mut current_renderer = CurrentRenderer::new();
-
+    fn run_command_list(&mut self, commands_index: usize, rendering_mode: RenderingMode) {
+        let draw_commands = &self.draw_commands[commands_index];
+        let mut draw_runner = DrawCommandRunner::new(
+            &mut self.renderers,
+            &self.render_texture_framebuffer,
+            &self.render_texture_buffer0,
+        );
         for command in draw_commands {
             match command {
                 DrawCommand::Poly(poly) => {
-                    current_renderer.use_poly(
-                        &self.poly_renderer,
-                        &self.render_texture_framebuffer,
-                        &self.render_texture_buffer0,
-                    );
-                    self.poly_renderer.draw_poly(
+                    draw_runner.draw_poly(
                         &poly.poly,
                         poly.pos,
                         poly.offset,
@@ -193,20 +191,10 @@ impl Sdl2GlPolyRenderer {
                     );
                 }
                 DrawCommand::BlitBuffer(buffer) => {
-                    current_renderer.use_bitmap(
-                        &self.bitmap_renderer,
-                        &self.render_texture_framebuffer,
-                        &self.render_texture_buffer0,
-                    );
-                    self.bitmap_renderer.draw_bitmap(&buffer.image);
+                    draw_runner.draw_bitmap(&buffer.image);
                 }
                 DrawCommand::Char(c) => {
-                    current_renderer.use_font(
-                        &self.font_renderer,
-                        &self.render_texture_framebuffer,
-                        &self.render_texture_buffer0,
-                    );
-                    self.font_renderer.draw_char(c.pos, c.color, c.c);
+                    draw_runner.draw_char(c.pos, c.color, c.c);
                 }
             }
         }
@@ -236,15 +224,12 @@ impl Sdl2GlPolyRenderer {
         // First render buffer 0, since it may be needed to render the final
         // buffer.
         self.set_render_target(&self.render_texture_buffer0);
-        self.run_command_list(&self.draw_commands[0], self.rendering_mode);
+        self.run_command_list(0, self.rendering_mode);
 
         // Then render the framebuffer, which can now use buffer0 as a source
         // texture.
         self.set_render_target(&self.render_texture_framebuffer);
-        self.run_command_list(
-            &self.draw_commands[self.framebuffer_index],
-            self.rendering_mode,
-        );
+        self.run_command_list(self.framebuffer_index, self.rendering_mode);
 
         // TODO move into proper method?
         unsafe {
