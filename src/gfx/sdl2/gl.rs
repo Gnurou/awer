@@ -14,7 +14,11 @@ use sdl2::{
 use anyhow::{anyhow, Result};
 
 use crate::{
-    gfx::{self, Point},
+    gfx::{
+        self,
+        gl::{indexed_frame_renderer::IndexedFrameRenderer, Viewport},
+        Point,
+    },
     sys::Snapshotable,
 };
 
@@ -27,17 +31,15 @@ pub enum RenderingMode {
     Line,
 }
 
-/// A GL-based renderer for SDL. Contrary to what the name implies, it still
-/// renders using rasterization into a 320x200 texture that is scaled. However,
-/// it does it much more efficiently than the SDL raster renderer, using a
-/// shader that takes the 320x200, 4bpp scene and corresponding palette and
-/// infers the actual color of each pixel on the GPU.
+/// A GL-based renderer for SDL.
 ///
-/// It also operated without using the SDL Canvas API, meaning it can safely be
+/// It operates two sub-renderers behind the scene: one that renders the game
+/// using the CPU at original resolution, the other that renders it using
+/// OpenGL at the current resolution of the window. Both render into a 16-color
+/// indexed texture that this renderer then converts into a true-color texture.
+///
+/// This renderer does not use the the SDL Canvas API, meaning it can safely be
 /// used along with other GL libraries, like ImGUI.
-///
-/// In the future it should also be able to render a DrawList into polygons at
-/// any resolution - ideally we would be able to switch modes on the fly...
 pub struct Sdl2GlRenderer {
     rendering_mode: RenderingMode,
     window: Window,
@@ -45,6 +47,8 @@ pub struct Sdl2GlRenderer {
 
     raster_renderer: raster::Sdl2GlRasterRenderer,
     poly_renderer: poly::Sdl2GlPolyRenderer,
+
+    framebuffer_renderer: IndexedFrameRenderer,
 }
 
 struct State {
@@ -99,6 +103,7 @@ impl Sdl2GlRenderer {
                     window_size.1 as usize,
                 )?
             },
+            framebuffer_renderer: IndexedFrameRenderer::new()?,
         }))
     }
 }
@@ -110,10 +115,24 @@ impl Sdl2Display for Sdl2GlRenderer {
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
 
-        match self.rendering_mode {
-            RenderingMode::Raster => self.raster_renderer.blit(dst),
-            RenderingMode::Poly | RenderingMode::Line => self.poly_renderer.blit(dst),
+        let (framebuffer_texture, current_palette) = match self.rendering_mode {
+            RenderingMode::Raster => self.raster_renderer.get_framebuffer_texture_and_palette(),
+            RenderingMode::Poly | RenderingMode::Line => {
+                self.poly_renderer.get_framebuffer_texture_and_palette()
+            }
         };
+
+        self.framebuffer_renderer.render_into(
+            framebuffer_texture,
+            current_palette,
+            0,
+            &Viewport {
+                x: dst.x(),
+                y: dst.y(),
+                width: dst.width() as i32,
+                height: dst.height() as i32,
+            },
+        );
     }
 
     fn present(&mut self) {

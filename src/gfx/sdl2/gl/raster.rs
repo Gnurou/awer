@@ -1,24 +1,16 @@
 use anyhow::Result;
 use gfx::SCREEN_RESOLUTION;
-use sdl2::rect::Rect;
 
-use crate::gfx::{
-    self,
-    gl::{indexed_frame_renderer::*, IndexedTexture, Viewport},
-    raster::RasterRenderer,
-};
+use crate::gfx::{self, gl::IndexedTexture, raster::RasterRenderer, Palette};
 
 /// A renderer with which the game is rendered using the CPU at original resolution with a 16 colors
-/// indexed palette, before being converted to true color using the GPU.
+/// indexed palette.
 pub struct Sdl2GlRasterRenderer {
     /// Regular CPU raster renderer where we will render the game.
     raster: RasterRenderer,
 
     /// Texture where the framebuffer from `raster` will be copied to serve as a source.
     framebuffer_texture: IndexedTexture,
-    /// Will perform GPU-based transformation of the indexed game framebuffer into a true color
-    /// frame ready to be displayed.
-    framebuffer_renderer: IndexedFrameRenderer,
 }
 
 impl Sdl2GlRasterRenderer {
@@ -27,24 +19,13 @@ impl Sdl2GlRasterRenderer {
             raster: RasterRenderer::new(),
 
             framebuffer_texture: IndexedTexture::new(SCREEN_RESOLUTION[0], SCREEN_RESOLUTION[1]),
-            framebuffer_renderer: IndexedFrameRenderer::new()?,
         })
     }
 
-    pub fn blit(&mut self, dst: &Rect) {
+    pub fn get_framebuffer_texture_and_palette(&mut self) -> (&IndexedTexture, &Palette) {
         self.framebuffer_texture
             .set_data(&*self.raster.get_framebuffer(), 0, 0);
-        self.framebuffer_renderer.render_into(
-            &self.framebuffer_texture,
-            self.raster.get_palette(),
-            0,
-            &Viewport {
-                x: dst.x(),
-                y: dst.y(),
-                width: dst.width() as i32,
-                height: dst.height() as i32,
-            },
-        );
+        (&self.framebuffer_texture, self.raster.get_palette())
     }
 }
 

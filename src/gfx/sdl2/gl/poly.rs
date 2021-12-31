@@ -2,7 +2,6 @@ use std::any::Any;
 
 use gfx::raster::IndexedImage;
 use gl::types::{GLint, GLuint};
-use sdl2::rect::Rect;
 
 use crate::{
     gfx::{
@@ -10,10 +9,9 @@ use crate::{
         gl::{
             bitmap_renderer::BitmapRenderer,
             font_renderer::FontRenderer,
-            indexed_frame_renderer::IndexedFrameRenderer,
             poly_renderer::PolyRenderer,
             renderer::{DrawCommandRunner, Renderers},
-            IndexedTexture, Viewport,
+            IndexedTexture,
         },
         polygon::Polygon,
         Palette, Point,
@@ -80,8 +78,7 @@ enum DrawCommand {
     Char(CharDrawCommand),
 }
 
-/// A renderer that uses the GPU to render the game into a 16 colors indexed bufffer of any size,
-/// before converting it to true color, again using the GPU.
+/// A renderer that uses the GPU to render the game into a 16 colors indexed bufffer of any size.
 pub struct Sdl2GlPolyRenderer {
     rendering_mode: RenderingMode,
 
@@ -97,7 +94,6 @@ pub struct Sdl2GlPolyRenderer {
     render_texture_framebuffer: IndexedTexture,
 
     renderers: Renderers,
-    frame_renderer: IndexedFrameRenderer,
 }
 
 struct State {
@@ -148,7 +144,6 @@ impl Sdl2GlPolyRenderer {
                 BitmapRenderer::new()?,
                 FontRenderer::new()?,
             ),
-            frame_renderer: IndexedFrameRenderer::new()?,
         })
     }
 
@@ -162,18 +157,8 @@ impl Sdl2GlPolyRenderer {
         self.redraw();
     }
 
-    pub fn blit(&mut self, dst: &Rect) {
-        self.frame_renderer.render_into(
-            &self.render_texture_framebuffer,
-            &self.current_palette,
-            0,
-            &Viewport {
-                x: dst.x(),
-                y: dst.y(),
-                width: dst.width() as i32,
-                height: dst.height() as i32,
-            },
-        );
+    pub fn get_framebuffer_texture_and_palette(&mut self) -> (&IndexedTexture, &Palette) {
+        (&self.render_texture_framebuffer, &self.current_palette)
     }
 
     fn run_command_list(&mut self, commands_index: usize, rendering_mode: RenderingMode) {
