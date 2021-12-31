@@ -1,5 +1,5 @@
-mod poly;
-mod raster;
+mod poly_renderer;
+mod raster_renderer;
 
 use std::any::Any;
 
@@ -42,8 +42,8 @@ pub struct Sdl2GlDisplay {
     window: Window,
     _opengl_context: GLContext,
 
-    raster_renderer: raster::Sdl2GlRasterRenderer,
-    poly_renderer: poly::Sdl2GlPolyRenderer,
+    raster_renderer: raster_renderer::Sdl2GlRasterRenderer,
+    poly_renderer: poly_renderer::Sdl2GlPolyRenderer,
 
     framebuffer_renderer: IndexedFrameRenderer,
 }
@@ -87,14 +87,14 @@ impl Sdl2GlDisplay {
             window,
             _opengl_context: opengl_context,
 
-            raster_renderer: raster::Sdl2GlRasterRenderer::new()?,
+            raster_renderer: raster_renderer::Sdl2GlRasterRenderer::new()?,
             poly_renderer: {
                 let rendering_mode = match rendering_mode {
-                    RenderingMode::Raster | RenderingMode::Poly => poly::RenderingMode::Poly,
-                    RenderingMode::Line => poly::RenderingMode::Line,
+                    RenderingMode::Raster | RenderingMode::Poly => poly_renderer::RenderingMode::Poly,
+                    RenderingMode::Line => poly_renderer::RenderingMode::Line,
                 };
 
-                poly::Sdl2GlPolyRenderer::new(
+                poly_renderer::Sdl2GlPolyRenderer::new(
                     rendering_mode,
                     window_size.0 as usize,
                     window_size.1 as usize,
@@ -158,13 +158,13 @@ impl Sdl2Display for Sdl2GlDisplay {
                     Keycode::F2 => {
                         self.rendering_mode = RenderingMode::Poly;
                         self.poly_renderer
-                            .set_rendering_mode(poly::RenderingMode::Poly);
+                            .set_rendering_mode(poly_renderer::RenderingMode::Poly);
                         self.poly_renderer.redraw();
                     }
                     Keycode::F3 => {
                         self.rendering_mode = RenderingMode::Line;
                         self.poly_renderer
-                            .set_rendering_mode(poly::RenderingMode::Line);
+                            .set_rendering_mode(poly_renderer::RenderingMode::Line);
                         self.poly_renderer.redraw();
                     }
                     _ => {}
