@@ -7,11 +7,18 @@ use super::{
     IndexedTexture,
 };
 
+/// Trait for a GL renderer that can draw a certain class of object from the game (e.g. polygons or
+/// font).
 pub trait Renderer {
+    /// Activate the renderer, i.e. make it ready to draw. `target_texture` is where incoming draw
+    /// commands should be renderer, while `buffer0` is a texture with framebuffer 0 (which is used
+    /// as a source for some commands).
     fn activate(&self, _target_texture: &IndexedTexture, _buffer0: &IndexedTexture) {}
+    /// Deactivate the renderer, flushing any pending operations.
     fn deactivate(&self) {}
 }
 
+/// Keep track of which renderer is current.
 enum CurrentRenderer {
     None,
     Poly,
@@ -19,6 +26,8 @@ enum CurrentRenderer {
     Font,
 }
 
+/// Groups all the renderers used with the GL backend, and allow to select a specific renderer and
+/// to use it through a `DrawCommandRunner`.
 pub struct Renderers {
     current: CurrentRenderer,
     poly: PolyRenderer,
@@ -100,6 +109,9 @@ impl Renderers {
         &mut self.font
     }
 }
+
+/// An interface to `Renderers` that allows drawing to take place, making sure pending operations
+/// are flushed when this object is dropped.
 pub struct DrawCommandRunner<'a> {
     renderers: &'a mut Renderers,
     target: &'a IndexedTexture,
