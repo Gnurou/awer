@@ -68,10 +68,7 @@ fn take_snapshot<T: AsRef<dyn gfx::Renderer> + ?Sized>(
 ) {
     const MAX_GAME_SNAPSHOTS: usize = 50;
 
-    history.push_front(VmSnapshot::new(
-        vm.get_snapshot(),
-        gfx.as_ref().get_snapshot(),
-    ));
+    history.push_front(VmSnapshot::new(vm, gfx));
 
     while history.len() > MAX_GAME_SNAPSHOTS {
         history.pop_back();

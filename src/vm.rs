@@ -128,13 +128,15 @@ pub struct VmSnapshot {
 }
 
 impl VmSnapshot {
-    pub fn new(vm_state: VmState, gfx_state: Box<dyn Any>) -> Self {
+    /// Create a new snapshot from the game's Vm and Renderer.
+    pub fn new<T: AsRef<dyn gfx::Renderer> + ?Sized>(vm: &Vm, gfx: &T) -> Self {
         VmSnapshot {
-            vm_state,
-            gfx_state,
+            vm_state: vm.get_snapshot(),
+            gfx_state: gfx.as_ref().get_snapshot(),
         }
     }
 
+    /// Restore a previously captured snapshot into `vm` and `gfx`.
     pub fn restore<T: AsMut<dyn gfx::Renderer> + ?Sized>(self, vm: &mut Vm, gfx: &mut T) {
         vm.set_snapshot(self.vm_state);
         gfx.as_mut().set_snapshot(self.gfx_state);
