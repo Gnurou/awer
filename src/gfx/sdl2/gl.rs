@@ -15,7 +15,7 @@ use anyhow::{anyhow, Result};
 
 use crate::gfx::{self, Point};
 
-use super::{Sdl2Renderer, WINDOW_RESOLUTION};
+use super::{Sdl2Display, WINDOW_RESOLUTION};
 
 #[derive(Clone, Copy)]
 pub enum RenderingMode {
@@ -100,7 +100,7 @@ impl Sdl2GlRenderer {
     }
 }
 
-impl Sdl2Renderer for Sdl2GlRenderer {
+impl Sdl2Display for Sdl2GlRenderer {
     fn blit_game(&mut self, dst: &Rect) {
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
@@ -118,11 +118,11 @@ impl Sdl2Renderer for Sdl2GlRenderer {
         self.window.gl_swap_window();
     }
 
-    fn as_gfx(&self) -> &dyn crate::gfx::Backend {
+    fn as_renderer(&self) -> &dyn crate::gfx::Renderer {
         self
     }
 
-    fn as_gfx_mut(&mut self) -> &mut dyn crate::gfx::Backend {
+    fn as_renderer_mut(&mut self) -> &mut dyn crate::gfx::Renderer {
         self
     }
 
@@ -165,7 +165,7 @@ impl Sdl2Renderer for Sdl2GlRenderer {
     }
 }
 
-impl gfx::Backend for Sdl2GlRenderer {
+impl gfx::Renderer for Sdl2GlRenderer {
     fn set_palette(&mut self, palette: &[u8; 32]) {
         self.raster_renderer.set_palette(palette);
         self.poly_renderer.set_palette(palette);

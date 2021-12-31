@@ -11,7 +11,7 @@ use crate::gfx::{
         font_renderer::FontRenderer,
         indexed_frame_renderer::IndexedFrameRenderer,
         poly_renderer::PolyRenderer,
-        renderer::{Renderers, DrawCommandRunner},
+        renderer::{DrawCommandRunner, Renderers},
         IndexedTexture, Viewport,
     },
     polygon::Polygon,
@@ -238,7 +238,7 @@ impl Sdl2GlPolyRenderer {
     }
 }
 
-impl gfx::Backend for Sdl2GlPolyRenderer {
+impl gfx::Renderer for Sdl2GlPolyRenderer {
     fn set_palette(&mut self, palette: &[u8; 32]) {
         self.candidate_palette = {
             let mut p: Palette = Default::default();

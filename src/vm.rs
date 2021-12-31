@@ -135,7 +135,7 @@ impl VmSnapshot {
         }
     }
 
-    pub fn restore(self, vm: &mut Vm, gfx: &mut dyn gfx::Backend) {
+    pub fn restore(self, vm: &mut Vm, gfx: &mut dyn gfx::Renderer) {
         vm.set_snapshot(self.vm_state);
         gfx.set_snapshot(self.gfx_state);
     }
@@ -211,7 +211,7 @@ impl Vm {
         self.state.regs[i] = v;
     }
 
-    fn process_thread(&mut self, cur_thread: usize, pc: u64, gfx: &mut dyn gfx::Backend) {
+    fn process_thread(&mut self, cur_thread: usize, pc: u64, gfx: &mut dyn gfx::Renderer) {
         let mut cursor = self.code.get_cursor(pc);
 
         loop {
@@ -265,7 +265,7 @@ impl Vm {
 
             // Gfx op - display stuff on screen.
             type GfxOp =
-                fn(u8, &mut Cursor<&[u8]>, &mut VmState, &VmSys, &mut dyn gfx::Backend) -> bool;
+                fn(u8, &mut Cursor<&[u8]>, &mut VmState, &VmSys, &mut dyn gfx::Renderer) -> bool;
             let op: Option<GfxOp> = match opcode {
                 op if op & 0x80 == 0x80 => Some(op_sprs),
                 op if op & 0xc0 == 0x40 => Some(op_sprl),
@@ -352,7 +352,7 @@ impl Vm {
         self.set_reg(VM_VARIABLE_HERO_ACTION_POS_MASK, mask);
     }
 
-    pub fn process_step(&mut self, gfx: &mut dyn gfx::Backend) -> usize {
+    pub fn process_step(&mut self, gfx: &mut dyn gfx::Renderer) -> usize {
         // Check if we need to switch to a new part of the game.
         if let Some(requested_scene) = self.state.requested_scene.take() {
             info!("Loading scene {}", requested_scene);
@@ -402,7 +402,7 @@ impl Vm {
         nb_threads
     }
 
-    pub fn process(&mut self, gfx: &mut dyn gfx::Backend) -> bool {
+    pub fn process(&mut self, gfx: &mut dyn gfx::Renderer) -> bool {
         debug!("===================");
         debug!("Starting round {}", self.round);
         debug!("===================");

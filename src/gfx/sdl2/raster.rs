@@ -10,7 +10,7 @@ use sdl2::{
 
 use anyhow::{anyhow, Result};
 
-use crate::gfx::{self, raster::RasterBackend, sdl2::Sdl2Renderer, Color, Point};
+use crate::gfx::{self, raster::RasterRenderer, sdl2::Sdl2Display, Color, Point};
 
 use super::WINDOW_RESOLUTION;
 
@@ -29,7 +29,7 @@ pub struct Sdl2RasterRenderer {
     pixel_format: PixelFormat,
     bytes_per_pixel: usize,
 
-    raster: RasterBackend,
+    raster: RasterRenderer,
 }
 
 impl Sdl2RasterRenderer {
@@ -62,7 +62,7 @@ impl Sdl2RasterRenderer {
             texture,
             pixel_format,
             bytes_per_pixel,
-            raster: RasterBackend::new(),
+            raster: RasterRenderer::new(),
         }))
     }
 
@@ -102,7 +102,7 @@ impl Sdl2RasterRenderer {
     }
 }
 
-impl Sdl2Renderer for Sdl2RasterRenderer {
+impl Sdl2Display for Sdl2RasterRenderer {
     fn blit_game(&mut self, dst: &Rect) {
         // Clear screen
         self.canvas
@@ -116,11 +116,11 @@ impl Sdl2Renderer for Sdl2RasterRenderer {
         self.canvas.present();
     }
 
-    fn as_gfx(&self) -> &dyn crate::gfx::Backend {
+    fn as_renderer(&self) -> &dyn crate::gfx::Renderer {
         self
     }
 
-    fn as_gfx_mut(&mut self) -> &mut dyn crate::gfx::Backend {
+    fn as_renderer_mut(&mut self) -> &mut dyn crate::gfx::Renderer {
         self
     }
 
@@ -129,7 +129,7 @@ impl Sdl2Renderer for Sdl2RasterRenderer {
     }
 }
 
-impl gfx::Backend for Sdl2RasterRenderer {
+impl gfx::Renderer for Sdl2RasterRenderer {
     fn set_palette(&mut self, palette: &[u8; 32]) {
         self.raster.set_palette(palette)
     }

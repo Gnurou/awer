@@ -13,7 +13,7 @@ use crate::{
         sdl2::{
             gl::{RenderingMode, Sdl2GlRenderer},
             raster::Sdl2RasterRenderer,
-            Sdl2Renderer,
+            Sdl2Display,
         },
     },
     input::{ButtonState, InputState, LeftRightDir, UpDownDir},
@@ -33,7 +33,7 @@ const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECON
 
 pub struct Sdl2Sys {
     sdl_context: Sdl,
-    renderer: Box<dyn Sdl2Renderer>,
+    display: Box<dyn Sdl2Display>,
 }
 
 pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
@@ -43,7 +43,7 @@ pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
         })
         .ok()?;
 
-    let renderer: Box<dyn Sdl2Renderer> = match matches.value_of("render").unwrap_or("raster") {
+    let display: Box<dyn Sdl2Display> = match matches.value_of("render").unwrap_or("raster") {
         "raster" => Sdl2RasterRenderer::new(&sdl_context).ok()?,
         "gl_raster" => Sdl2GlRenderer::new(&sdl_context, RenderingMode::Raster).ok()?,
         "gl_poly" => Sdl2GlRenderer::new(&sdl_context, RenderingMode::Poly).ok()?,
@@ -53,11 +53,11 @@ pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
 
     Some(Box::new(Sdl2Sys {
         sdl_context,
-        renderer,
+        display,
     }))
 }
 
-fn take_snapshot(history: &mut VecDeque<VmSnapshot>, vm: &Vm, gfx: &dyn gfx::Backend) {
+fn take_snapshot(history: &mut VecDeque<VmSnapshot>, vm: &Vm, gfx: &dyn gfx::Renderer) {
     const MAX_GAME_SNAPSHOTS: usize = 50;
 
     history.push_front(VmSnapshot::new(vm.get_snapshot(), gfx.get_snapshot()));
@@ -83,7 +83,7 @@ impl Sys for Sdl2Sys {
         const TICKS_PER_SNAPSHOT: usize = 200;
         let mut history: VecDeque<VmSnapshot> = VecDeque::new();
         let mut snapshot_cpt = 0;
-        take_snapshot(&mut history, vm, self.renderer.as_gfx());
+        take_snapshot(&mut history, vm, self.display.as_renderer());
 
         // Ignore keys presses from being handled right after window has gained
         // focus to avoid e.g escape being considered if esc was part of the
@@ -127,19 +127,19 @@ impl Sys for Sdl2Sys {
                         Keycode::P => pause ^= true,
                         Keycode::B => {
                             if let Some(state) = history.pop_front() {
-                                state.restore(vm, self.renderer.as_gfx_mut());
+                                state.restore(vm, self.display.as_renderer_mut());
                                 snapshot_cpt = 0;
                             }
 
                             // If we are back to the first state, keep a copy.
                             if history.is_empty() {
-                                take_snapshot(&mut history, vm, self.renderer.as_gfx());
+                                take_snapshot(&mut history, vm, self.display.as_renderer());
                             }
                         }
                         Keycode::N if pause => {
-                            take_snapshot(&mut history, vm, self.renderer.as_gfx());
+                            take_snapshot(&mut history, vm, self.display.as_renderer());
                             vm.update_input(&input);
-                            vm.process(self.renderer.as_gfx_mut());
+                            vm.process(self.display.as_renderer_mut());
                             ticks_to_wait = vm.get_frames_to_wait();
                         }
                         _ => {}
@@ -159,7 +159,7 @@ impl Sys for Sdl2Sys {
                 }
             }
             vm.update_input(&input);
-            self.renderer.handle_events(&pending_events);
+            self.display.handle_events(&pending_events);
 
             // Decrease keypress cooldown if we just gained focus.
             if keypress_cooldown > 0 {
@@ -191,12 +191,12 @@ impl Sys for Sdl2Sys {
             for _ in 0..ticks_to_run {
                 snapshot_cpt += 1;
                 if snapshot_cpt == TICKS_PER_SNAPSHOT {
-                    take_snapshot(&mut history, vm, self.renderer.as_gfx());
+                    take_snapshot(&mut history, vm, self.display.as_renderer());
                     snapshot_cpt = 0;
                 }
 
                 if ticks_to_wait == 0 {
-                    if !vm.process(self.renderer.as_gfx_mut()) {
+                    if !vm.process(self.display.as_renderer_mut()) {
                         error!("0 threads to run, exiting.");
                         break 'run;
                     }
@@ -216,7 +216,7 @@ impl Sys for Sdl2Sys {
 
             // Compute destination rectangle of game screen
             let viewport = {
-                let (w, h) = self.renderer.window().drawable_size();
+                let (w, h) = self.display.window().drawable_size();
                 Rect::new(0, 0, w, h)
             };
             let viewport_dst = if div_by_screen_ratio(viewport.width()) < viewport.height() {
@@ -229,8 +229,8 @@ impl Sys for Sdl2Sys {
                 sdl2::rect::Rect::new((viewport.width() - w) as i32 / 2, 0, w, h)
             };
 
-            self.renderer.blit_game(&viewport_dst);
-            self.renderer.present();
+            self.display.blit_game(&viewport_dst);
+            self.display.present();
         }
     }
 }

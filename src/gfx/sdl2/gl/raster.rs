@@ -7,12 +7,12 @@ use sdl2::rect::Rect;
 use crate::gfx::{
     self,
     gl::{indexed_frame_renderer::*, IndexedTexture, Viewport},
-    raster::{IndexedImage, RasterBackend},
+    raster::{IndexedImage, RasterRenderer},
     Palette, Point,
 };
 
 pub struct Sdl2GlRasterRenderer {
-    raster: RasterBackend,
+    raster: RasterRenderer,
     current_framebuffer: IndexedImage,
     current_palette: Palette,
 
@@ -29,7 +29,7 @@ struct State {
 impl Sdl2GlRasterRenderer {
     pub fn new() -> Result<Sdl2GlRasterRenderer> {
         Ok(Sdl2GlRasterRenderer {
-            raster: RasterBackend::new(),
+            raster: RasterRenderer::new(),
             current_framebuffer: Default::default(),
             current_palette: Default::default(),
 
@@ -55,7 +55,7 @@ impl Sdl2GlRasterRenderer {
     }
 }
 
-impl gfx::Backend for Sdl2GlRasterRenderer {
+impl gfx::Renderer for Sdl2GlRasterRenderer {
     fn set_palette(&mut self, palette: &[u8; 32]) {
         self.raster.set_palette(palette);
     }

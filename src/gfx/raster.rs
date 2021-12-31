@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 
-use super::{Backend, Palette, Point, SCREEN_RESOLUTION};
+use super::{Palette, Point, Renderer, SCREEN_RESOLUTION};
 
 #[derive(Clone)]
 pub struct IndexedImage([u8; SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1]]);
@@ -208,15 +208,15 @@ impl IndexedImage {
 }
 
 #[derive(Clone)]
-pub struct RasterBackend {
+pub struct RasterRenderer {
     palette: Palette,
     buffers: [RefCell<IndexedImage>; 4],
     framebuffer_index: usize,
 }
 
-impl RasterBackend {
-    pub fn new() -> RasterBackend {
-        RasterBackend {
+impl RasterRenderer {
+    pub fn new() -> RasterRenderer {
+        RasterRenderer {
             palette: Default::default(),
             buffers: [
                 RefCell::new(Default::default()),
@@ -237,7 +237,7 @@ impl RasterBackend {
     }
 }
 
-impl Backend for RasterBackend {
+impl Renderer for RasterRenderer {
     fn set_palette(&mut self, palette: &[u8; 32]) {
         self.palette.set(palette);
     }

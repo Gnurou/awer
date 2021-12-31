@@ -15,7 +15,8 @@ pub trait GfxSnapshot: Any {}
 
 impl GfxSnapshot for () {}
 
-pub trait Backend {
+/// Trait defining the methods necessary to render frames of the game.
+pub trait Renderer {
     /// Set the current palette of the game, effective immediately.
     fn set_palette(&mut self, palette: &[u8; 32]);
     /// Fill video page `page_id` entirely with color `color_idx`.
@@ -50,7 +51,7 @@ pub trait Backend {
     /// the game (maybe because of lack of time?).
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]);
 
-    /// Get a snapshot object from the state of the backend. The `set_snapshot()`
+    /// Get a snapshot object from the state of the renderer. The `set_snapshot()`
     /// method must be able to restore the exact current state when given this
     /// object back.
     ///
@@ -61,7 +62,7 @@ pub trait Backend {
     /// Restore a previously saved state.
     ///
     /// The default implementation does nothing, which means glitches are to
-    /// be expected for backends that do not override this method.
+    /// be expected for renderers that do not override this method.
     fn set_snapshot(&mut self, _snapshot: Box<dyn Any>) {}
 }
 
