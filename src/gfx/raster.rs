@@ -6,6 +6,8 @@ use std::{
 
 use anyhow::{anyhow, Result};
 
+use crate::sys::Snapshotable;
+
 use super::{Palette, Point, Renderer, SCREEN_RESOLUTION};
 
 #[derive(Clone)]
@@ -363,16 +365,22 @@ impl Renderer for RasterRenderer {
         dst.set_content(buffer)
             .unwrap_or_else(|e| log::error!("blit_buffer failed: {}", e));
     }
+}
 
-    fn get_snapshot(&self) -> Box<dyn Any> {
+impl Snapshotable for RasterRenderer {
+    type State = Box<dyn Any>;
+
+    fn take_snapshot(&self) -> Self::State {
         Box::new(self.clone())
     }
 
-    fn set_snapshot(&mut self, snapshot: Box<dyn Any>) {
+    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
         if let Ok(snapshot) = snapshot.downcast::<Self>() {
             *self = *snapshot;
+            true
         } else {
             log::error!("Attempting to restore invalid gfx snapshot, ignoring");
+            false
         }
     }
 }

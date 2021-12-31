@@ -10,7 +10,10 @@ use sdl2::{
 
 use anyhow::{anyhow, Result};
 
-use crate::gfx::{self, raster::RasterRenderer, sdl2::Sdl2Display, Color, Point};
+use crate::{
+    gfx::{self, raster::RasterRenderer, sdl2::Sdl2Display, Color, Point},
+    sys::Snapshotable,
+};
 
 use super::WINDOW_RESOLUTION;
 
@@ -160,14 +163,21 @@ impl gfx::Renderer for Sdl2RasterRenderer {
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
         self.raster.blit_buffer(dst_page_id, buffer)
     }
+}
 
-    fn get_snapshot(&self) -> Box<dyn Any> {
-        self.raster.get_snapshot()
+impl Snapshotable for Sdl2RasterRenderer {
+    type State = Box<dyn Any>;
+
+    fn take_snapshot(&self) -> Self::State {
+        self.raster.take_snapshot()
     }
 
-    fn set_snapshot(&mut self, snapshot: Box<dyn Any>) {
-        self.raster.set_snapshot(snapshot);
-        self.redraw();
+    fn restore_snapshot(&mut self, snapshot: Box<dyn Any>) -> bool {
+        let res = self.raster.restore_snapshot(snapshot);
+        if res {
+            self.redraw();
+        }
+        res
     }
 }
 

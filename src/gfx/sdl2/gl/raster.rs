@@ -4,11 +4,14 @@ use anyhow::Result;
 use gfx::SCREEN_RESOLUTION;
 use sdl2::rect::Rect;
 
-use crate::gfx::{
-    self,
-    gl::{indexed_frame_renderer::*, IndexedTexture, Viewport},
-    raster::{IndexedImage, RasterRenderer},
-    Palette, Point,
+use crate::{
+    gfx::{
+        self,
+        gl::{indexed_frame_renderer::*, IndexedTexture, Viewport},
+        raster::{IndexedImage, RasterRenderer},
+        Palette, Point,
+    },
+    sys::Snapshotable,
 };
 
 pub struct Sdl2GlRasterRenderer {
@@ -98,22 +101,30 @@ impl gfx::Renderer for Sdl2GlRasterRenderer {
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
         self.raster.blit_buffer(dst_page_id, buffer)
     }
+}
 
-    fn get_snapshot(&self) -> Box<dyn Any> {
+impl Snapshotable for Sdl2GlRasterRenderer {
+    type State = Box<dyn Any>;
+
+    fn take_snapshot(&self) -> Self::State {
         Box::new(State {
-            raster: self.raster.get_snapshot(),
+            raster: self.raster.take_snapshot(),
             current_framebuffer: self.current_framebuffer.clone(),
             current_palette: self.current_palette.clone(),
         })
     }
 
-    fn set_snapshot(&mut self, snapshot: Box<dyn Any>) {
+    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
         if let Ok(state) = snapshot.downcast::<State>() {
-            self.raster.set_snapshot(state.raster);
-            self.current_framebuffer = state.current_framebuffer;
-            self.current_palette = state.current_palette;
+            let res = self.raster.restore_snapshot(state.raster);
+            if res {
+                self.current_framebuffer = state.current_framebuffer;
+                self.current_palette = state.current_palette;
+            }
+            res
         } else {
             log::error!("Attempting to restore invalid gfx snapshot, ignoring");
+            false
         }
     }
 }

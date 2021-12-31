@@ -13,7 +13,10 @@ use sdl2::{
 
 use anyhow::{anyhow, Result};
 
-use crate::gfx::{self, Point};
+use crate::{
+    gfx::{self, Point},
+    sys::Snapshotable,
+};
 
 use super::{Sdl2Display, WINDOW_RESOLUTION};
 
@@ -206,20 +209,26 @@ impl gfx::Renderer for Sdl2GlRenderer {
         self.raster_renderer.blit_buffer(dst_page_id, buffer);
         self.poly_renderer.blit_buffer(dst_page_id, buffer);
     }
+}
 
-    fn get_snapshot(&self) -> Box<dyn Any> {
+impl Snapshotable for Sdl2GlRenderer {
+    type State = Box<dyn Any>;
+
+    fn take_snapshot(&self) -> Self::State {
         Box::new(State {
-            raster_renderer: self.raster_renderer.get_snapshot(),
-            poly_renderer: self.poly_renderer.get_snapshot(),
+            raster_renderer: self.raster_renderer.take_snapshot(),
+            poly_renderer: self.poly_renderer.take_snapshot(),
         })
     }
 
-    fn set_snapshot(&mut self, snapshot: Box<dyn Any>) {
+    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
         if let Ok(state) = snapshot.downcast::<State>() {
-            self.raster_renderer.set_snapshot(state.raster_renderer);
-            self.poly_renderer.set_snapshot(state.poly_renderer);
+            self.raster_renderer.restore_snapshot(state.raster_renderer);
+            self.poly_renderer.restore_snapshot(state.poly_renderer);
+            true
         } else {
             log::error!("Attempting to restore invalid gfx snapshot, ignoring");
+            false
         }
     }
 }

@@ -9,6 +9,8 @@ use log::debug;
 use std::any::Any;
 use std::fmt::{Debug, Display, Formatter, Result};
 
+use crate::sys::Snapshotable;
+
 pub const SCREEN_RESOLUTION: [usize; 2] = [320, 200];
 
 pub trait GfxSnapshot: Any {}
@@ -16,7 +18,7 @@ pub trait GfxSnapshot: Any {}
 impl GfxSnapshot for () {}
 
 /// Trait defining the methods necessary to render frames of the game.
-pub trait Renderer {
+pub trait Renderer: Snapshotable<State = Box<dyn Any>> {
     /// Set the current palette of the game, effective immediately.
     fn set_palette(&mut self, palette: &[u8; 32]);
     /// Fill video page `page_id` entirely with color `color_idx`.
@@ -50,20 +52,6 @@ pub trait Renderer {
     /// as an alternative to creating scenes using polys notably in later scenes of
     /// the game (maybe because of lack of time?).
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]);
-
-    /// Get a snapshot object from the state of the renderer. The `set_snapshot()`
-    /// method must be able to restore the exact current state when given this
-    /// object back.
-    ///
-    /// The default implementation returns an empty object.
-    fn get_snapshot(&self) -> Box<dyn Any> {
-        Box::new(())
-    }
-    /// Restore a previously saved state.
-    ///
-    /// The default implementation does nothing, which means glitches are to
-    /// be expected for renderers that do not override this method.
-    fn set_snapshot(&mut self, _snapshot: Box<dyn Any>) {}
 }
 
 // We need repr(C) because we are going to interpret raw arrays of values as

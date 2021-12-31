@@ -20,6 +20,7 @@ use super::gfx;
 use super::res::ResourceManager;
 
 use crate::scenes;
+use crate::sys::Snapshotable;
 use crate::{
     input::*,
     strings::{self, GameStrings},
@@ -131,15 +132,15 @@ impl VmSnapshot {
     /// Create a new snapshot from the game's Vm and Renderer.
     pub fn new<T: AsRef<dyn gfx::Renderer> + ?Sized>(vm: &Vm, gfx: &T) -> Self {
         VmSnapshot {
-            vm_state: vm.get_snapshot(),
-            gfx_state: gfx.as_ref().get_snapshot(),
+            vm_state: vm.take_snapshot(),
+            gfx_state: gfx.as_ref().take_snapshot(),
         }
     }
 
     /// Restore a previously captured snapshot into `vm` and `gfx`.
     pub fn restore<T: AsMut<dyn gfx::Renderer> + ?Sized>(self, vm: &mut Vm, gfx: &mut T) {
-        vm.set_snapshot(self.vm_state);
-        gfx.as_mut().set_snapshot(self.gfx_state);
+        vm.restore_snapshot(self.vm_state);
+        gfx.as_mut().restore_snapshot(self.gfx_state);
     }
 }
 
@@ -195,14 +196,6 @@ impl Vm {
             },
             round: 0,
         })
-    }
-
-    pub fn get_snapshot(&self) -> VmState {
-        self.state.clone()
-    }
-
-    pub fn set_snapshot(&mut self, vm_state: VmState) {
-        self.state = vm_state;
     }
 
     pub fn get_reg(&self, i: usize) -> i16 {
@@ -471,5 +464,18 @@ impl Vm {
 
     pub fn get_frames_to_wait(&self) -> usize {
         self.state.regs[VM_VARIABLE_PAUSE_SLICES] as usize
+    }
+}
+
+impl Snapshotable for Vm {
+    type State = VmState;
+
+    fn take_snapshot(&self) -> Self::State {
+        self.state.clone()
+    }
+
+    fn restore_snapshot(&mut self, state: Self::State) -> bool {
+        self.state = state;
+        true
     }
 }

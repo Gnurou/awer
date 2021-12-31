@@ -4,18 +4,21 @@ use gfx::raster::IndexedImage;
 use gl::types::{GLint, GLuint};
 use sdl2::rect::Rect;
 
-use crate::gfx::{
-    self,
-    gl::{
-        bitmap_renderer::BitmapRenderer,
-        font_renderer::FontRenderer,
-        indexed_frame_renderer::IndexedFrameRenderer,
-        poly_renderer::PolyRenderer,
-        renderer::{DrawCommandRunner, Renderers},
-        IndexedTexture, Viewport,
+use crate::{
+    gfx::{
+        self,
+        gl::{
+            bitmap_renderer::BitmapRenderer,
+            font_renderer::FontRenderer,
+            indexed_frame_renderer::IndexedFrameRenderer,
+            poly_renderer::PolyRenderer,
+            renderer::{DrawCommandRunner, Renderers},
+            IndexedTexture, Viewport,
+        },
+        polygon::Polygon,
+        Palette, Point,
     },
-    polygon::Polygon,
-    Palette, Point,
+    sys::Snapshotable,
 };
 use anyhow::Result;
 
@@ -322,8 +325,12 @@ impl gfx::Renderer for Sdl2GlPolyRenderer {
         self.draw_commands[dst_page_id].clear();
         self.draw_commands[dst_page_id].push(DrawCommand::BlitBuffer(image.into()));
     }
+}
 
-    fn get_snapshot(&self) -> Box<dyn Any> {
+impl Snapshotable for Sdl2GlPolyRenderer {
+    type State = Box<dyn Any>;
+
+    fn take_snapshot(&self) -> Self::State {
         Box::new(State {
             draw_commands: self.draw_commands.clone(),
             framebuffer_index: self.framebuffer_index,
@@ -332,16 +339,17 @@ impl gfx::Renderer for Sdl2GlPolyRenderer {
         })
     }
 
-    fn set_snapshot(&mut self, snapshot: Box<dyn Any>) {
+    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
         if let Ok(state) = snapshot.downcast::<State>() {
             self.draw_commands = state.draw_commands;
             self.framebuffer_index = state.framebuffer_index;
             self.candidate_palette = state.candidate_palette;
             self.current_palette = state.current_palette;
+            self.redraw();
+            true
         } else {
             log::error!("Attempting to restore invalid gfx snapshot, ignoring");
+            false
         }
-
-        self.redraw();
     }
 }
