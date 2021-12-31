@@ -1,6 +1,3 @@
-mod poly_renderer;
-mod raster_renderer;
-
 use std::any::Any;
 
 use sdl2::{
@@ -16,7 +13,12 @@ use anyhow::{anyhow, Result};
 use crate::{
     gfx::{
         self,
-        gl::{indexed_frame_renderer::IndexedFrameRenderer, Viewport},
+        gl::{
+            indexed_frame_renderer::IndexedFrameRenderer,
+            poly_renderer::{GlPolyRenderer, PolyRenderingMode},
+            raster_renderer::GlRasterRenderer,
+            Viewport,
+        },
         sdl2::{Sdl2Display, WINDOW_RESOLUTION},
         Point,
     },
@@ -42,8 +44,8 @@ pub struct Sdl2GlDisplay {
     window: Window,
     _opengl_context: GLContext,
 
-    raster_renderer: raster_renderer::Sdl2GlRasterRenderer,
-    poly_renderer: poly_renderer::Sdl2GlPolyRenderer,
+    raster_renderer: GlRasterRenderer,
+    poly_renderer: GlPolyRenderer,
 
     framebuffer_renderer: IndexedFrameRenderer,
 }
@@ -87,14 +89,14 @@ impl Sdl2GlDisplay {
             window,
             _opengl_context: opengl_context,
 
-            raster_renderer: raster_renderer::Sdl2GlRasterRenderer::new()?,
+            raster_renderer: GlRasterRenderer::new()?,
             poly_renderer: {
                 let rendering_mode = match rendering_mode {
-                    RenderingMode::Raster | RenderingMode::Poly => poly_renderer::RenderingMode::Poly,
-                    RenderingMode::Line => poly_renderer::RenderingMode::Line,
+                    RenderingMode::Raster | RenderingMode::Poly => PolyRenderingMode::Poly,
+                    RenderingMode::Line => PolyRenderingMode::Line,
                 };
 
-                poly_renderer::Sdl2GlPolyRenderer::new(
+                GlPolyRenderer::new(
                     rendering_mode,
                     window_size.0 as usize,
                     window_size.1 as usize,
@@ -158,13 +160,13 @@ impl Sdl2Display for Sdl2GlDisplay {
                     Keycode::F2 => {
                         self.rendering_mode = RenderingMode::Poly;
                         self.poly_renderer
-                            .set_rendering_mode(poly_renderer::RenderingMode::Poly);
+                            .set_rendering_mode(PolyRenderingMode::Poly);
                         self.poly_renderer.redraw();
                     }
                     Keycode::F3 => {
                         self.rendering_mode = RenderingMode::Line;
                         self.poly_renderer
-                            .set_rendering_mode(poly_renderer::RenderingMode::Line);
+                            .set_rendering_mode(PolyRenderingMode::Line);
                         self.poly_renderer.redraw();
                     }
                     _ => {}

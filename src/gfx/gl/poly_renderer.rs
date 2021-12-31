@@ -1,307 +1,337 @@
-use std::cell::{Cell, RefCell};
+mod programs;
 
-use crate::gfx::{
-    gl::{renderer::Renderer, *},
-    polygon::Polygon,
-    SCREEN_RESOLUTION,
+use std::any::Any;
+
+use gl::types::{GLint, GLuint};
+
+// TODO not elegant, but needed for now.
+pub use programs::PolyRenderingMode;
+
+use crate::{
+    gfx::{self, polygon::Polygon, raster::IndexedImage, Palette, Point},
+    sys::Snapshotable,
 };
+use anyhow::Result;
 
-#[repr(C, packed)]
-struct VertexShaderInput {
+use self::programs::*;
+
+use super::IndexedTexture;
+
+/// Draw command for a polygon, requesting it to be drawn at coordinates (`x`,
+/// `y`) and with color `color`.
+#[derive(Clone)]
+struct PolyDrawCommand {
+    poly: Polygon,
     pos: (i16, i16),
-    vertex: (i16, i16),
-    bb: (u16, u16),
-    zoom: f32,
+    offset: (i16, i16),
+    zoom: u16,
     color: u8,
 }
 
-impl VertexShaderInput {
-    fn new(pos: (i16, i16), vertex: (i16, i16), bb: (u16, u16), zoom: f32, color: u8) -> Self {
-        VertexShaderInput {
+impl PolyDrawCommand {
+    pub fn new(poly: Polygon, pos: (i16, i16), offset: (i16, i16), zoom: u16, color: u8) -> Self {
+        Self {
+            poly,
             pos,
-            vertex,
-            bb,
+            offset,
             zoom,
             color,
         }
     }
 }
 
-/// How to render the polygons - either filled polygons, or outlines only.
-#[derive(Clone, Copy)]
-pub enum RenderingMode {
-    Poly,
-    Line,
+#[derive(Clone)]
+struct BlitBufferCommand {
+    image: Box<IndexedImage>,
 }
 
-/// Allows to render a list of game polys into an 8-bpp OpenGL framebuffer at
-/// any resolution, using the GPU. The rendering is still using indexed colors
-/// and must be converted to true colors using an `IndexedFrameRenderer`.
-pub struct PolyRenderer {
-    vao: GLuint,
-    vbo: GLuint,
-    program: GLuint,
-
-    self_uniform: GLint,
-    buffer0_uniform: GLint,
-
-    vertices_array: RefCell<Vec<VertexShaderInput>>,
-    indices_array: RefCell<Vec<u16>>,
-    draw_type: Cell<GLuint>,
+impl From<IndexedImage> for BlitBufferCommand {
+    fn from(image: IndexedImage) -> Self {
+        Self {
+            image: Box::new(image),
+        }
+    }
 }
 
-impl Drop for PolyRenderer {
+#[derive(Clone)]
+struct CharDrawCommand {
+    pos: (i16, i16),
+    color: u8,
+    c: u8,
+}
+
+impl CharDrawCommand {
+    pub fn new(pos: (i16, i16), color: u8, c: u8) -> Self {
+        Self { pos, color, c }
+    }
+}
+
+#[derive(Clone)]
+enum DrawCommand {
+    Poly(PolyDrawCommand),
+    BlitBuffer(BlitBufferCommand),
+    Char(CharDrawCommand),
+}
+
+/// A renderer that uses the GPU to render the game into a 16 colors indexed bufffer of any size.
+pub struct GlPolyRenderer {
+    rendering_mode: PolyRenderingMode,
+
+    draw_commands: [Vec<DrawCommand>; 4],
+    framebuffer_index: usize,
+
+    candidate_palette: Palette,
+    current_palette: Palette,
+
+    target_fbo: GLuint,
+
+    render_texture_buffer0: IndexedTexture,
+    render_texture_framebuffer: IndexedTexture,
+
+    renderers: Programs,
+}
+
+struct State {
+    draw_commands: [Vec<DrawCommand>; 4],
+    framebuffer_index: usize,
+    candidate_palette: Palette,
+    current_palette: Palette,
+}
+
+impl Drop for GlPolyRenderer {
     fn drop(&mut self) {
         unsafe {
-            gl::DeleteBuffers(1, &self.vbo);
-            gl::DeleteVertexArrays(1, &self.vao);
-            gl::DeleteProgram(self.program);
+            gl::DeleteFramebuffers(1, &self.target_fbo);
         }
     }
 }
 
-impl Renderer for PolyRenderer {
-    fn activate(&self, target_texture: &IndexedTexture, buffer0: &IndexedTexture) {
-        let dimensions = target_texture.dimensions();
+impl GlPolyRenderer {
+    pub fn new(
+        rendering_mode: PolyRenderingMode,
+        width: usize,
+        height: usize,
+    ) -> Result<GlPolyRenderer> {
+        let mut target_fbo = 0;
+
         unsafe {
-            gl::UseProgram(self.program);
-
-            // Setup target texture to self (for transparency effect)
-            gl::Uniform1i(self.self_uniform, 0);
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, target_texture.as_tex_id());
-
-            // Setup buffer0 (for pixel copy from buffer0)
-            gl::Uniform1i(self.buffer0_uniform, 1);
-            gl::ActiveTexture(gl::TEXTURE0 + 1);
-            gl::BindTexture(gl::TEXTURE_2D, buffer0.as_tex_id());
-            // TODO when can we unbind the textures?
-
-            let viewport_uniform = get_uniform_location(self.program, "viewport_size");
-            gl::Uniform2f(viewport_uniform, dimensions.0 as f32, dimensions.1 as f32);
-        }
-    }
-
-    fn deactivate(&self) {
-        self.draw();
-    }
-}
-
-impl PolyRenderer {
-    pub fn new() -> Result<PolyRenderer> {
-        let vertex_shader = compile_shader(VERTEX_SHADER, gl::VERTEX_SHADER);
-        let fragment_shader = compile_shader(FRAGMENT_SHADER, gl::FRAGMENT_SHADER);
-        let program = link_program(vertex_shader, fragment_shader);
-
-        let mut vao = 0;
-        let mut vbo = 0;
-        let mut source_fbo = 0;
-        let self_uniform;
-        let buffer0_uniform;
-        unsafe {
-            gl::GenFramebuffers(1, &mut source_fbo);
-            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, source_fbo);
+            gl::GenFramebuffers(1, &mut target_fbo);
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, target_fbo);
             gl::DrawBuffers(1, [gl::COLOR_ATTACHMENT0].as_ptr());
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
-
-            gl::GenVertexArrays(1, &mut vao);
-            gl::BindVertexArray(vao);
-            gl::GenBuffers(1, &mut vbo);
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-
-            // pos attribute
-            gl::EnableVertexAttribArray(0);
-            gl::VertexAttribPointer(
-                0,
-                2,
-                gl::SHORT,
-                gl::FALSE,
-                mem::size_of::<VertexShaderInput>() as GLsizei,
-                memoffset::offset_of!(VertexShaderInput, pos) as *const _,
-            );
-
-            // vertex attribute
-            gl::EnableVertexAttribArray(1);
-            gl::VertexAttribPointer(
-                1,
-                2,
-                gl::SHORT,
-                gl::FALSE,
-                mem::size_of::<VertexShaderInput>() as GLsizei,
-                memoffset::offset_of!(VertexShaderInput, vertex) as *const _,
-            );
-
-            // bounding box attribute
-            gl::EnableVertexAttribArray(2);
-            gl::VertexAttribPointer(
-                2,
-                2,
-                gl::UNSIGNED_SHORT,
-                gl::FALSE,
-                mem::size_of::<VertexShaderInput>() as GLsizei,
-                memoffset::offset_of!(VertexShaderInput, bb) as *const _,
-            );
-
-            // zoom attribute
-            gl::EnableVertexAttribArray(3);
-            gl::VertexAttribPointer(
-                3,
-                1,
-                gl::FLOAT,
-                gl::FALSE,
-                mem::size_of::<VertexShaderInput>() as GLsizei,
-                memoffset::offset_of!(VertexShaderInput, zoom) as *const _,
-            );
-
-            // color attribute
-            gl::EnableVertexAttribArray(4);
-            gl::VertexAttribIPointer(
-                4,
-                1,
-                gl::UNSIGNED_BYTE,
-                mem::size_of::<VertexShaderInput>() as GLsizei,
-                memoffset::offset_of!(VertexShaderInput, color) as *const _,
-            );
-
-            gl::BindVertexArray(0);
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-
-            self_uniform = get_uniform_location(program, "self");
-            buffer0_uniform = get_uniform_location(program, "buffer0");
         }
 
-        Ok(PolyRenderer {
-            vao,
-            vbo,
-            program,
-            self_uniform,
-            buffer0_uniform,
-            vertices_array: Default::default(),
-            indices_array: Default::default(),
-            draw_type: Cell::new(gl::TRIANGLE_STRIP),
+        Ok(GlPolyRenderer {
+            rendering_mode,
+
+            draw_commands: Default::default(),
+            framebuffer_index: 0,
+            candidate_palette: Default::default(),
+            current_palette: Default::default(),
+
+            target_fbo,
+
+            render_texture_buffer0: IndexedTexture::new(width, height),
+            render_texture_framebuffer: IndexedTexture::new(width, height),
+
+            renderers: Programs::new(
+                PolyRenderer::new()?,
+                BitmapRenderer::new()?,
+                FontRenderer::new()?,
+            ),
         })
     }
 
-    pub fn draw_poly(
-        &self,
-        poly: &Polygon,
-        pos: (i16, i16),
-        offset: (i16, i16),
-        zoom: u16,
-        color: u8,
-        rendering_mode: RenderingMode,
-    ) {
-        // If the next polygon is transparent, make sure that all previous
-        // commands are completed to ensure our self-referencing texture
-        // will have up-to-date data.
-        if color == 0x10 {
-            self.draw();
-            unsafe {
-                gl::Finish();
-            }
-        }
-
-        let draw_type = /*if poly.bbw == 0 || poly.bbh == 0 {
-            gl::LINE_LOOP
-        } else */{
-            match rendering_mode {
-                RenderingMode::Poly => gl::TRIANGLE_STRIP,
-                RenderingMode::Line => {
-                    if poly.bbw == SCREEN_RESOLUTION[0] as u16
-                        && poly.bbh == SCREEN_RESOLUTION[1] as u16
-                    {
-                        gl::TRIANGLE_STRIP
-                    } else {
-                        gl::LINE_LOOP
-                    }
-                }
-            }
-        };
-
-        if draw_type != self.draw_type.get() {
-            if !self.vertices_array.borrow().is_empty() {
-                self.draw();
-            }
-            self.draw_type.set(draw_type);
-        }
-
-        // If our number of vertices would exceed the number of indexes we support, perform a draw
-        // call and start clean. We use >= here because the last element is used to indicate a
-        // primitive restart.
-        if self.vertices_array.borrow().len() + poly.points.len() >= u16::MAX as usize {
-            self.draw();
-        }
-
-        let zoom = zoom as f32 / 64.0;
-        let mut vertices = self.vertices_array.borrow_mut();
-        let mut indices = self.indices_array.borrow_mut();
-        let index_start = vertices.len();
-        let poly_len = poly.points.len();
-        vertices.extend(poly.points.iter().map(|p| {
-            VertexShaderInput::new(
-                (pos.0, pos.1),
-                (p.x + offset.0, p.y + offset.1),
-                (poly.bbw, poly.bbh),
-                zoom,
-                color,
-            )
-        }));
-        match draw_type {
-            gl::TRIANGLE_STRIP => indices.extend((0..poly_len / 2).into_iter().flat_map(|i| {
-                std::array::IntoIter::new([
-                    (index_start + poly_len - (i + 1)) as u16,
-                    (index_start + i) as u16,
-                ])
-            })),
-            gl::LINE_LOOP => {
-                indices.extend((0..poly_len).into_iter().map(|i| (index_start + i) as u16));
-            }
-            _ => unreachable!(),
-        };
-        // Insert a primitive restart to avoid being joined to the next poly.
-        indices.push(u16::MAX);
-
-        drop(indices);
-        drop(vertices);
+    pub fn set_rendering_mode(&mut self, rendering_mode: PolyRenderingMode) {
+        self.rendering_mode = rendering_mode;
     }
 
-    // Send all the pending vertices to the GPU for rendering.
-    pub fn draw(&self) {
-        let mut vertices = self.vertices_array.borrow_mut();
-        let mut indices = self.indices_array.borrow_mut();
+    pub fn resize_render_textures(&mut self, width: usize, height: usize) {
+        self.render_texture_buffer0 = IndexedTexture::new(width, height);
+        self.render_texture_framebuffer = IndexedTexture::new(width, height);
+        self.redraw();
+    }
 
-        log::debug!(
-            "Sending {} indices ({} vertices) to GPU",
-            indices.len(),
-            vertices.len()
+    pub fn get_framebuffer_texture_and_palette(&mut self) -> (&IndexedTexture, &Palette) {
+        (&self.render_texture_framebuffer, &self.current_palette)
+    }
+
+    fn run_command_list(&mut self, commands_index: usize, rendering_mode: PolyRenderingMode) {
+        let draw_commands = &self.draw_commands[commands_index];
+        let mut draw_runner = DrawCommandRunner::new(
+            &mut self.renderers,
+            &self.render_texture_framebuffer,
+            &self.render_texture_buffer0,
         );
+        for command in draw_commands {
+            match command {
+                DrawCommand::Poly(poly) => {
+                    draw_runner.draw_poly(
+                        &poly.poly,
+                        poly.pos,
+                        poly.offset,
+                        poly.zoom,
+                        poly.color,
+                        rendering_mode,
+                    );
+                }
+                DrawCommand::BlitBuffer(buffer) => {
+                    draw_runner.draw_bitmap(&buffer.image);
+                }
+                DrawCommand::Char(c) => {
+                    draw_runner.draw_char(c.pos, c.color, c.c);
+                }
+            }
+        }
+    }
 
+    fn set_render_target(&self, target_texture: &IndexedTexture) {
         unsafe {
-            // Vertices
-            gl::BindVertexArray(self.vao);
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
-            gl::BufferData(
-                gl::ARRAY_BUFFER,
-                (vertices.len() * mem::size_of::<VertexShaderInput>()) as GLsizeiptr,
-                vertices.as_ptr() as *const _,
-                gl::STREAM_DRAW,
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, self.target_fbo);
+            gl::FramebufferTexture(
+                gl::DRAW_FRAMEBUFFER,
+                gl::COLOR_ATTACHMENT0,
+                target_texture.as_tex_id(),
+                0,
             );
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+            if gl::CheckFramebufferStatus(gl::DRAW_FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
+                panic!("Error while setting framebuffer up");
+            }
+        }
+    }
 
-            gl::DrawElements(
-                self.draw_type.get(),
-                indices.len() as GLsizei,
-                gl::UNSIGNED_SHORT,
-                indices.as_ptr() as *const GLvoid,
-            );
-
-            gl::BindVertexArray(0);
+    pub fn redraw(&mut self) {
+        unsafe {
+            let dimensions = self.render_texture_framebuffer.dimensions();
+            gl::Viewport(0, 0, dimensions.0 as GLint, dimensions.1 as GLint);
         }
 
-        indices.clear();
-        vertices.clear();
+        // First render buffer 0, since it may be needed to render the final
+        // buffer.
+        self.set_render_target(&self.render_texture_buffer0);
+        self.run_command_list(0, self.rendering_mode);
+
+        // Then render the framebuffer, which can now use buffer0 as a source
+        // texture.
+        self.set_render_target(&self.render_texture_framebuffer);
+        self.run_command_list(self.framebuffer_index, self.rendering_mode);
+
+        // TODO move into proper method?
+        unsafe {
+            gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
+        }
     }
 }
 
-static VERTEX_SHADER: &str = std::include_str!("poly_render.vert");
-static FRAGMENT_SHADER: &str = std::include_str!("poly_render.frag");
+impl gfx::Renderer for GlPolyRenderer {
+    fn set_palette(&mut self, palette: &[u8; 32]) {
+        self.candidate_palette = {
+            let mut p: Palette = Default::default();
+            p.set(palette);
+            p
+        }
+    }
+
+    fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
+        let commands = &mut self.draw_commands[page_id];
+        commands.clear();
+
+        let w = gfx::SCREEN_RESOLUTION[0] as i16;
+        let h = gfx::SCREEN_RESOLUTION[1] as i16;
+        commands.push(DrawCommand::Poly(PolyDrawCommand::new(
+            Polygon::new(
+                (w as u16, h as u16),
+                vec![
+                    Point { x: 0, y: 0 },
+                    Point { x: w, y: 0 },
+                    Point { x: w, y: h },
+                    Point { x: 0, y: h },
+                ],
+            ),
+            (w / 2, h / 2),
+            (0, 0),
+            64,
+            color_idx,
+        )));
+    }
+
+    fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, _vscroll: i16) {
+        let src_polys = self.draw_commands[src_page_id].clone();
+        self.draw_commands[dst_page_id] = src_polys;
+    }
+
+    fn fillpolygon(
+        &mut self,
+        dst_page_id: usize,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        color_idx: u8,
+        zoom: u16,
+        bb: (u8, u8),
+        points: &[Point<u8>],
+    ) {
+        let command = &mut self.draw_commands[dst_page_id];
+        command.push(DrawCommand::Poly(PolyDrawCommand::new(
+            Polygon::new(
+                (bb.0 as u16, bb.1 as u16),
+                points
+                    .iter()
+                    .map(|p| Point::new(p.x as i16, p.y as i16))
+                    .collect(),
+            ),
+            pos,
+            offset,
+            zoom,
+            color_idx,
+        )));
+    }
+
+    fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color: u8, c: u8) {
+        let command_queue = &mut self.draw_commands[dst_page_id];
+        command_queue.push(DrawCommand::Char(CharDrawCommand::new(pos, color, c)));
+    }
+
+    fn blitframebuffer(&mut self, page_id: usize) {
+        self.framebuffer_index = page_id;
+        self.current_palette = self.candidate_palette.clone();
+
+        self.redraw();
+    }
+
+    fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
+        let mut image: IndexedImage = Default::default();
+        image
+            .set_content(buffer)
+            .unwrap_or_else(|e| log::error!("blit_buffer failed: {}", e));
+
+        self.draw_commands[dst_page_id].clear();
+        self.draw_commands[dst_page_id].push(DrawCommand::BlitBuffer(image.into()));
+    }
+}
+
+impl Snapshotable for GlPolyRenderer {
+    type State = Box<dyn Any>;
+
+    fn take_snapshot(&self) -> Self::State {
+        Box::new(State {
+            draw_commands: self.draw_commands.clone(),
+            framebuffer_index: self.framebuffer_index,
+            candidate_palette: self.candidate_palette.clone(),
+            current_palette: self.current_palette.clone(),
+        })
+    }
+
+    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
+        if let Ok(state) = snapshot.downcast::<State>() {
+            self.draw_commands = state.draw_commands;
+            self.framebuffer_index = state.framebuffer_index;
+            self.candidate_palette = state.candidate_palette;
+            self.current_palette = state.current_palette;
+            self.redraw();
+            true
+        } else {
+            log::error!("Attempting to restore invalid gfx snapshot, ignoring");
+            false
+        }
+    }
+}

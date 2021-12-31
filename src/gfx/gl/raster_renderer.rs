@@ -5,7 +5,7 @@ use crate::gfx::{self, gl::IndexedTexture, raster::RasterRenderer, Palette};
 
 /// A renderer with which the game is rendered using the CPU at original resolution with a 16 colors
 /// indexed palette.
-pub struct Sdl2GlRasterRenderer {
+pub struct GlRasterRenderer {
     /// Regular CPU raster renderer where we will render the game.
     raster: RasterRenderer,
 
@@ -13,9 +13,9 @@ pub struct Sdl2GlRasterRenderer {
     framebuffer_texture: IndexedTexture,
 }
 
-impl Sdl2GlRasterRenderer {
-    pub fn new() -> Result<Sdl2GlRasterRenderer> {
-        Ok(Sdl2GlRasterRenderer {
+impl GlRasterRenderer {
+    pub fn new() -> Result<GlRasterRenderer> {
+        Ok(GlRasterRenderer {
             raster: RasterRenderer::new(),
 
             framebuffer_texture: IndexedTexture::new(SCREEN_RESOLUTION[0], SCREEN_RESOLUTION[1]),
@@ -29,13 +29,13 @@ impl Sdl2GlRasterRenderer {
     }
 }
 
-impl AsRef<dyn gfx::Renderer> for Sdl2GlRasterRenderer {
+impl AsRef<dyn gfx::Renderer> for GlRasterRenderer {
     fn as_ref(&self) -> &(dyn gfx::Renderer + 'static) {
         &self.raster
     }
 }
 
-impl AsMut<dyn gfx::Renderer> for Sdl2GlRasterRenderer {
+impl AsMut<dyn gfx::Renderer> for GlRasterRenderer {
     fn as_mut(&mut self) -> &mut (dyn gfx::Renderer + 'static) {
         &mut self.raster
     }

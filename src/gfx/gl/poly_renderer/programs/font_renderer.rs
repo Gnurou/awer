@@ -1,12 +1,11 @@
 use std::mem;
 
-use crate::{
-    font::*,
-    gfx::gl::{renderer::Renderer, *},
-};
+use crate::{font::*, gfx::gl::*};
 
 use anyhow::Result;
 use gl::types::{GLshort, GLsizei, GLsizeiptr};
+
+use super::Program;
 
 const MAX_PENDING_CHARS: usize = 64;
 
@@ -27,7 +26,7 @@ pub struct FontRenderer {
     program: GLuint,
 }
 
-impl Renderer for FontRenderer {
+impl Program for FontRenderer {
     fn activate(&self, _target_texture: &IndexedTexture, _buffer0: &IndexedTexture) {
         unsafe {
             gl::UseProgram(self.program);

@@ -1,9 +1,7 @@
 //! Structs and code to help render the game using OpenGL.
-pub mod bitmap_renderer;
-pub mod font_renderer;
 pub mod indexed_frame_renderer;
 pub mod poly_renderer;
-pub mod renderer;
+pub mod raster_renderer;
 
 use std::{ffi::CString, mem};
 

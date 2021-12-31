@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use gl::types::{GLint, GLuint};
 
 use crate::gfx::{
-    gl::{renderer::Renderer, IndexedTexture},
+    gl::{poly_renderer::programs::Program, IndexedTexture},
     raster::IndexedImage,
     SCREEN_RESOLUTION,
 };
@@ -25,7 +25,7 @@ impl Drop for BitmapRenderer {
     }
 }
 
-impl Renderer for BitmapRenderer {}
+impl Program for BitmapRenderer {}
 
 impl BitmapRenderer {
     pub fn new() -> Result<BitmapRenderer> {

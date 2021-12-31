@@ -1,50 +1,51 @@
-use crate::gfx::{polygon::Polygon, raster::IndexedImage};
+mod bitmap_renderer;
+mod font_renderer;
+mod poly_renderer;
 
-use super::{
-    bitmap_renderer::BitmapRenderer,
-    font_renderer::FontRenderer,
-    poly_renderer::{PolyRenderer, RenderingMode},
-    IndexedTexture,
-};
+pub use bitmap_renderer::BitmapRenderer;
+pub use font_renderer::FontRenderer;
+pub use poly_renderer::{PolyRenderer, PolyRenderingMode};
 
-/// Trait for a GL renderer that can draw a certain class of object from the game (e.g. polygons or
+use crate::gfx::{gl::IndexedTexture, polygon::Polygon, raster::IndexedImage};
+
+/// Trait for a GL program that can draw a certain class of object from the game (e.g. polygons or
 /// font).
-pub trait Renderer {
-    /// Activate the renderer, i.e. make it ready to draw. `target_texture` is where incoming draw
-    /// commands should be renderer, while `buffer0` is a texture with framebuffer 0 (which is used
+pub trait Program {
+    /// Activate the program, i.e. make it ready to draw. `target_texture` is where incoming draw
+    /// commands should be rendered, while `buffer0` is a texture with framebuffer 0 (which is used
     /// as a source for some commands).
     fn activate(&self, _target_texture: &IndexedTexture, _buffer0: &IndexedTexture) {}
-    /// Deactivate the renderer, flushing any pending operations.
+    /// Deactivate the program, flushing any pending operations.
     fn deactivate(&self) {}
 }
 
-/// Keep track of which renderer is current.
-enum CurrentRenderer {
+/// Keep track of which program is current.
+enum CurrentProgram {
     None,
     Poly,
     Bitmap,
     Font,
 }
 
-/// Groups all the renderers used with the GL backend, and allow to select a specific renderer and
-/// to use it through a `DrawCommandRunner`.
-pub struct Renderers {
-    current: CurrentRenderer,
+/// Groups all the programs used with the GL backend, and allow to select a specific one and to use
+/// it through a `DrawCommandRunner`.
+pub struct Programs {
+    current: CurrentProgram,
     poly: PolyRenderer,
     bitmap: BitmapRenderer,
     font: FontRenderer,
 }
 
-impl Drop for Renderers {
+impl Drop for Programs {
     fn drop(&mut self) {
         self.deactivate();
     }
 }
 
-impl Renderers {
+impl Programs {
     pub fn new(poly: PolyRenderer, bitmap: BitmapRenderer, font: FontRenderer) -> Self {
         Self {
-            current: CurrentRenderer::None,
+            current: CurrentProgram::None,
             poly,
             bitmap,
             font,
@@ -53,12 +54,12 @@ impl Renderers {
 
     fn deactivate(&mut self) {
         match self.current {
-            CurrentRenderer::None => (),
-            CurrentRenderer::Poly => self.poly.deactivate(),
-            CurrentRenderer::Bitmap => self.bitmap.deactivate(),
-            CurrentRenderer::Font => self.font.deactivate(),
+            CurrentProgram::None => (),
+            CurrentProgram::Poly => self.poly.deactivate(),
+            CurrentProgram::Bitmap => self.bitmap.deactivate(),
+            CurrentProgram::Font => self.font.deactivate(),
         }
-        self.current = CurrentRenderer::None;
+        self.current = CurrentProgram::None;
     }
 
     fn use_poly(
@@ -67,11 +68,11 @@ impl Renderers {
         buffer0: &IndexedTexture,
     ) -> &mut PolyRenderer {
         match self.current {
-            CurrentRenderer::Poly => (),
+            CurrentProgram::Poly => (),
             _ => {
                 self.deactivate();
                 self.poly.activate(target_texture, buffer0);
-                self.current = CurrentRenderer::Poly;
+                self.current = CurrentProgram::Poly;
             }
         }
         &mut self.poly
@@ -83,11 +84,11 @@ impl Renderers {
         buffer0: &IndexedTexture,
     ) -> &mut BitmapRenderer {
         match self.current {
-            CurrentRenderer::Bitmap => (),
+            CurrentProgram::Bitmap => (),
             _ => {
                 self.deactivate();
                 self.bitmap.activate(target_texture, buffer0);
-                self.current = CurrentRenderer::Bitmap;
+                self.current = CurrentProgram::Bitmap;
             }
         }
         &mut self.bitmap
@@ -99,39 +100,39 @@ impl Renderers {
         buffer0: &IndexedTexture,
     ) -> &mut FontRenderer {
         match self.current {
-            CurrentRenderer::Font => (),
+            CurrentProgram::Font => (),
             _ => {
                 self.deactivate();
                 self.font.activate(target_texture, buffer0);
-                self.current = CurrentRenderer::Font;
+                self.current = CurrentProgram::Font;
             }
         }
         &mut self.font
     }
 }
 
-/// An interface to `Renderers` that allows drawing to take place, making sure pending operations
+/// An interface to `Programs` that allows drawing to take place, making sure pending operations
 /// are flushed when this object is dropped.
 pub struct DrawCommandRunner<'a> {
-    renderers: &'a mut Renderers,
+    programs: &'a mut Programs,
     target: &'a IndexedTexture,
     buffer0: &'a IndexedTexture,
 }
 
 impl<'a> Drop for DrawCommandRunner<'a> {
     fn drop(&mut self) {
-        self.renderers.deactivate();
+        self.programs.deactivate();
     }
 }
 
 impl<'a> DrawCommandRunner<'a> {
     pub fn new(
-        renderers: &'a mut Renderers,
+        programs: &'a mut Programs,
         target: &'a IndexedTexture,
         buffer0: &'a IndexedTexture,
     ) -> Self {
         Self {
-            renderers,
+            programs,
             target,
             buffer0,
         }
@@ -144,21 +145,26 @@ impl<'a> DrawCommandRunner<'a> {
         offset: (i16, i16),
         zoom: u16,
         color: u8,
-        rendering_mode: RenderingMode,
+        rendering_mode: PolyRenderingMode,
     ) {
-        self.renderers
-            .use_poly(self.target, self.buffer0)
-            .draw_poly(poly, pos, offset, zoom, color, rendering_mode)
+        self.programs.use_poly(self.target, self.buffer0).draw_poly(
+            poly,
+            pos,
+            offset,
+            zoom,
+            color,
+            rendering_mode,
+        )
     }
 
     pub fn draw_bitmap(&mut self, image: &IndexedImage) {
-        self.renderers
+        self.programs
             .use_bitmap(self.target, self.buffer0)
             .draw_bitmap(image)
     }
 
     pub fn draw_char(&mut self, pos: (i16, i16), color: u8, c: u8) {
-        self.renderers
+        self.programs
             .use_font(self.target, self.buffer0)
             .draw_char(pos, color, c)
     }
