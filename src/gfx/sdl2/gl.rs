@@ -17,12 +17,11 @@ use crate::{
     gfx::{
         self,
         gl::{indexed_frame_renderer::IndexedFrameRenderer, Viewport},
+        sdl2::{Sdl2Display, WINDOW_RESOLUTION},
         Point,
     },
     sys::Snapshotable,
 };
-
-use super::{Sdl2Display, WINDOW_RESOLUTION};
 
 #[derive(Clone, Copy)]
 pub enum RenderingMode {
