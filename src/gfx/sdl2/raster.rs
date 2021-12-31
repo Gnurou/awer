@@ -1,4 +1,4 @@
-use std::{any::Any, convert::TryFrom};
+use std::convert::TryFrom;
 
 use sdl2::{
     pixels::PixelFormat,
@@ -10,10 +10,7 @@ use sdl2::{
 
 use anyhow::{anyhow, Result};
 
-use crate::{
-    gfx::{self, raster::RasterRenderer, sdl2::Sdl2Display, Color, Point},
-    sys::Snapshotable,
-};
+use crate::gfx::{self, raster::RasterRenderer, sdl2::Sdl2Display, Color};
 
 use super::WINDOW_RESOLUTION;
 
@@ -107,6 +104,7 @@ impl Sdl2RasterRenderer {
 
 impl Sdl2Display for Sdl2RasterRenderer {
     fn blit_game(&mut self, dst: &Rect) {
+        self.redraw();
         // Clear screen
         self.canvas
             .set_draw_color(sdl2::pixels::Color::RGB(0, 0, 0));
@@ -124,71 +122,14 @@ impl Sdl2Display for Sdl2RasterRenderer {
     }
 }
 
-impl gfx::Renderer for Sdl2RasterRenderer {
-    fn set_palette(&mut self, palette: &[u8; 32]) {
-        self.raster.set_palette(palette)
-    }
-
-    fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
-        self.raster.fillvideopage(page_id, color_idx)
-    }
-
-    fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16) {
-        self.raster.copyvideopage(src_page_id, dst_page_id, vscroll)
-    }
-
-    fn fillpolygon(
-        &mut self,
-        dst_page_id: usize,
-        pos: (i16, i16),
-        offset: (i16, i16),
-        color_idx: u8,
-        zoom: u16,
-        bb: (u8, u8),
-        points: &[Point<u8>],
-    ) {
-        self.raster
-            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points)
-    }
-
-    fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8) {
-        self.raster.draw_char(dst_page_id, pos, color_idx, c);
-    }
-
-    fn blitframebuffer(&mut self, page_id: usize) {
-        self.raster.blitframebuffer(page_id);
-        self.redraw();
-    }
-
-    fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
-        self.raster.blit_buffer(dst_page_id, buffer)
-    }
-}
-
-impl Snapshotable for Sdl2RasterRenderer {
-    type State = Box<dyn Any>;
-
-    fn take_snapshot(&self) -> Self::State {
-        self.raster.take_snapshot()
-    }
-
-    fn restore_snapshot(&mut self, snapshot: Box<dyn Any>) -> bool {
-        let res = self.raster.restore_snapshot(snapshot);
-        if res {
-            self.redraw();
-        }
-        res
-    }
-}
-
 impl AsRef<dyn gfx::Renderer> for Sdl2RasterRenderer {
     fn as_ref(&self) -> &(dyn gfx::Renderer + 'static) {
-        self
+        &self.raster
     }
 }
 
 impl AsMut<dyn gfx::Renderer> for Sdl2RasterRenderer {
     fn as_mut(&mut self) -> &mut (dyn gfx::Renderer + 'static) {
-        self
+        &mut self.raster
     }
 }
