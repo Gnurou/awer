@@ -11,8 +11,8 @@ use crate::{
     gfx::{
         self,
         sdl2::{
-            gl::{RenderingMode, Sdl2GlRenderer},
-            raster::Sdl2RasterRenderer,
+            gl_display::{RenderingMode, Sdl2GlDisplay},
+            raster_display::Sdl2RasterDisplay,
             Sdl2Display,
         },
     },
@@ -31,8 +31,8 @@ const TICKS_PER_SECOND: u64 = 50;
 const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
 
 trait Sdl2Gfx: Sdl2Display + AsRef<dyn gfx::Renderer> + AsMut<dyn gfx::Renderer> {}
-impl Sdl2Gfx for Sdl2RasterRenderer {}
-impl Sdl2Gfx for Sdl2GlRenderer {}
+impl Sdl2Gfx for Sdl2RasterDisplay {}
+impl Sdl2Gfx for Sdl2GlDisplay {}
 
 pub struct Sdl2Sys {
     sdl_context: Sdl,
@@ -47,10 +47,10 @@ pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
         .ok()?;
 
     let display: Box<dyn Sdl2Gfx> = match matches.value_of("render").unwrap_or("raster") {
-        "raster" => Sdl2RasterRenderer::new(&sdl_context).ok()?,
-        "gl_raster" => Sdl2GlRenderer::new(&sdl_context, RenderingMode::Raster).ok()?,
-        "gl_poly" => Sdl2GlRenderer::new(&sdl_context, RenderingMode::Poly).ok()?,
-        "gl_line" => Sdl2GlRenderer::new(&sdl_context, RenderingMode::Line).ok()?,
+        "raster" => Sdl2RasterDisplay::new(&sdl_context).ok()?,
+        "gl_raster" => Sdl2GlDisplay::new(&sdl_context, RenderingMode::Raster).ok()?,
+        "gl_poly" => Sdl2GlDisplay::new(&sdl_context, RenderingMode::Poly).ok()?,
+        "gl_line" => Sdl2GlDisplay::new(&sdl_context, RenderingMode::Line).ok()?,
         _ => return None,
     };
 

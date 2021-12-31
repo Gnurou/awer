@@ -30,16 +30,14 @@ pub enum RenderingMode {
     Line,
 }
 
-/// A GL-based renderer for SDL.
+/// A GL-based display for SDL.
 ///
-/// It operates two sub-renderers behind the scene: one that renders the game
-/// using the CPU at original resolution, the other that renders it using
-/// OpenGL at the current resolution of the window. Both render into a 16-color
-/// indexed texture that this renderer then converts into a true-color texture.
+/// It operates two renderers behind the scene: one that renders the game using the CPU at original
+/// resolution, the other that renders it using OpenGL at the current resolution of the window. Both
+/// render into a 16-color indexed texture that is then converted into a true-color texture.
 ///
-/// This renderer does not use the the SDL Canvas API, meaning it can safely be
-/// used along with other GL libraries, like ImGUI.
-pub struct Sdl2GlRenderer {
+/// This display can safely be used along with other GL libraries, like ImGUI.
+pub struct Sdl2GlDisplay {
     rendering_mode: RenderingMode,
     window: Window,
     _opengl_context: GLContext,
@@ -55,7 +53,7 @@ struct State {
     poly_renderer: Box<dyn Any>,
 }
 
-impl Sdl2GlRenderer {
+impl Sdl2GlDisplay {
     pub fn new(sdl_context: &Sdl, rendering_mode: RenderingMode) -> Result<Box<Self>> {
         let sdl_video = sdl_context.video().map_err(|s| anyhow!(s))?;
 
@@ -84,7 +82,7 @@ impl Sdl2GlRenderer {
         }
 
         let window_size = window.size();
-        Ok(Box::new(Sdl2GlRenderer {
+        Ok(Box::new(Sdl2GlDisplay {
             rendering_mode,
             window,
             _opengl_context: opengl_context,
@@ -107,7 +105,7 @@ impl Sdl2GlRenderer {
     }
 }
 
-impl Sdl2Display for Sdl2GlRenderer {
+impl Sdl2Display for Sdl2GlDisplay {
     fn blit_game(&mut self, dst: &Rect) {
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
@@ -177,7 +175,7 @@ impl Sdl2Display for Sdl2GlRenderer {
     }
 }
 
-impl gfx::Renderer for Sdl2GlRenderer {
+impl gfx::Renderer for Sdl2GlDisplay {
     fn set_palette(&mut self, palette: &[u8; 32]) {
         self.raster_renderer.as_mut().set_palette(palette);
         self.poly_renderer.set_palette(palette);
@@ -241,7 +239,7 @@ impl gfx::Renderer for Sdl2GlRenderer {
     }
 }
 
-impl Snapshotable for Sdl2GlRenderer {
+impl Snapshotable for Sdl2GlDisplay {
     type State = Box<dyn Any>;
 
     fn take_snapshot(&self) -> Self::State {
@@ -265,13 +263,13 @@ impl Snapshotable for Sdl2GlRenderer {
     }
 }
 
-impl AsRef<dyn gfx::Renderer> for Sdl2GlRenderer {
+impl AsRef<dyn gfx::Renderer> for Sdl2GlDisplay {
     fn as_ref(&self) -> &(dyn gfx::Renderer + 'static) {
         self
     }
 }
 
-impl AsMut<dyn gfx::Renderer> for Sdl2GlRenderer {
+impl AsMut<dyn gfx::Renderer> for Sdl2GlDisplay {
     fn as_mut(&mut self) -> &mut (dyn gfx::Renderer + 'static) {
         self
     }

@@ -14,13 +14,12 @@ use crate::gfx::{self, raster::RasterRenderer, sdl2::Sdl2Display, Color};
 
 use super::WINDOW_RESOLUTION;
 
-/// A renderer that renders the game into a SDL Texture, using only Texture
-/// and Canvas methods. The rendered texture is then stretched to fit the
-/// display when rendered.
+/// A display that renders the game into a SDL Texture, using only Texture and Canvas methods. The
+/// rendered texture is then stretched to fit the display when rendered.
 ///
-/// This way of doing does not rely on any particular SDL driver, i.e. it does
-/// not require OpenGL or even any kind of hardware acceleration.
-pub struct Sdl2RasterRenderer {
+/// This way of doing does not rely on any particular SDL driver, i.e. it does not require OpenGL or
+/// any kind of hardware acceleration.
+pub struct Sdl2RasterDisplay {
     canvas: Canvas<Window>,
     // Textures are owned by their texture creator, so we need to keep this
     // around.
@@ -32,8 +31,8 @@ pub struct Sdl2RasterRenderer {
     raster: RasterRenderer,
 }
 
-impl Sdl2RasterRenderer {
-    /// Create a new raster renderer, using the given SDL context. This takes
+impl Sdl2RasterDisplay {
+    /// Create a new raster display, using the given SDL context. This takes
     /// care of creating the window, canvas, and everything we need to draw.
     pub fn new(sdl_context: &Sdl) -> Result<Box<Self>> {
         let sdl_video = sdl_context.video().map_err(|s| anyhow!(s))?;
@@ -56,7 +55,7 @@ impl Sdl2RasterRenderer {
             gfx::SCREEN_RESOLUTION[1] as u32,
         )?;
 
-        Ok(Box::new(Sdl2RasterRenderer {
+        Ok(Box::new(Sdl2RasterDisplay {
             canvas,
             _texture_creator: texture_creator,
             texture,
@@ -102,7 +101,7 @@ impl Sdl2RasterRenderer {
     }
 }
 
-impl Sdl2Display for Sdl2RasterRenderer {
+impl Sdl2Display for Sdl2RasterDisplay {
     fn blit_game(&mut self, dst: &Rect) {
         self.redraw();
         // Clear screen
@@ -122,13 +121,13 @@ impl Sdl2Display for Sdl2RasterRenderer {
     }
 }
 
-impl AsRef<dyn gfx::Renderer> for Sdl2RasterRenderer {
+impl AsRef<dyn gfx::Renderer> for Sdl2RasterDisplay {
     fn as_ref(&self) -> &(dyn gfx::Renderer + 'static) {
         &self.raster
     }
 }
 
-impl AsMut<dyn gfx::Renderer> for Sdl2RasterRenderer {
+impl AsMut<dyn gfx::Renderer> for Sdl2RasterDisplay {
     fn as_mut(&mut self) -> &mut (dyn gfx::Renderer + 'static) {
         &mut self.raster
     }
