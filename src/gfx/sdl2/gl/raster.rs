@@ -8,10 +8,16 @@ use crate::gfx::{
     raster::RasterRenderer,
 };
 
+/// A renderer with which the game is rendered using the CPU at original resolution with a 16 colors
+/// indexed palette, before being converted to true color using the GPU.
 pub struct Sdl2GlRasterRenderer {
+    /// Regular CPU raster renderer where we will render the game.
     raster: RasterRenderer,
 
+    /// Texture where the framebuffer from `raster` will be copied to serve as a source.
     framebuffer_texture: IndexedTexture,
+    /// Will perform GPU-based transformation of the indexed game framebuffer into a true color
+    /// frame ready to be displayed.
     framebuffer_renderer: IndexedFrameRenderer,
 }
 

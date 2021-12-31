@@ -159,7 +159,7 @@ impl IndexedTexture {
         self.set_raw_data(source.data(), dimensions.0, dimensions.1, xoffset, yoffset)
     }
 
-    pub fn set_raw_data(
+    fn set_raw_data(
         &mut self,
         data: *const u8,
         width: usize,

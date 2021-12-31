@@ -80,6 +80,8 @@ enum DrawCommand {
     Char(CharDrawCommand),
 }
 
+/// A renderer that uses the GPU to render the game into a 16 colors indexed bufffer of any size,
+/// before converting it to true color, again using the GPU.
 pub struct Sdl2GlPolyRenderer {
     rendering_mode: RenderingMode,
 
