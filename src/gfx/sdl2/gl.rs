@@ -28,7 +28,7 @@ pub enum RenderingMode {
 }
 
 /// A GL-based renderer for SDL. Contrary to what the name implies, it still
-/// renders using rasterization into a 320x200 texture that is scaled. Howver,
+/// renders using rasterization into a 320x200 texture that is scaled. However,
 /// it does it much more efficiently than the SDL raster renderer, using a
 /// shader that takes the 320x200, 4bpp scene and corresponding palette and
 /// infers the actual color of each pixel on the GPU.
@@ -112,8 +112,7 @@ impl Sdl2Display for Sdl2GlRenderer {
 
         match self.rendering_mode {
             RenderingMode::Raster => self.raster_renderer.blit(dst),
-            RenderingMode::Poly => self.poly_renderer.blit(dst),
-            RenderingMode::Line => self.poly_renderer.blit(dst),
+            RenderingMode::Poly | RenderingMode::Line => self.poly_renderer.blit(dst),
         };
     }
 
