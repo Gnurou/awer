@@ -2,28 +2,23 @@
 
 mod ops;
 
-use self::ops::*;
-
-use std::any::Any;
-use std::fmt;
-use std::io::Cursor;
-use std::io::Result;
-use std::io::Seek;
-use std::io::SeekFrom;
-use std::mem::{transmute, MaybeUninit};
-use std::ops::Deref;
-
 use log::{debug, info};
+use std::{
+    any::Any,
+    fmt,
+    io::{Cursor, Result, Seek, SeekFrom},
+    mem::{transmute, MaybeUninit},
+    ops::Deref,
+};
 
-use super::gfx;
-
-use super::res::ResourceManager;
-
-use crate::scenes;
-use crate::sys::Snapshotable;
+use self::ops::*;
 use crate::{
+    gfx,
     input::*,
+    res::ResourceManager,
+    scenes,
     strings::{self, GameStrings},
+    sys::Snapshotable,
 };
 
 use byteorder::{ReadBytesExt, BE};

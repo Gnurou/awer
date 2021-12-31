@@ -1,8 +1,9 @@
-use super::{renderer::Renderer, IndexedTexture, *};
-
 use std::mem;
 
-use crate::font::*;
+use crate::{
+    font::*,
+    gfx::gl::{renderer::Renderer, *},
+};
 
 use anyhow::Result;
 use gl::types::{GLshort, GLsizei, GLsizeiptr};

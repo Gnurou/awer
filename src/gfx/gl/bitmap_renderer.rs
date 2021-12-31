@@ -2,9 +2,12 @@ use std::cell::RefCell;
 
 use gl::types::{GLint, GLuint};
 
-use crate::gfx::{raster::IndexedImage, SCREEN_RESOLUTION};
+use crate::gfx::{
+    gl::{renderer::Renderer, IndexedTexture},
+    raster::IndexedImage,
+    SCREEN_RESOLUTION,
+};
 
-use super::{renderer::Renderer, IndexedTexture};
 use anyhow::Result;
 
 /// A renderer for arbitrary bitmaps. Useful to quickly draw the title screen

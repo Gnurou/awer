@@ -17,14 +17,13 @@ use crate::{
         },
     },
     input::{ButtonState, InputState, LeftRightDir, UpDownDir},
+    sys::Sys,
     vm::{Vm, VmSnapshot},
 };
 
-use super::Sys;
-
-use std::thread;
 use std::{
     collections::VecDeque,
+    thread,
     time::{Duration, Instant},
 };
 

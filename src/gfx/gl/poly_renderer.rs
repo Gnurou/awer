@@ -1,8 +1,10 @@
 use std::cell::{Cell, RefCell};
 
-use crate::gfx::{polygon::Polygon, SCREEN_RESOLUTION};
-
-use super::{renderer::Renderer, *};
+use crate::gfx::{
+    gl::{renderer::Renderer, *},
+    polygon::Polygon,
+    SCREEN_RESOLUTION,
+};
 
 #[repr(C, packed)]
 struct VertexShaderInput {

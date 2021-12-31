@@ -6,8 +6,10 @@ pub mod raster;
 pub mod sdl2;
 
 use log::debug;
-use std::any::Any;
-use std::fmt::{Debug, Display, Formatter, Result};
+use std::{
+    any::Any,
+    fmt::{Debug, Display, Formatter, Result},
+};
 
 use crate::sys::Snapshotable;
 

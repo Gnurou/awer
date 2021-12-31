@@ -15,11 +15,13 @@
 //! These quads are guaranteed to be convex.
 use super::{slope, Point};
 
-use std::cmp::Ordering;
-use std::default::Default;
-use std::fmt::{Debug, Formatter, Result};
-use std::ops::{Add, Div, Mul, Sub};
-use std::slice::Iter;
+use std::{
+    cmp::Ordering,
+    default::Default,
+    fmt::{Debug, Formatter, Result},
+    ops::{Add, Div, Mul, Sub},
+    slice::Iter,
+};
 
 #[derive(Clone)]
 pub struct Polygon {

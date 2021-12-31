@@ -1,12 +1,11 @@
 extern crate byteorder;
 
 use byteorder::{ReadBytesExt, BE};
-use std::fmt;
-use std::fs::File;
-use std::io;
-use std::io::Read;
-use std::io::Seek;
-use std::io::SeekFrom;
+use std::{
+    fmt,
+    fs::File,
+    io::{self, Read, Seek, SeekFrom},
+};
 
 use log::{debug, info};
 

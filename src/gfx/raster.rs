@@ -6,9 +6,10 @@ use std::{
 
 use anyhow::{anyhow, Result};
 
-use crate::sys::Snapshotable;
-
-use super::{Palette, Point, Renderer, SCREEN_RESOLUTION};
+use crate::{
+    gfx::{Palette, Point, Renderer, SCREEN_RESOLUTION},
+    sys::Snapshotable,
+};
 
 #[derive(Clone)]
 pub struct IndexedImage([u8; SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1]]);
