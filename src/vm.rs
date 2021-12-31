@@ -135,9 +135,9 @@ impl VmSnapshot {
         }
     }
 
-    pub fn restore(self, vm: &mut Vm, gfx: &mut dyn gfx::Renderer) {
+    pub fn restore<T: AsMut<dyn gfx::Renderer> + ?Sized>(self, vm: &mut Vm, gfx: &mut T) {
         vm.set_snapshot(self.vm_state);
-        gfx.set_snapshot(self.gfx_state);
+        gfx.as_mut().set_snapshot(self.gfx_state);
     }
 }
 

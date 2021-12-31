@@ -118,14 +118,6 @@ impl Sdl2Display for Sdl2GlRenderer {
         self.window.gl_swap_window();
     }
 
-    fn as_renderer(&self) -> &dyn crate::gfx::Renderer {
-        self
-    }
-
-    fn as_renderer_mut(&mut self) -> &mut dyn crate::gfx::Renderer {
-        self
-    }
-
     fn window(&self) -> &Window {
         &self.window
     }
@@ -229,5 +221,17 @@ impl gfx::Renderer for Sdl2GlRenderer {
         } else {
             log::error!("Attempting to restore invalid gfx snapshot, ignoring");
         }
+    }
+}
+
+impl AsRef<dyn gfx::Renderer> for Sdl2GlRenderer {
+    fn as_ref(&self) -> &(dyn gfx::Renderer + 'static) {
+        self
+    }
+}
+
+impl AsMut<dyn gfx::Renderer> for Sdl2GlRenderer {
+    fn as_mut(&mut self) -> &mut (dyn gfx::Renderer + 'static) {
+        self
     }
 }

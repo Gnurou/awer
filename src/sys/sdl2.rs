@@ -31,9 +31,13 @@ use std::{
 const TICKS_PER_SECOND: u64 = 50;
 const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
 
+trait Sdl2Gfx: Sdl2Display + AsRef<dyn gfx::Renderer> + AsMut<dyn gfx::Renderer> {}
+impl Sdl2Gfx for Sdl2RasterRenderer {}
+impl Sdl2Gfx for Sdl2GlRenderer {}
+
 pub struct Sdl2Sys {
     sdl_context: Sdl,
-    display: Box<dyn Sdl2Display>,
+    display: Box<dyn Sdl2Gfx>,
 }
 
 pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
@@ -43,7 +47,7 @@ pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
         })
         .ok()?;
 
-    let display: Box<dyn Sdl2Display> = match matches.value_of("render").unwrap_or("raster") {
+    let display: Box<dyn Sdl2Gfx> = match matches.value_of("render").unwrap_or("raster") {
         "raster" => Sdl2RasterRenderer::new(&sdl_context).ok()?,
         "gl_raster" => Sdl2GlRenderer::new(&sdl_context, RenderingMode::Raster).ok()?,
         "gl_poly" => Sdl2GlRenderer::new(&sdl_context, RenderingMode::Poly).ok()?,
@@ -57,10 +61,17 @@ pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
     }))
 }
 
-fn take_snapshot(history: &mut VecDeque<VmSnapshot>, vm: &Vm, gfx: &dyn gfx::Renderer) {
+fn take_snapshot<T: AsRef<dyn gfx::Renderer> + ?Sized>(
+    history: &mut VecDeque<VmSnapshot>,
+    vm: &Vm,
+    gfx: &T,
+) {
     const MAX_GAME_SNAPSHOTS: usize = 50;
 
-    history.push_front(VmSnapshot::new(vm.get_snapshot(), gfx.get_snapshot()));
+    history.push_front(VmSnapshot::new(
+        vm.get_snapshot(),
+        gfx.as_ref().get_snapshot(),
+    ));
 
     while history.len() > MAX_GAME_SNAPSHOTS {
         history.pop_back();
@@ -83,7 +94,7 @@ impl Sys for Sdl2Sys {
         const TICKS_PER_SNAPSHOT: usize = 200;
         let mut history: VecDeque<VmSnapshot> = VecDeque::new();
         let mut snapshot_cpt = 0;
-        take_snapshot(&mut history, vm, self.display.as_renderer());
+        take_snapshot(&mut history, vm, self.display.as_ref());
 
         // Ignore keys presses from being handled right after window has gained
         // focus to avoid e.g escape being considered if esc was part of the
@@ -127,19 +138,19 @@ impl Sys for Sdl2Sys {
                         Keycode::P => pause ^= true,
                         Keycode::B => {
                             if let Some(state) = history.pop_front() {
-                                state.restore(vm, self.display.as_renderer_mut());
+                                state.restore(vm, self.display.as_mut());
                                 snapshot_cpt = 0;
                             }
 
                             // If we are back to the first state, keep a copy.
                             if history.is_empty() {
-                                take_snapshot(&mut history, vm, self.display.as_renderer());
+                                take_snapshot(&mut history, vm, self.display.as_ref());
                             }
                         }
                         Keycode::N if pause => {
-                            take_snapshot(&mut history, vm, self.display.as_renderer());
+                            take_snapshot(&mut history, vm, self.display.as_ref());
                             vm.update_input(&input);
-                            vm.process(self.display.as_renderer_mut());
+                            vm.process(self.display.as_mut().as_mut());
                             ticks_to_wait = vm.get_frames_to_wait();
                         }
                         _ => {}
@@ -191,12 +202,12 @@ impl Sys for Sdl2Sys {
             for _ in 0..ticks_to_run {
                 snapshot_cpt += 1;
                 if snapshot_cpt == TICKS_PER_SNAPSHOT {
-                    take_snapshot(&mut history, vm, self.display.as_renderer());
+                    take_snapshot(&mut history, vm, self.display.as_ref());
                     snapshot_cpt = 0;
                 }
 
                 if ticks_to_wait == 0 {
-                    if !vm.process(self.display.as_renderer_mut()) {
+                    if !vm.process(self.display.as_mut().as_mut()) {
                         error!("0 threads to run, exiting.");
                         break 'run;
                     }
