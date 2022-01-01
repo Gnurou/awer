@@ -110,9 +110,7 @@ impl Sdl2Display for Sdl2RasterDisplay {
         self.canvas.clear();
         // Blit the game screen into the window viewport
         self.canvas.copy(&self.texture, None, Some(*dst)).unwrap();
-    }
 
-    fn present(&mut self) {
         self.canvas.present();
     }
 

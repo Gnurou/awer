@@ -237,7 +237,6 @@ impl Sys for Sdl2Sys {
             };
 
             self.display.blit_game(&viewport_dst);
-            self.display.present();
         }
     }
 }

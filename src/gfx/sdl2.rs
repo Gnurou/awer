@@ -9,10 +9,8 @@ pub const WINDOW_RESOLUTION: [u32; 2] = [1280, 800];
 /// Trait for handling display for `Sdl2Sys`.
 pub trait Sdl2Display {
     /// Blit the rendered framebuffer into the `dst` rectangle of the actual
-    /// display.
+    /// display and display it.
     fn blit_game(&mut self, dst: &Rect);
-    /// Page-flip the display.
-    fn present(&mut self);
 
     /// Returns the window the renderer will render into.
     fn window(&self) -> &Window;
