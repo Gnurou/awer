@@ -214,8 +214,6 @@ impl IndexedImage {
 pub struct RasterRenderer {
     /// Palette currently on display.
     palette: Palette,
-    /// Palette to switch to the next time `blitframebuffer` is called.
-    next_palette: Palette,
     buffers: [RefCell<IndexedImage>; 4],
     framebuffer_index: usize,
 }
@@ -224,7 +222,6 @@ impl RasterRenderer {
     pub fn new() -> RasterRenderer {
         RasterRenderer {
             palette: Default::default(),
-            next_palette: Default::default(),
             buffers: [
                 RefCell::new(Default::default()),
                 RefCell::new(Default::default()),
@@ -245,10 +242,6 @@ impl RasterRenderer {
 }
 
 impl Renderer for RasterRenderer {
-    fn set_palette(&mut self, palette: &[u8; 32]) {
-        self.next_palette.set(palette);
-    }
-
     fn fillvideopage(&mut self, dst_page_id: usize, color_idx: u8) {
         let mut dst = self.buffers[dst_page_id].borrow_mut();
 
@@ -360,9 +353,9 @@ impl Renderer for RasterRenderer {
         }
     }
 
-    fn blitframebuffer(&mut self, page_id: usize) {
+    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
         self.framebuffer_index = page_id;
-        self.palette = self.next_palette.clone();
+        self.palette = palette.clone();
     }
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {

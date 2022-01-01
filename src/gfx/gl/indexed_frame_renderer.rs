@@ -1,4 +1,5 @@
 use super::*;
+use crate::gfx::Palette;
 
 /// A struct to render an `IndexedImage` or any other source for an indexed
 /// 16-color frame into a true-color GL framebuffer.

@@ -21,8 +21,6 @@ impl GfxSnapshot for () {}
 
 /// Trait defining the methods necessary to render frames of the game.
 pub trait Renderer: Snapshotable<State = Box<dyn Any>> {
-    /// Set the current palette of the game, effective immediately.
-    fn set_palette(&mut self, palette: &[u8; 32]);
     /// Fill video page `page_id` entirely with color `color_idx`.
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8);
     /// Copy video page `src_page_id` into `dst_page_id`. `vscroll` is a vertical offset
@@ -48,8 +46,8 @@ pub trait Renderer: Snapshotable<State = Box<dyn Any>> {
     /// Draw character `c` at position `pos` of page `dst_page_id` with color `color_idx`.
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8);
     /// Make `page_id` the current framebuffer, i.e. the buffer that will be shown next
-    /// on screen.
-    fn blitframebuffer(&mut self, page_id: usize);
+    /// on screen, using `palette` as its color scheme.
+    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette);
     /// Blit `buffer` (a bitmap of full screen size) into `dst_page_id`. This is used
     /// as an alternative to creating scenes using polys notably in later scenes of
     /// the game (maybe because of lack of time?).
@@ -128,7 +126,7 @@ pub struct Palette([Color; PALETTE_SIZE]);
 
 impl Palette {
     /// Sets the current |palette| from a raw PALETTE resource.
-    fn set(&mut self, palette: &[u8; 32]) {
+    pub fn set(&mut self, palette: &[u8; 32]) {
         for i in 0..16 {
             let c1 = palette[i * 2];
             let c2 = palette[i * 2 + 1];

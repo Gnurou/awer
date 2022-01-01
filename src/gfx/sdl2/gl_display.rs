@@ -20,7 +20,7 @@ use crate::{
             Viewport,
         },
         sdl2::{Sdl2Display, WINDOW_RESOLUTION},
-        Point,
+        Palette, Point,
     },
     sys::Snapshotable,
 };
@@ -176,11 +176,6 @@ impl Sdl2Display for Sdl2GlDisplay {
 }
 
 impl gfx::Renderer for Sdl2GlDisplay {
-    fn set_palette(&mut self, palette: &[u8; 32]) {
-        self.raster_renderer.set_palette(palette);
-        self.poly_renderer.set_palette(palette);
-    }
-
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         self.raster_renderer.fillvideopage(page_id, color_idx);
         self.poly_renderer.fillvideopage(page_id, color_idx);
@@ -215,9 +210,9 @@ impl gfx::Renderer for Sdl2GlDisplay {
         self.poly_renderer.draw_char(dst_page_id, pos, color_idx, c);
     }
 
-    fn blitframebuffer(&mut self, page_id: usize) {
-        self.raster_renderer.blitframebuffer(page_id);
-        self.poly_renderer.blitframebuffer(page_id);
+    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
+        self.raster_renderer.blitframebuffer(page_id, palette);
+        self.poly_renderer.blitframebuffer(page_id, palette);
     }
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {

@@ -33,10 +33,6 @@ impl GlRasterRenderer {
 }
 
 impl gfx::Renderer for GlRasterRenderer {
-    fn set_palette(&mut self, palette: &[u8; 32]) {
-        self.raster.set_palette(palette)
-    }
-
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         self.raster.fillvideopage(page_id, color_idx)
     }
@@ -63,8 +59,8 @@ impl gfx::Renderer for GlRasterRenderer {
         self.raster.draw_char(dst_page_id, pos, color_idx, c)
     }
 
-    fn blitframebuffer(&mut self, page_id: usize) {
-        self.raster.blitframebuffer(page_id)
+    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
+        self.raster.blitframebuffer(page_id, palette)
     }
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {

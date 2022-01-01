@@ -302,9 +302,9 @@ pub fn op_sub(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool 
 pub fn op_setpalette(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
-    _state: &mut VmState,
+    state: &mut VmState,
     sys: &VmSys,
-    gfx: &mut dyn gfx::Renderer,
+    _gfx: &mut dyn gfx::Renderer,
 ) -> bool {
     // Why the right shift here?
     let palette_id = cursor.read_u8().unwrap() as usize;
@@ -315,7 +315,7 @@ pub fn op_setpalette(
 
     trace!("op_setpalette {:x}@{}", palette_id, fade_speed);
 
-    gfx.set_palette(palette_data.try_into().unwrap());
+    state.palette.set(palette_data.try_into().unwrap());
 
     false
 }
@@ -433,7 +433,7 @@ pub fn op_blitframebuffer(
     }
 
     state.front_buffer = new_front;
-    gfx.blitframebuffer(state.front_buffer);
+    gfx.blitframebuffer(state.front_buffer, &state.palette);
 
     // Assume that we render very fast, which should be the case.
     state.regs[VM_VARIABLE_SLICES_USED] = 1;

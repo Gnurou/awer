@@ -8,7 +8,7 @@ use std::{ffi::CString, mem};
 use anyhow::Result;
 use gl::types::*;
 
-use crate::gfx::{self, raster::IndexedImage, Palette};
+use crate::gfx::{self, raster::IndexedImage};
 
 fn get_uniform_location(program: GLuint, name: &str) -> GLint {
     let cstr = CString::new(name).unwrap();

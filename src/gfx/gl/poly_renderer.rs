@@ -79,9 +79,7 @@ pub struct GlPolyRenderer {
 
     draw_commands: [Vec<DrawCommand>; 4],
     framebuffer_index: usize,
-
-    candidate_palette: Palette,
-    current_palette: Palette,
+    palette: Palette,
 
     target_fbo: GLuint,
 
@@ -94,8 +92,7 @@ pub struct GlPolyRenderer {
 struct State {
     draw_commands: [Vec<DrawCommand>; 4],
     framebuffer_index: usize,
-    candidate_palette: Palette,
-    current_palette: Palette,
+    palette: Palette,
 }
 
 impl Drop for GlPolyRenderer {
@@ -126,8 +123,7 @@ impl GlPolyRenderer {
 
             draw_commands: Default::default(),
             framebuffer_index: 0,
-            candidate_palette: Default::default(),
-            current_palette: Default::default(),
+            palette: Default::default(),
 
             target_fbo,
 
@@ -153,7 +149,7 @@ impl GlPolyRenderer {
     }
 
     pub fn get_framebuffer_texture_and_palette(&mut self) -> (&IndexedTexture, &Palette) {
-        (&self.render_texture_framebuffer, &self.current_palette)
+        (&self.render_texture_framebuffer, &self.palette)
     }
 
     fn run_command_list(&mut self, commands_index: usize, rendering_mode: PolyRenderingMode) {
@@ -224,14 +220,6 @@ impl GlPolyRenderer {
 }
 
 impl gfx::Renderer for GlPolyRenderer {
-    fn set_palette(&mut self, palette: &[u8; 32]) {
-        self.candidate_palette = {
-            let mut p: Palette = Default::default();
-            p.set(palette);
-            p
-        }
-    }
-
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         let commands = &mut self.draw_commands[page_id];
         commands.clear();
@@ -291,9 +279,9 @@ impl gfx::Renderer for GlPolyRenderer {
         command_queue.push(DrawCommand::Char(CharDrawCommand::new(pos, color, c)));
     }
 
-    fn blitframebuffer(&mut self, page_id: usize) {
+    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
         self.framebuffer_index = page_id;
-        self.current_palette = self.candidate_palette.clone();
+        self.palette = palette.clone();
 
         self.redraw();
     }
@@ -316,8 +304,7 @@ impl Snapshotable for GlPolyRenderer {
         Box::new(State {
             draw_commands: self.draw_commands.clone(),
             framebuffer_index: self.framebuffer_index,
-            candidate_palette: self.candidate_palette.clone(),
-            current_palette: self.current_palette.clone(),
+            palette: self.palette.clone(),
         })
     }
 
@@ -325,8 +312,7 @@ impl Snapshotable for GlPolyRenderer {
         if let Ok(state) = snapshot.downcast::<State>() {
             self.draw_commands = state.draw_commands;
             self.framebuffer_index = state.framebuffer_index;
-            self.candidate_palette = state.candidate_palette;
-            self.current_palette = state.current_palette;
+            self.palette = state.palette;
             self.redraw();
             true
         } else {

@@ -13,7 +13,7 @@ use std::{
 
 use self::ops::*;
 use crate::{
-    gfx,
+    gfx::{self, Palette},
     input::*,
     res::ResourceManager,
     scenes,
@@ -78,6 +78,8 @@ pub struct VmState {
     back_buffer: usize,
     /// Buffer currently on display.
     front_buffer: usize,
+    /// Palette currently in use.
+    palette: Palette,
 }
 
 pub struct VmSys {
@@ -180,6 +182,7 @@ impl Vm {
                 render_buffer: 0,
                 back_buffer: 0,
                 front_buffer: 0,
+                palette: Default::default(),
             },
             code: VmCode::new(Vec::new()),
             sys: VmSys {
