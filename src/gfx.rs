@@ -15,10 +15,6 @@ use crate::sys::Snapshotable;
 
 pub const SCREEN_RESOLUTION: [usize; 2] = [320, 200];
 
-pub trait GfxSnapshot: Any {}
-
-impl GfxSnapshot for () {}
-
 /// Trait defining the methods necessary to render frames of the game.
 pub trait Renderer: Snapshotable<State = Box<dyn Any>> {
     /// Fill video page `page_id` entirely with color `color_idx`.
