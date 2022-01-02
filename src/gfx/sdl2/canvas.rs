@@ -17,8 +17,7 @@ use crate::{
 
 use super::WINDOW_RESOLUTION;
 
-/// A gfx module that renders the game using the CPU into a SDL Texture, using only Texture and
-/// Canvas methods. The rendered texture is then stretched to fit the display when rendered.
+/// A gfx module that renders the game using the CPU and SDL's Texture/Canvas methods.
 ///
 /// This way of doing does not rely on any particular SDL driver, i.e. it does not require OpenGL or
 /// any kind of hardware acceleration.
@@ -50,7 +49,7 @@ impl Sdl2CanvasGfx {
 
         let texture_creator = canvas.texture_creator();
         let pixel_format_enum = texture_creator.default_pixel_format();
-        let pixel_format = PixelFormat::try_from(pixel_format_enum).unwrap();
+        let pixel_format = PixelFormat::try_from(pixel_format_enum).map_err(|s| anyhow!(s))?;
         let bytes_per_pixel = pixel_format_enum.byte_size_per_pixel();
         let texture = texture_creator.create_texture_streaming(
             None,
@@ -103,6 +102,7 @@ impl gfx::IndexedRenderer for Sdl2CanvasGfx {
 
 impl gfx::Display for Sdl2CanvasGfx {
     fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
+        // Maps each palette index to the native color of the current display.
         let palette_to_color = {
             let mut palette_to_color = [0u32; gfx::PALETTE_SIZE];
             for (i, color) in palette_to_color.iter_mut().enumerate() {

@@ -148,14 +148,14 @@ impl IndexedImage {
                 // objects appearing larger than they should. The game does the
                 // scaling separately on these two parameters, so we need to do
                 // the same in order to obtain the same rendering.
-                Point::from((
+                Point::new(
                     scale(p.x as i16, zoom) + scale(offset.0, zoom) + x,
                     scale(p.y as i16, zoom) + scale(offset.1, zoom) + y,
-                ))
+                )
             })
             // Turn the point into i32 and add 16 bits of fixed decimals to x to
             // add some precision when computing the slope.
-            .map(|p| Point::<i32>::from(((p.x as i32) << 16, p.y as i32)));
+            .map(|p| Point::<i32>::new((p.x as i32) << 16, p.y as i32));
         // We have at least 4 points in the polygon, so these unwraps() are safe.
         let mut p1 = points.next().unwrap();
         let mut p2 = points.next_back().unwrap();

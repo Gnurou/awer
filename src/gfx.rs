@@ -13,6 +13,7 @@ use std::{
 
 use crate::sys::Snapshotable;
 
+/// Native screen resolution of the game.
 pub const SCREEN_RESOLUTION: [usize; 2] = [320, 200];
 
 /// Trait for rendering the game using four 16-color indexed buffers.
@@ -56,19 +57,12 @@ pub trait Display {
 /// Trait providing the methods necessary for the VM to render the game.
 pub trait Gfx: IndexedRenderer + Display + Snapshotable<State = Box<dyn Any>> {}
 
-// We need repr(C) because we are going to interpret raw arrays of values as
-// arrays of Points.
+/// A point as described in the game's resources for polygons.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Point<T> {
     pub x: T,
     pub y: T,
-}
-
-impl<T: fmt::Display> fmt::Display for Point<T> {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "({},{})", self.x, self.y)
-    }
 }
 
 impl<T: fmt::Display> Debug for Point<T> {
@@ -80,18 +74,6 @@ impl<T: fmt::Display> Debug for Point<T> {
 impl<T: PartialEq> PartialEq for Point<T> {
     fn eq(&self, p: &Self) -> bool {
         self.x == p.x && self.y == p.y
-    }
-}
-
-impl<T> From<(T, T)> for Point<T> {
-    fn from(p: (T, T)) -> Self {
-        Self { x: p.0, y: p.1 }
-    }
-}
-
-impl<T: Copy> From<[T; 2]> for Point<T> {
-    fn from(p: [T; 2]) -> Self {
-        Self { x: p[0], y: p[1] }
     }
 }
 
@@ -110,8 +92,10 @@ impl<T> Point<T> {
     }
 }
 
-// Use a C representation so we can safely pass this to shaders, and align
-// to 32 bits so each palette entry can be easily indexed from a shader.
+/// A single color from a game's palette which components have been normalized to cover the u8
+/// range.
+///
+/// We use a C representation aligned to 32 bits so this can safely be passed to shaders.
 #[repr(C, align(4))]
 #[derive(Debug, Default, Clone)]
 pub struct Color {
