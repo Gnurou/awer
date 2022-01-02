@@ -10,6 +10,8 @@ pub const WINDOW_RESOLUTION: [u32; 2] = [1280, 800];
 
 /// Trait for handling display for `Sdl2Sys`, while providing access to regular graphics methods.
 pub trait Sdl2Display {
+    type Gfx: Gfx + ?Sized;
+
     /// Blit the rendered framebuffer into the `dst` rectangle of the actual
     /// display and display it.
     fn blit_game(&mut self, dst: &Rect);
@@ -22,13 +24,15 @@ pub trait Sdl2Display {
     fn handle_events(&mut self, _events: &[Event]) {}
 
     /// Return a reference to the underlying `Gfx` implementation.
-    fn as_gfx(&self) -> &dyn Gfx;
+    fn as_gfx(&self) -> &Self::Gfx;
 
     /// Return a mutable reference to the underlying `Gfx` implementation.
-    fn as_gfx_mut(&mut self) -> &mut dyn Gfx;
+    fn as_gfx_mut(&mut self) -> &mut Self::Gfx;
 }
 
 impl<D: Sdl2Display + ?Sized> Sdl2Display for Box<D> {
+    type Gfx = D::Gfx;
+
     fn blit_game(&mut self, dst: &Rect) {
         AsMut::<D>::as_mut(self).blit_game(dst)
     }
@@ -41,11 +45,11 @@ impl<D: Sdl2Display + ?Sized> Sdl2Display for Box<D> {
         AsMut::<D>::as_mut(self).handle_events(events)
     }
 
-    fn as_gfx(&self) -> &dyn Gfx {
+    fn as_gfx(&self) -> &Self::Gfx {
         AsRef::<D>::as_ref(self).as_gfx()
     }
 
-    fn as_gfx_mut(&mut self) -> &mut dyn Gfx {
+    fn as_gfx_mut(&mut self) -> &mut Self::Gfx {
         AsMut::<D>::as_mut(self).as_gfx_mut()
     }
 }

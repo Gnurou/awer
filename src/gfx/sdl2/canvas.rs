@@ -147,6 +147,8 @@ impl Snapshotable for Sdl2CanvasGfx {
 impl Gfx for Sdl2CanvasGfx {}
 
 impl Sdl2Display for Sdl2CanvasGfx {
+    type Gfx = Self;
+
     fn blit_game(&mut self, dst: &Rect) {
         // Clear screen
         self.canvas
@@ -162,11 +164,11 @@ impl Sdl2Display for Sdl2CanvasGfx {
         self.canvas.window()
     }
 
-    fn as_gfx(&self) -> &dyn Gfx {
+    fn as_gfx(&self) -> &Self::Gfx {
         self
     }
 
-    fn as_gfx_mut(&mut self) -> &mut dyn Gfx {
+    fn as_gfx_mut(&mut self) -> &mut Self::Gfx {
         self
     }
 }
