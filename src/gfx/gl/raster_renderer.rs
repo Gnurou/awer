@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 use anyhow::Result;
 use gfx::SCREEN_RESOLUTION;
 
@@ -37,14 +39,16 @@ impl GlGameTexture for GlRasterRenderer {
     }
 }
 
-impl AsRef<RasterRenderer> for GlRasterRenderer {
-    fn as_ref(&self) -> &RasterRenderer {
+impl Deref for GlRasterRenderer {
+    type Target = RasterRenderer;
+
+    fn deref(&self) -> &Self::Target {
         &self.raster
     }
 }
 
-impl AsMut<RasterRenderer> for GlRasterRenderer {
-    fn as_mut(&mut self) -> &mut RasterRenderer {
+impl DerefMut for GlRasterRenderer {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.raster
     }
 }

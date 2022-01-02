@@ -19,7 +19,6 @@ use crate::{
             raster_renderer::GlRasterRenderer,
             GlGameTexture, Viewport,
         },
-        raster::RasterRenderer,
         sdl2::{Sdl2Display, WINDOW_RESOLUTION},
         Palette, Point,
     },
@@ -178,15 +177,12 @@ impl Sdl2Display for Sdl2GlGfx {
 
 impl gfx::IndexedRenderer for Sdl2GlGfx {
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
-        self.raster_renderer
-            .as_mut()
-            .fillvideopage(page_id, color_idx);
+        self.raster_renderer.fillvideopage(page_id, color_idx);
         self.poly_renderer.fillvideopage(page_id, color_idx);
     }
 
     fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16) {
         self.raster_renderer
-            .as_mut()
             .copyvideopage(src_page_id, dst_page_id, vscroll);
         self.poly_renderer
             .copyvideopage(src_page_id, dst_page_id, vscroll);
@@ -202,30 +198,20 @@ impl gfx::IndexedRenderer for Sdl2GlGfx {
         bb: (u8, u8),
         points: &[Point<u8>],
     ) {
-        self.raster_renderer.as_mut().fillpolygon(
-            dst_page_id,
-            pos,
-            offset,
-            color_idx,
-            zoom,
-            bb,
-            points,
-        );
+        self.raster_renderer
+            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points);
         self.poly_renderer
             .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points);
     }
 
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8) {
         self.raster_renderer
-            .as_mut()
             .draw_char(dst_page_id, pos, color_idx, c);
         self.poly_renderer.draw_char(dst_page_id, pos, color_idx, c);
     }
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
-        self.raster_renderer
-            .as_mut()
-            .blit_buffer(dst_page_id, buffer);
+        self.raster_renderer.blit_buffer(dst_page_id, buffer);
         self.poly_renderer.blit_buffer(dst_page_id, buffer);
     }
 }
@@ -245,16 +231,14 @@ impl Snapshotable for Sdl2GlGfx {
 
     fn take_snapshot(&self) -> Self::State {
         Box::new(State {
-            raster_renderer: AsRef::<RasterRenderer>::as_ref(&self.raster_renderer).take_snapshot(),
+            raster_renderer: self.raster_renderer.take_snapshot(),
             poly_renderer: self.poly_renderer.take_snapshot(),
         })
     }
 
     fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
         if let Ok(state) = snapshot.downcast::<State>() {
-            self.raster_renderer
-                .as_mut()
-                .restore_snapshot(state.raster_renderer);
+            self.raster_renderer.restore_snapshot(state.raster_renderer);
             self.poly_renderer.restore_snapshot(state.poly_renderer);
             true
         } else {
