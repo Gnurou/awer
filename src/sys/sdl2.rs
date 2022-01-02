@@ -30,7 +30,7 @@ use std::{
 const TICKS_PER_SECOND: u64 = 50;
 const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
 
-pub struct Sdl2Sys<D: Sdl2Gfx + ?Sized> {
+pub struct Sdl2Sys<D: Sdl2Gfx> {
     sdl_context: Sdl,
     display: D,
 }
@@ -81,7 +81,7 @@ fn take_snapshot<G: gfx::Gfx + ?Sized>(history: &mut VecDeque<VmSnapshot>, vm: &
     }
 }
 
-impl<D: Sdl2Gfx + ?Sized> Sys for Sdl2Sys<D> {
+impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
     fn game_loop(&mut self, vm: &mut crate::vm::Vm) {
         // Events, time and input
         let mut sdl_events = self.sdl_context.event_pump().unwrap();
