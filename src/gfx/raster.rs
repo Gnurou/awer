@@ -212,18 +212,21 @@ impl IndexedImage {
 
 #[derive(Clone)]
 pub struct RasterRenderer {
-    buffers: [RefCell<IndexedImage>; 4],
+    /// We Box the buffers to make sure they end up in the heap. Without this objects embedding
+    /// this renderer may end up being build on the stack, which may not appreciate having 256KB
+    /// requested from it.
+    buffers: Box<[RefCell<IndexedImage>; 4]>,
 }
 
 impl RasterRenderer {
     pub fn new() -> RasterRenderer {
         RasterRenderer {
-            buffers: [
+            buffers: Box::new([
                 RefCell::new(Default::default()),
                 RefCell::new(Default::default()),
                 RefCell::new(Default::default()),
                 RefCell::new(Default::default()),
-            ],
+            ]),
         }
     }
 
