@@ -3,8 +3,8 @@ use std::convert::TryFrom;
 use sdl2::{
     pixels::PixelFormat,
     rect::Rect,
-    render::{Canvas, Texture, TextureCreator},
-    video::{Window, WindowContext},
+    render::{Canvas, Texture},
+    video::Window,
     Sdl,
 };
 
@@ -23,9 +23,6 @@ use super::WINDOW_RESOLUTION;
 /// any kind of hardware acceleration.
 pub struct Sdl2CanvasGfx {
     canvas: Canvas<Window>,
-    // Textures are owned by their texture creator, so we need to keep this
-    // around.
-    _texture_creator: TextureCreator<WindowContext>,
     texture: Texture,
     pixel_format: PixelFormat,
     bytes_per_pixel: usize,
@@ -59,7 +56,6 @@ impl Sdl2CanvasGfx {
 
         Ok(Box::new(Sdl2CanvasGfx {
             canvas,
-            _texture_creator: texture_creator,
             texture,
             pixel_format,
             bytes_per_pixel,
