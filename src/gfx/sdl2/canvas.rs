@@ -161,16 +161,12 @@ impl Sdl2Display for Sdl2CanvasGfx {
     fn window(&self) -> &Window {
         self.canvas.window()
     }
-}
 
-impl AsRef<dyn gfx::Gfx> for Sdl2CanvasGfx {
-    fn as_ref(&self) -> &(dyn gfx::Gfx + 'static) {
+    fn as_gfx(&self) -> &dyn Gfx {
         self
     }
-}
 
-impl AsMut<dyn gfx::Gfx> for Sdl2CanvasGfx {
-    fn as_mut(&mut self) -> &mut (dyn gfx::Gfx + 'static) {
+    fn as_gfx_mut(&mut self) -> &mut dyn Gfx {
         self
     }
 }

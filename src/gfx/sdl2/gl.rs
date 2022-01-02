@@ -173,6 +173,14 @@ impl Sdl2Display for Sdl2GlGfx {
             }
         }
     }
+
+    fn as_gfx(&self) -> &dyn gfx::Gfx {
+        self
+    }
+
+    fn as_gfx_mut(&mut self) -> &mut dyn gfx::Gfx {
+        self
+    }
 }
 
 impl gfx::IndexedRenderer for Sdl2GlGfx {
@@ -249,15 +257,3 @@ impl Snapshotable for Sdl2GlGfx {
 }
 
 impl gfx::Gfx for Sdl2GlGfx {}
-
-impl AsRef<dyn gfx::Gfx> for Sdl2GlGfx {
-    fn as_ref(&self) -> &(dyn gfx::Gfx + 'static) {
-        self
-    }
-}
-
-impl AsMut<dyn gfx::Gfx> for Sdl2GlGfx {
-    fn as_mut(&mut self) -> &mut (dyn gfx::Gfx + 'static) {
-        self
-    }
-}

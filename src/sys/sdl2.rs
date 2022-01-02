@@ -57,14 +57,10 @@ pub fn new_from_args(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
     }))
 }
 
-fn take_snapshot<G: gfx::Gfx + ?Sized, T: AsRef<G> + ?Sized>(
-    history: &mut VecDeque<VmSnapshot>,
-    vm: &Vm,
-    gfx: &T,
-) {
+fn take_snapshot<G: gfx::Gfx + ?Sized>(history: &mut VecDeque<VmSnapshot>, vm: &Vm, gfx: &G) {
     const MAX_GAME_SNAPSHOTS: usize = 50;
 
-    history.push_front(VmSnapshot::new(vm, gfx.as_ref()));
+    history.push_front(VmSnapshot::new(vm, gfx));
 
     while history.len() > MAX_GAME_SNAPSHOTS {
         history.pop_back();
@@ -87,7 +83,7 @@ impl<D: Sdl2Display + ?Sized> Sys for Sdl2Sys<D> {
         const TICKS_PER_SNAPSHOT: usize = 200;
         let mut history: VecDeque<VmSnapshot> = VecDeque::new();
         let mut snapshot_cpt = 0;
-        take_snapshot(&mut history, vm, self.display.as_ref());
+        take_snapshot(&mut history, vm, self.display.as_gfx());
 
         // Ignore keys presses from being handled right after window has gained
         // focus to avoid e.g escape being considered if esc was part of the
@@ -131,19 +127,19 @@ impl<D: Sdl2Display + ?Sized> Sys for Sdl2Sys<D> {
                         Keycode::P => pause ^= true,
                         Keycode::B => {
                             if let Some(state) = history.pop_front() {
-                                state.restore(vm, (*self.display).as_mut());
+                                state.restore(vm, self.display.as_gfx_mut());
                                 snapshot_cpt = 0;
                             }
 
                             // If we are back to the first state, keep a copy.
                             if history.is_empty() {
-                                take_snapshot(&mut history, vm, self.display.as_ref());
+                                take_snapshot(&mut history, vm, self.display.as_gfx());
                             }
                         }
                         Keycode::N if pause => {
-                            take_snapshot(&mut history, vm, self.display.as_ref());
+                            take_snapshot(&mut history, vm, self.display.as_gfx());
                             vm.update_input(&input);
-                            vm.process((*self.display).as_mut());
+                            vm.process(self.display.as_gfx_mut());
                             ticks_to_wait = vm.get_frames_to_wait();
                         }
                         _ => {}
@@ -195,12 +191,12 @@ impl<D: Sdl2Display + ?Sized> Sys for Sdl2Sys<D> {
             for _ in 0..ticks_to_run {
                 snapshot_cpt += 1;
                 if snapshot_cpt == TICKS_PER_SNAPSHOT {
-                    take_snapshot(&mut history, vm, self.display.as_ref());
+                    take_snapshot(&mut history, vm, self.display.as_gfx());
                     snapshot_cpt = 0;
                 }
 
                 if ticks_to_wait == 0 {
-                    if !vm.process((*self.display).as_mut()) {
+                    if !vm.process(self.display.as_gfx_mut()) {
                         error!("0 threads to run, exiting.");
                         break 'run;
                     }
