@@ -1,5 +1,5 @@
-pub mod gl_display;
-pub mod raster_display;
+pub mod canvas;
+pub mod gl;
 
 use sdl2::{event::Event, rect::Rect, video::Window};
 

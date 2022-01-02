@@ -7,7 +7,7 @@ use std::{
 use anyhow::{anyhow, Result};
 
 use crate::{
-    gfx::{Palette, Point, Renderer, SCREEN_RESOLUTION},
+    gfx::{IndexedRenderer, Point, SCREEN_RESOLUTION},
     sys::Snapshotable,
 };
 
@@ -212,36 +212,27 @@ impl IndexedImage {
 
 #[derive(Clone)]
 pub struct RasterRenderer {
-    /// Palette currently on display.
-    palette: Palette,
     buffers: [RefCell<IndexedImage>; 4],
-    framebuffer_index: usize,
 }
 
 impl RasterRenderer {
     pub fn new() -> RasterRenderer {
         RasterRenderer {
-            palette: Default::default(),
             buffers: [
                 RefCell::new(Default::default()),
                 RefCell::new(Default::default()),
                 RefCell::new(Default::default()),
                 RefCell::new(Default::default()),
             ],
-            framebuffer_index: 0,
         }
     }
 
-    pub fn get_framebuffer(&self) -> Ref<'_, IndexedImage> {
-        self.buffers[self.framebuffer_index].borrow()
-    }
-
-    pub fn get_palette(&self) -> &Palette {
-        &self.palette
+    pub fn get_buffer(&self, page_id: usize) -> Ref<'_, IndexedImage> {
+        self.buffers[page_id].borrow()
     }
 }
 
-impl Renderer for RasterRenderer {
+impl IndexedRenderer for RasterRenderer {
     fn fillvideopage(&mut self, dst_page_id: usize, color_idx: u8) {
         let mut dst = self.buffers[dst_page_id].borrow_mut();
 
@@ -351,11 +342,6 @@ impl Renderer for RasterRenderer {
                 }
             })
         }
-    }
-
-    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
-        self.framebuffer_index = page_id;
-        self.palette = palette.clone();
     }
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {

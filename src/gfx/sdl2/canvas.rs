@@ -10,16 +10,19 @@ use sdl2::{
 
 use anyhow::{anyhow, Result};
 
-use crate::gfx::{self, raster::RasterRenderer, sdl2::Sdl2Display, Color};
+use crate::{
+    gfx::{self, raster::RasterRenderer, sdl2::Sdl2Display, Color, Gfx, Palette},
+    sys::Snapshotable,
+};
 
 use super::WINDOW_RESOLUTION;
 
-/// A display that renders the game into a SDL Texture, using only Texture and Canvas methods. The
-/// rendered texture is then stretched to fit the display when rendered.
+/// A gfx module that renders the game using the CPU into a SDL Texture, using only Texture and
+/// Canvas methods. The rendered texture is then stretched to fit the display when rendered.
 ///
 /// This way of doing does not rely on any particular SDL driver, i.e. it does not require OpenGL or
 /// any kind of hardware acceleration.
-pub struct Sdl2RasterDisplay {
+pub struct Sdl2CanvasGfx {
     canvas: Canvas<Window>,
     // Textures are owned by their texture creator, so we need to keep this
     // around.
@@ -31,7 +34,7 @@ pub struct Sdl2RasterDisplay {
     raster: RasterRenderer,
 }
 
-impl Sdl2RasterDisplay {
+impl Sdl2CanvasGfx {
     /// Create a new raster display, using the given SDL context. This takes
     /// care of creating the window, canvas, and everything we need to draw.
     pub fn new(sdl_context: &Sdl) -> Result<Box<Self>> {
@@ -55,7 +58,7 @@ impl Sdl2RasterDisplay {
             gfx::SCREEN_RESOLUTION[1] as u32,
         )?;
 
-        Ok(Box::new(Sdl2RasterDisplay {
+        Ok(Box::new(Sdl2CanvasGfx {
             canvas,
             _texture_creator: texture_creator,
             texture,
@@ -64,10 +67,42 @@ impl Sdl2RasterDisplay {
             raster: RasterRenderer::new(),
         }))
     }
+}
 
-    fn redraw(&mut self) {
-        // First generate the true color palette
-        let palette = self.raster.get_palette();
+impl gfx::IndexedRenderer for Sdl2CanvasGfx {
+    fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
+        self.raster.fillvideopage(page_id, color_idx)
+    }
+
+    fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16) {
+        self.raster.copyvideopage(src_page_id, dst_page_id, vscroll)
+    }
+
+    fn fillpolygon(
+        &mut self,
+        dst_page_id: usize,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        color_idx: u8,
+        zoom: u16,
+        bb: (u8, u8),
+        points: &[gfx::Point<u8>],
+    ) {
+        self.raster
+            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points)
+    }
+
+    fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8) {
+        self.raster.draw_char(dst_page_id, pos, color_idx, c)
+    }
+
+    fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
+        self.raster.blit_buffer(dst_page_id, buffer)
+    }
+}
+
+impl gfx::Display for Sdl2CanvasGfx {
+    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
         let palette_to_color = {
             let mut palette_to_color = [0u32; gfx::PALETTE_SIZE];
             for (i, color) in palette_to_color.iter_mut().enumerate() {
@@ -78,7 +113,7 @@ impl Sdl2RasterDisplay {
         };
 
         // Avoid borrowing self in the closure
-        let framebuffer = self.raster.get_framebuffer();
+        let framebuffer = self.raster.get_buffer(page_id);
         let bytes_per_pixel = self.bytes_per_pixel;
 
         let render_into_texture = |texture: &mut [u8], pitch: usize| {
@@ -101,9 +136,22 @@ impl Sdl2RasterDisplay {
     }
 }
 
-impl Sdl2Display for Sdl2RasterDisplay {
+impl Snapshotable for Sdl2CanvasGfx {
+    type State = <RasterRenderer as Snapshotable>::State;
+
+    fn take_snapshot(&self) -> Self::State {
+        self.raster.take_snapshot()
+    }
+
+    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
+        self.raster.restore_snapshot(snapshot)
+    }
+}
+
+impl Gfx for Sdl2CanvasGfx {}
+
+impl Sdl2Display for Sdl2CanvasGfx {
     fn blit_game(&mut self, dst: &Rect) {
-        self.redraw();
         // Clear screen
         self.canvas
             .set_draw_color(sdl2::pixels::Color::RGB(0, 0, 0));
@@ -119,14 +167,14 @@ impl Sdl2Display for Sdl2RasterDisplay {
     }
 }
 
-impl AsRef<dyn gfx::Renderer> for Sdl2RasterDisplay {
-    fn as_ref(&self) -> &(dyn gfx::Renderer + 'static) {
-        &self.raster
+impl AsRef<dyn gfx::Gfx> for Sdl2CanvasGfx {
+    fn as_ref(&self) -> &(dyn gfx::Gfx + 'static) {
+        self
     }
 }
 
-impl AsMut<dyn gfx::Renderer> for Sdl2RasterDisplay {
-    fn as_mut(&mut self) -> &mut (dyn gfx::Renderer + 'static) {
-        &mut self.raster
+impl AsMut<dyn gfx::Gfx> for Sdl2CanvasGfx {
+    fn as_mut(&mut self) -> &mut (dyn gfx::Gfx + 'static) {
+        self
     }
 }

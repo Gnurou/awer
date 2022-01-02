@@ -39,7 +39,7 @@ pub enum RenderingMode {
 /// render into a 16-color indexed texture that is then converted into a true-color texture.
 ///
 /// This display can safely be used along with other GL libraries, like ImGUI.
-pub struct Sdl2GlDisplay {
+pub struct Sdl2GlGfx {
     rendering_mode: RenderingMode,
     window: Window,
     _opengl_context: GLContext,
@@ -48,6 +48,7 @@ pub struct Sdl2GlDisplay {
     poly_renderer: GlPolyRenderer,
 
     framebuffer_renderer: IndexedFrameRenderer,
+    palette: Palette,
 }
 
 struct State {
@@ -55,7 +56,7 @@ struct State {
     poly_renderer: Box<dyn Any>,
 }
 
-impl Sdl2GlDisplay {
+impl Sdl2GlGfx {
     pub fn new(sdl_context: &Sdl, rendering_mode: RenderingMode) -> Result<Box<Self>> {
         let sdl_video = sdl_context.video().map_err(|s| anyhow!(s))?;
 
@@ -84,7 +85,7 @@ impl Sdl2GlDisplay {
         }
 
         let window_size = window.size();
-        Ok(Box::new(Sdl2GlDisplay {
+        Ok(Box::new(Sdl2GlGfx {
             rendering_mode,
             window,
             _opengl_context: opengl_context,
@@ -103,27 +104,26 @@ impl Sdl2GlDisplay {
                 )?
             },
             framebuffer_renderer: IndexedFrameRenderer::new()?,
+            palette: Default::default(),
         }))
     }
 }
 
-impl Sdl2Display for Sdl2GlDisplay {
+impl Sdl2Display for Sdl2GlGfx {
     fn blit_game(&mut self, dst: &Rect) {
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
 
-        let (framebuffer_texture, current_palette) = match self.rendering_mode {
-            RenderingMode::Raster => self.raster_renderer.get_framebuffer_texture_and_palette(),
-            RenderingMode::Poly | RenderingMode::Line => {
-                self.poly_renderer.get_framebuffer_texture_and_palette()
-            }
+        let framebuffer_texture = match self.rendering_mode {
+            RenderingMode::Raster => self.raster_renderer.get_texture(),
+            RenderingMode::Poly | RenderingMode::Line => self.poly_renderer.get_texture(),
         };
 
         self.framebuffer_renderer.render_into(
             framebuffer_texture,
-            current_palette,
+            &self.palette,
             0,
             &Viewport {
                 x: dst.x(),
@@ -175,7 +175,7 @@ impl Sdl2Display for Sdl2GlDisplay {
     }
 }
 
-impl gfx::Renderer for Sdl2GlDisplay {
+impl gfx::IndexedRenderer for Sdl2GlGfx {
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         self.raster_renderer.fillvideopage(page_id, color_idx);
         self.poly_renderer.fillvideopage(page_id, color_idx);
@@ -210,18 +210,23 @@ impl gfx::Renderer for Sdl2GlDisplay {
         self.poly_renderer.draw_char(dst_page_id, pos, color_idx, c);
     }
 
-    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
-        self.raster_renderer.blitframebuffer(page_id, palette);
-        self.poly_renderer.blitframebuffer(page_id, palette);
-    }
-
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
         self.raster_renderer.blit_buffer(dst_page_id, buffer);
         self.poly_renderer.blit_buffer(dst_page_id, buffer);
     }
 }
 
-impl Snapshotable for Sdl2GlDisplay {
+impl gfx::Display for Sdl2GlGfx {
+    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
+        self.palette = palette.clone();
+        match self.rendering_mode {
+            RenderingMode::Raster => self.raster_renderer.update_texture(page_id),
+            RenderingMode::Poly | RenderingMode::Line => self.poly_renderer.update_texture(page_id),
+        };
+    }
+}
+
+impl Snapshotable for Sdl2GlGfx {
     type State = Box<dyn Any>;
 
     fn take_snapshot(&self) -> Self::State {
@@ -243,14 +248,16 @@ impl Snapshotable for Sdl2GlDisplay {
     }
 }
 
-impl AsRef<dyn gfx::Renderer> for Sdl2GlDisplay {
-    fn as_ref(&self) -> &(dyn gfx::Renderer + 'static) {
+impl gfx::Gfx for Sdl2GlGfx {}
+
+impl AsRef<dyn gfx::Gfx> for Sdl2GlGfx {
+    fn as_ref(&self) -> &(dyn gfx::Gfx + 'static) {
         self
     }
 }
 
-impl AsMut<dyn gfx::Renderer> for Sdl2GlDisplay {
-    fn as_mut(&mut self) -> &mut (dyn gfx::Renderer + 'static) {
+impl AsMut<dyn gfx::Gfx> for Sdl2GlGfx {
+    fn as_mut(&mut self) -> &mut (dyn gfx::Gfx + 'static) {
         self
     }
 }

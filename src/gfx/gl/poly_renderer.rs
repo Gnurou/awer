@@ -8,14 +8,12 @@ use gl::types::{GLint, GLuint};
 pub use programs::PolyRenderingMode;
 
 use crate::{
-    gfx::{self, polygon::Polygon, raster::IndexedImage, Palette, Point},
+    gfx::{self, gl::IndexedTexture, polygon::Polygon, raster::IndexedImage, Point},
     sys::Snapshotable,
 };
 use anyhow::Result;
 
 use self::programs::*;
-
-use super::IndexedTexture;
 
 /// Draw command for a polygon, requesting it to be drawn at coordinates (`x`,
 /// `y`) and with color `color`.
@@ -79,7 +77,6 @@ pub struct GlPolyRenderer {
 
     draw_commands: [Vec<DrawCommand>; 4],
     framebuffer_index: usize,
-    palette: Palette,
 
     target_fbo: GLuint,
 
@@ -92,7 +89,6 @@ pub struct GlPolyRenderer {
 struct State {
     draw_commands: [Vec<DrawCommand>; 4],
     framebuffer_index: usize,
-    palette: Palette,
 }
 
 impl Drop for GlPolyRenderer {
@@ -123,7 +119,6 @@ impl GlPolyRenderer {
 
             draw_commands: Default::default(),
             framebuffer_index: 0,
-            palette: Default::default(),
 
             target_fbo,
 
@@ -148,8 +143,13 @@ impl GlPolyRenderer {
         self.redraw();
     }
 
-    pub fn get_framebuffer_texture_and_palette(&mut self) -> (&IndexedTexture, &Palette) {
-        (&self.render_texture_framebuffer, &self.palette)
+    pub fn update_texture(&mut self, page_id: usize) {
+        self.framebuffer_index = page_id;
+        self.redraw();
+    }
+
+    pub fn get_texture(&self) -> &IndexedTexture {
+        &self.render_texture_framebuffer
     }
 
     fn run_command_list(&mut self, commands_index: usize, rendering_mode: PolyRenderingMode) {
@@ -219,7 +219,7 @@ impl GlPolyRenderer {
     }
 }
 
-impl gfx::Renderer for GlPolyRenderer {
+impl gfx::IndexedRenderer for GlPolyRenderer {
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         let commands = &mut self.draw_commands[page_id];
         commands.clear();
@@ -279,13 +279,6 @@ impl gfx::Renderer for GlPolyRenderer {
         command_queue.push(DrawCommand::Char(CharDrawCommand::new(pos, color, c)));
     }
 
-    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
-        self.framebuffer_index = page_id;
-        self.palette = palette.clone();
-
-        self.redraw();
-    }
-
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
         let mut image: IndexedImage = Default::default();
         image
@@ -304,7 +297,6 @@ impl Snapshotable for GlPolyRenderer {
         Box::new(State {
             draw_commands: self.draw_commands.clone(),
             framebuffer_index: self.framebuffer_index,
-            palette: self.palette.clone(),
         })
     }
 
@@ -312,8 +304,6 @@ impl Snapshotable for GlPolyRenderer {
         if let Ok(state) = snapshot.downcast::<State>() {
             self.draw_commands = state.draw_commands;
             self.framebuffer_index = state.framebuffer_index;
-            self.palette = state.palette;
-            self.redraw();
             true
         } else {
             log::error!("Attempting to restore invalid gfx snapshot, ignoring");

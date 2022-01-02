@@ -2,7 +2,7 @@ use anyhow::Result;
 use gfx::SCREEN_RESOLUTION;
 
 use crate::{
-    gfx::{self, gl::IndexedTexture, raster::RasterRenderer, Palette},
+    gfx::{self, gl::IndexedTexture, raster::RasterRenderer},
     sys::Snapshotable,
 };
 
@@ -25,14 +25,17 @@ impl GlRasterRenderer {
         })
     }
 
-    pub fn get_framebuffer_texture_and_palette(&mut self) -> (&IndexedTexture, &Palette) {
+    pub fn update_texture(&mut self, page_id: usize) {
         self.framebuffer_texture
-            .set_data(&*self.raster.get_framebuffer(), 0, 0);
-        (&self.framebuffer_texture, self.raster.get_palette())
+            .set_data(&*self.raster.get_buffer(page_id), 0, 0);
+    }
+
+    pub fn get_texture(&self) -> &IndexedTexture {
+        &self.framebuffer_texture
     }
 }
 
-impl gfx::Renderer for GlRasterRenderer {
+impl gfx::IndexedRenderer for GlRasterRenderer {
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         self.raster.fillvideopage(page_id, color_idx)
     }
@@ -59,10 +62,6 @@ impl gfx::Renderer for GlRasterRenderer {
         self.raster.draw_char(dst_page_id, pos, color_idx, c)
     }
 
-    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
-        self.raster.blitframebuffer(page_id, palette)
-    }
-
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
         self.raster.blit_buffer(dst_page_id, buffer)
     }
@@ -77,5 +76,11 @@ impl Snapshotable for GlRasterRenderer {
 
     fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
         self.raster.restore_snapshot(snapshot)
+    }
+}
+
+impl AsMut<RasterRenderer> for GlRasterRenderer {
+    fn as_mut(&mut self) -> &mut RasterRenderer {
+        &mut self.raster
     }
 }

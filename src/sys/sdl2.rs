@@ -11,8 +11,8 @@ use crate::{
     gfx::{
         self,
         sdl2::{
-            gl_display::{RenderingMode, Sdl2GlDisplay},
-            raster_display::Sdl2RasterDisplay,
+            canvas::Sdl2CanvasGfx,
+            gl::{RenderingMode, Sdl2GlGfx},
             Sdl2Display,
         },
     },
@@ -30,9 +30,9 @@ use std::{
 const TICKS_PER_SECOND: u64 = 50;
 const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
 
-trait Sdl2Gfx: Sdl2Display + AsRef<dyn gfx::Renderer> + AsMut<dyn gfx::Renderer> {}
-impl Sdl2Gfx for Sdl2RasterDisplay {}
-impl Sdl2Gfx for Sdl2GlDisplay {}
+trait Sdl2Gfx: Sdl2Display + AsRef<dyn gfx::Gfx> + AsMut<dyn gfx::Gfx> {}
+impl Sdl2Gfx for Sdl2CanvasGfx {}
+impl Sdl2Gfx for Sdl2GlGfx {}
 
 pub struct Sdl2Sys {
     sdl_context: Sdl,
@@ -47,10 +47,10 @@ pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
         .ok()?;
 
     let display: Box<dyn Sdl2Gfx> = match matches.value_of("render").unwrap_or("raster") {
-        "raster" => Sdl2RasterDisplay::new(&sdl_context).ok()?,
-        "gl_raster" => Sdl2GlDisplay::new(&sdl_context, RenderingMode::Raster).ok()?,
-        "gl_poly" => Sdl2GlDisplay::new(&sdl_context, RenderingMode::Poly).ok()?,
-        "gl_line" => Sdl2GlDisplay::new(&sdl_context, RenderingMode::Line).ok()?,
+        "raster" => Sdl2CanvasGfx::new(&sdl_context).ok()?,
+        "gl_raster" => Sdl2GlGfx::new(&sdl_context, RenderingMode::Raster).ok()?,
+        "gl_poly" => Sdl2GlGfx::new(&sdl_context, RenderingMode::Poly).ok()?,
+        "gl_line" => Sdl2GlGfx::new(&sdl_context, RenderingMode::Line).ok()?,
         _ => return None,
     };
 
@@ -60,7 +60,7 @@ pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
     }))
 }
 
-fn take_snapshot<T: AsRef<dyn gfx::Renderer> + ?Sized>(
+fn take_snapshot<T: AsRef<dyn gfx::Gfx> + ?Sized>(
     history: &mut VecDeque<VmSnapshot>,
     vm: &Vm,
     gfx: &T,
@@ -146,7 +146,7 @@ impl Sys for Sdl2Sys {
                         Keycode::N if pause => {
                             take_snapshot(&mut history, vm, self.display.as_ref());
                             vm.update_input(&input);
-                            vm.process(self.display.as_mut().as_mut());
+                            vm.process(self.display.as_mut());
                             ticks_to_wait = vm.get_frames_to_wait();
                         }
                         _ => {}
@@ -203,7 +203,7 @@ impl Sys for Sdl2Sys {
                 }
 
                 if ticks_to_wait == 0 {
-                    if !vm.process(self.display.as_mut().as_mut()) {
+                    if !vm.process(self.display.as_mut()) {
                         error!("0 threads to run, exiting.");
                         break 'run;
                     }

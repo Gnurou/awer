@@ -127,7 +127,7 @@ pub struct VmSnapshot {
 
 impl VmSnapshot {
     /// Create a new snapshot from the game's Vm and Renderer.
-    pub fn new<T: AsRef<dyn gfx::Renderer> + ?Sized>(vm: &Vm, gfx: &T) -> Self {
+    pub fn new<T: AsRef<dyn gfx::Gfx> + ?Sized>(vm: &Vm, gfx: &T) -> Self {
         VmSnapshot {
             vm_state: vm.take_snapshot(),
             gfx_state: gfx.as_ref().take_snapshot(),
@@ -135,7 +135,7 @@ impl VmSnapshot {
     }
 
     /// Restore a previously captured snapshot into `vm` and `gfx`.
-    pub fn restore<T: AsMut<dyn gfx::Renderer> + ?Sized>(self, vm: &mut Vm, gfx: &mut T) {
+    pub fn restore<T: AsMut<dyn gfx::Gfx> + ?Sized>(self, vm: &mut Vm, gfx: &mut T) {
         vm.restore_snapshot(self.vm_state);
         gfx.as_mut().restore_snapshot(self.gfx_state);
     }
@@ -204,7 +204,7 @@ impl Vm {
         self.state.regs[i] = v;
     }
 
-    fn process_thread(&mut self, cur_thread: usize, pc: u64, gfx: &mut dyn gfx::Renderer) {
+    fn process_thread(&mut self, cur_thread: usize, pc: u64, gfx: &mut dyn gfx::Gfx) {
         let mut cursor = self.code.get_cursor(pc);
 
         loop {
@@ -258,7 +258,7 @@ impl Vm {
 
             // Gfx op - display stuff on screen.
             type GfxOp =
-                fn(u8, &mut Cursor<&[u8]>, &mut VmState, &VmSys, &mut dyn gfx::Renderer) -> bool;
+                fn(u8, &mut Cursor<&[u8]>, &mut VmState, &VmSys, &mut dyn gfx::Gfx) -> bool;
             let op: Option<GfxOp> = match opcode {
                 op if op & 0x80 == 0x80 => Some(op_sprs),
                 op if op & 0xc0 == 0x40 => Some(op_sprl),
@@ -345,7 +345,7 @@ impl Vm {
         self.set_reg(VM_VARIABLE_HERO_ACTION_POS_MASK, mask);
     }
 
-    pub fn process_step(&mut self, gfx: &mut dyn gfx::Renderer) -> usize {
+    pub fn process_step(&mut self, gfx: &mut dyn gfx::Gfx) -> usize {
         // Check if we need to switch to a new part of the game.
         if let Some(requested_scene) = self.state.requested_scene.take() {
             info!("Loading scene {}", requested_scene);
@@ -395,11 +395,11 @@ impl Vm {
         nb_threads
     }
 
-    pub fn process(&mut self, gfx: &mut dyn gfx::Renderer) -> bool {
+    pub fn process<T: AsMut<dyn gfx::Gfx> + ?Sized>(&mut self, gfx: &mut T) -> bool {
         debug!("===================");
         debug!("Starting round {}", self.round);
         debug!("===================");
-        let nb_threads = self.process_step(gfx);
+        let nb_threads = self.process_step(gfx.as_mut());
         debug!(
             "Ending round {}: {} threads have run",
             self.round, nb_threads

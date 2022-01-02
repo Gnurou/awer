@@ -8,15 +8,15 @@ pub mod sdl2;
 use log::debug;
 use std::{
     any::Any,
-    fmt::{Debug, Display, Formatter, Result},
+    fmt::{self, Debug, Formatter, Result},
 };
 
 use crate::sys::Snapshotable;
 
 pub const SCREEN_RESOLUTION: [usize; 2] = [320, 200];
 
-/// Trait defining the methods necessary to render frames of the game.
-pub trait Renderer: Snapshotable<State = Box<dyn Any>> {
+/// Trait for rendering the game using four 16-color indexed buffers.
+pub trait IndexedRenderer {
     /// Fill video page `page_id` entirely with color `color_idx`.
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8);
     /// Copy video page `src_page_id` into `dst_page_id`. `vscroll` is a vertical offset
@@ -41,14 +41,20 @@ pub trait Renderer: Snapshotable<State = Box<dyn Any>> {
     );
     /// Draw character `c` at position `pos` of page `dst_page_id` with color `color_idx`.
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8);
-    /// Make `page_id` the current framebuffer, i.e. the buffer that will be shown next
-    /// on screen, using `palette` as its color scheme.
-    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette);
     /// Blit `buffer` (a bitmap of full screen size) into `dst_page_id`. This is used
     /// as an alternative to creating scenes using polys notably in later scenes of
     /// the game (maybe because of lack of time?).
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]);
 }
+
+/// Trait for rendering an indexed-color buffer using a given palette on the screen.
+pub trait Display {
+    /// Show `page_id` on the screen, using `palette` to render its actual colors.
+    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette);
+}
+
+/// Trait providing the methods necessary for the VM to render the game.
+pub trait Gfx: IndexedRenderer + Display + Snapshotable<State = Box<dyn Any>> {}
 
 // We need repr(C) because we are going to interpret raw arrays of values as
 // arrays of Points.
@@ -59,13 +65,13 @@ pub struct Point<T> {
     pub y: T,
 }
 
-impl<T: Display> Display for Point<T> {
+impl<T: fmt::Display> fmt::Display for Point<T> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(f, "({},{})", self.x, self.y)
     }
 }
 
-impl<T: Display> Debug for Point<T> {
+impl<T: fmt::Display> Debug for Point<T> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(f, "({},{})", self.x, self.y)
     }
