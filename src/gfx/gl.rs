@@ -183,6 +183,15 @@ impl IndexedTexture {
     }
 }
 
+/// Trait for maintaining a 16-colors indexed texture of the rendered game screen that can be used
+/// to display the game on screen.
+///
+/// The texture itself can be accessed using the required `AsRef` implementation.
+pub trait GlGameTexture: AsRef<IndexedTexture> {
+    /// Update the texture by rendering buffer `page_id` into it.
+    fn update_texture(&mut self, page_id: usize);
+}
+
 pub struct Viewport {
     pub x: GLint,
     pub y: GLint,

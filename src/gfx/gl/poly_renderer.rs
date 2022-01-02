@@ -15,6 +15,8 @@ use anyhow::Result;
 
 use self::programs::*;
 
+use super::GlGameTexture;
+
 /// Draw command for a polygon, requesting it to be drawn at coordinates (`x`,
 /// `y`) and with color `color`.
 #[derive(Clone)]
@@ -141,15 +143,6 @@ impl GlPolyRenderer {
         self.render_texture_buffer0 = IndexedTexture::new(width, height);
         self.render_texture_framebuffer = IndexedTexture::new(width, height);
         self.redraw();
-    }
-
-    pub fn update_texture(&mut self, page_id: usize) {
-        self.framebuffer_index = page_id;
-        self.redraw();
-    }
-
-    pub fn get_texture(&self) -> &IndexedTexture {
-        &self.render_texture_framebuffer
     }
 
     fn run_command_list(&mut self, commands_index: usize, rendering_mode: PolyRenderingMode) {
@@ -309,5 +302,18 @@ impl Snapshotable for GlPolyRenderer {
             log::error!("Attempting to restore invalid gfx snapshot, ignoring");
             false
         }
+    }
+}
+
+impl AsRef<IndexedTexture> for GlPolyRenderer {
+    fn as_ref(&self) -> &IndexedTexture {
+        &self.render_texture_framebuffer
+    }
+}
+
+impl GlGameTexture for GlPolyRenderer {
+    fn update_texture(&mut self, page_id: usize) {
+        self.framebuffer_index = page_id;
+        self.redraw();
     }
 }

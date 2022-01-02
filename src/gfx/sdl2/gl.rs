@@ -17,8 +17,9 @@ use crate::{
             indexed_frame_renderer::IndexedFrameRenderer,
             poly_renderer::{GlPolyRenderer, PolyRenderingMode},
             raster_renderer::GlRasterRenderer,
-            Viewport,
+            GlGameTexture, Viewport,
         },
+        raster::RasterRenderer,
         sdl2::{Sdl2Display, WINDOW_RESOLUTION},
         Palette, Point,
     },
@@ -117,8 +118,8 @@ impl Sdl2Display for Sdl2GlGfx {
         }
 
         let framebuffer_texture = match self.rendering_mode {
-            RenderingMode::Raster => self.raster_renderer.get_texture(),
-            RenderingMode::Poly | RenderingMode::Line => self.poly_renderer.get_texture(),
+            RenderingMode::Raster => self.raster_renderer.as_ref(),
+            RenderingMode::Poly | RenderingMode::Line => self.poly_renderer.as_ref(),
         };
 
         self.framebuffer_renderer.render_into(
@@ -244,7 +245,7 @@ impl Snapshotable for Sdl2GlGfx {
 
     fn take_snapshot(&self) -> Self::State {
         Box::new(State {
-            raster_renderer: self.raster_renderer.as_ref().take_snapshot(),
+            raster_renderer: AsRef::<RasterRenderer>::as_ref(&self.raster_renderer).take_snapshot(),
             poly_renderer: self.poly_renderer.take_snapshot(),
         })
     }

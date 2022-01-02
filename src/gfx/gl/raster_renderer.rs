@@ -3,6 +3,8 @@ use gfx::SCREEN_RESOLUTION;
 
 use crate::gfx::{self, gl::IndexedTexture, raster::RasterRenderer};
 
+use super::GlGameTexture;
+
 // A simple proxy struct for a `RasterRenderer` with the ability to obtain a texture from any of the
 // rendered buffers that can be used with OpenGL.
 pub struct GlRasterRenderer {
@@ -20,14 +22,18 @@ impl GlRasterRenderer {
             framebuffer_texture: IndexedTexture::new(SCREEN_RESOLUTION[0], SCREEN_RESOLUTION[1]),
         })
     }
+}
 
-    pub fn update_texture(&mut self, page_id: usize) {
+impl AsRef<IndexedTexture> for GlRasterRenderer {
+    fn as_ref(&self) -> &IndexedTexture {
+        &self.framebuffer_texture
+    }
+}
+
+impl GlGameTexture for GlRasterRenderer {
+    fn update_texture(&mut self, page_id: usize) {
         self.framebuffer_texture
             .set_data(&*self.raster.get_buffer(page_id), 0, 0);
-    }
-
-    pub fn get_texture(&self) -> &IndexedTexture {
-        &self.framebuffer_texture
     }
 }
 
