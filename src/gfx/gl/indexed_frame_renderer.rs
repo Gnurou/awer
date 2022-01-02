@@ -74,10 +74,11 @@ impl IndexedFrameRenderer {
         Ok(IndexedFrameRenderer { vao, vbo, program })
     }
 
-    /// Renders `framebuffer` using the color `palette` into `target_framebuffer`.
-    /// `target_framebuffer` must either be a valid FBO, or `0` in which case
-    /// the default framebuffer will be used.
-    pub fn render_into(
+    /// Renders `source` using the color `palette` into `target_framebuffer`.
+    ///
+    /// `target_framebuffer` must either be a valid FBO, or `0` in which case the default
+    /// framebuffer will be used.
+    pub fn render(
         &self,
         source: &IndexedTexture,
         palette: &Palette,

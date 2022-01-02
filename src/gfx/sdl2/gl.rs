@@ -122,7 +122,7 @@ impl Sdl2Display for Sdl2GlGfx {
             RenderingMode::Poly | RenderingMode::Line => self.poly_renderer.as_ref(),
         };
 
-        self.framebuffer_renderer.render_into(
+        self.framebuffer_renderer.render(
             framebuffer_texture,
             &self.palette,
             0,
