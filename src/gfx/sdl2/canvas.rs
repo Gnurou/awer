@@ -33,7 +33,7 @@ pub struct Sdl2CanvasGfx {
 impl Sdl2CanvasGfx {
     /// Create a new raster display, using the given SDL context. This takes
     /// care of creating the window, canvas, and everything we need to draw.
-    pub fn new(sdl_context: &Sdl) -> Result<Box<Self>> {
+    pub fn new(sdl_context: &Sdl) -> Result<Self> {
         let sdl_video = sdl_context.video().map_err(|s| anyhow!(s))?;
 
         let window = sdl_video
@@ -54,13 +54,13 @@ impl Sdl2CanvasGfx {
             gfx::SCREEN_RESOLUTION[1] as u32,
         )?;
 
-        Ok(Box::new(Sdl2CanvasGfx {
+        Ok(Sdl2CanvasGfx {
             canvas,
             texture,
             pixel_format,
             bytes_per_pixel,
             raster: RasterRenderer::new(),
-        }))
+        })
     }
 }
 

@@ -58,7 +58,7 @@ struct State {
 }
 
 impl Sdl2GlGfx {
-    pub fn new(sdl_context: &Sdl, rendering_mode: RenderingMode) -> Result<Box<Self>> {
+    pub fn new(sdl_context: &Sdl, rendering_mode: RenderingMode) -> Result<Self> {
         let sdl_video = sdl_context.video().map_err(|s| anyhow!(s))?;
 
         let gl_attr = sdl_video.gl_attr();
@@ -86,7 +86,7 @@ impl Sdl2GlGfx {
         }
 
         let window_size = window.size();
-        Ok(Box::new(Sdl2GlGfx {
+        Ok(Sdl2GlGfx {
             rendering_mode,
             window,
             _opengl_context: opengl_context,
@@ -106,7 +106,7 @@ impl Sdl2GlGfx {
             },
             framebuffer_renderer: IndexedFrameRenderer::new()?,
             palette: Default::default(),
-        }))
+        })
     }
 }
 

@@ -44,10 +44,10 @@ pub fn new_from_args(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
         .ok()?;
 
     let display: Box<dyn Sdl2Display> = match matches.value_of("render").unwrap_or("raster") {
-        "raster" => Sdl2CanvasGfx::new(&sdl_context).ok()?,
-        "gl_raster" => Sdl2GlGfx::new(&sdl_context, RenderingMode::Raster).ok()?,
-        "gl_poly" => Sdl2GlGfx::new(&sdl_context, RenderingMode::Poly).ok()?,
-        "gl_line" => Sdl2GlGfx::new(&sdl_context, RenderingMode::Line).ok()?,
+        "raster" => Box::new(Sdl2CanvasGfx::new(&sdl_context).ok()?),
+        "gl_raster" => Box::new(Sdl2GlGfx::new(&sdl_context, RenderingMode::Raster).ok()?),
+        "gl_poly" => Box::new(Sdl2GlGfx::new(&sdl_context, RenderingMode::Poly).ok()?),
+        "gl_line" => Box::new(Sdl2GlGfx::new(&sdl_context, RenderingMode::Line).ok()?),
         _ => return None,
     };
 
