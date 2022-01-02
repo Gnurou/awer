@@ -30,13 +30,9 @@ use std::{
 const TICKS_PER_SECOND: u64 = 50;
 const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
 
-trait Sdl2Gfx: Sdl2Display + AsRef<dyn gfx::Gfx> + AsMut<dyn gfx::Gfx> {}
-impl Sdl2Gfx for Sdl2CanvasGfx {}
-impl Sdl2Gfx for Sdl2GlGfx {}
-
 pub struct Sdl2Sys {
     sdl_context: Sdl,
-    display: Box<dyn Sdl2Gfx>,
+    display: Box<dyn Sdl2Display>,
 }
 
 pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
@@ -46,7 +42,7 @@ pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
         })
         .ok()?;
 
-    let display: Box<dyn Sdl2Gfx> = match matches.value_of("render").unwrap_or("raster") {
+    let display: Box<dyn Sdl2Display> = match matches.value_of("render").unwrap_or("raster") {
         "raster" => Sdl2CanvasGfx::new(&sdl_context).ok()?,
         "gl_raster" => Sdl2GlGfx::new(&sdl_context, RenderingMode::Raster).ok()?,
         "gl_poly" => Sdl2GlGfx::new(&sdl_context, RenderingMode::Poly).ok()?,
