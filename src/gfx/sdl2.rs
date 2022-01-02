@@ -11,7 +11,7 @@ use super::Gfx;
 pub const WINDOW_RESOLUTION: [u32; 2] = [1280, 800];
 
 /// Trait for handling display for `Sdl2Sys`, while providing access to regular graphics methods.
-pub trait Sdl2Display: Gfx {
+pub trait Sdl2Gfx: Gfx {
     /// Blit the rendered framebuffer into the `dst` rectangle of the actual
     /// display and display it.
     fn blit_game(&mut self, dst: &Rect);
@@ -24,8 +24,8 @@ pub trait Sdl2Display: Gfx {
     fn handle_events(&mut self, _events: &[Event]) {}
 }
 
-/// Proxy implementation for containers of `Sdl2Display`.
-impl<D: Sdl2Display + ?Sized + 'static, C: DerefMut<Target = D> + Gfx> Sdl2Display for C {
+/// Proxy implementation for containers of `Sdl2Gfx`.
+impl<D: Sdl2Gfx + ?Sized + 'static, C: DerefMut<Target = D> + Gfx> Sdl2Gfx for C {
     fn blit_game(&mut self, dst: &Rect) {
         self.deref_mut().blit_game(dst)
     }

@@ -11,7 +11,7 @@ use sdl2::{
 use anyhow::{anyhow, Result};
 
 use crate::{
-    gfx::{self, raster::RasterRenderer, sdl2::Sdl2Display, Color, Gfx, Palette},
+    gfx::{self, raster::RasterRenderer, sdl2::Sdl2Gfx, Color, Gfx, Palette},
     sys::Snapshotable,
 };
 
@@ -146,7 +146,7 @@ impl Snapshotable for Sdl2CanvasGfx {
 
 impl Gfx for Sdl2CanvasGfx {}
 
-impl Sdl2Display for Sdl2CanvasGfx {
+impl Sdl2Gfx for Sdl2CanvasGfx {
     fn blit_game(&mut self, dst: &Rect) {
         // Clear screen
         self.canvas

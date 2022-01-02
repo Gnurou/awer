@@ -13,7 +13,7 @@ use crate::{
         sdl2::{
             canvas::Sdl2CanvasGfx,
             gl::{RenderingMode, Sdl2GlGfx},
-            Sdl2Display,
+            Sdl2Gfx,
         },
     },
     input::{ButtonState, InputState, LeftRightDir, UpDownDir},
@@ -30,7 +30,7 @@ use std::{
 const TICKS_PER_SECOND: u64 = 50;
 const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
 
-pub struct Sdl2Sys<D: Sdl2Display + ?Sized> {
+pub struct Sdl2Sys<D: Sdl2Gfx + ?Sized> {
     sdl_context: Sdl,
     display: D,
 }
@@ -61,10 +61,10 @@ pub fn new_from_args(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
             display: Sdl2GlGfx::new(&sdl_context, RenderingMode::Line).ok()?,
             sdl_context,
         }) as Box<dyn Sys>),
-        // Just a test for Sdl2Display trait object.
+        // Just a test for Sdl2Gfx trait object.
         "gl_raster_boxed" => Some(Box::new(Sdl2Sys {
             display: Box::new(Sdl2GlGfx::new(&sdl_context, RenderingMode::Raster).ok()?)
-                as Box<dyn Sdl2Display>,
+                as Box<dyn Sdl2Gfx>,
             sdl_context,
         }) as Box<dyn Sys>),
         _ => None,
@@ -81,7 +81,7 @@ fn take_snapshot<G: gfx::Gfx + ?Sized>(history: &mut VecDeque<VmSnapshot>, vm: &
     }
 }
 
-impl<D: Sdl2Display + ?Sized> Sys for Sdl2Sys<D> {
+impl<D: Sdl2Gfx + ?Sized> Sys for Sdl2Sys<D> {
     fn game_loop(&mut self, vm: &mut crate::vm::Vm) {
         // Events, time and input
         let mut sdl_events = self.sdl_context.event_pump().unwrap();

@@ -19,7 +19,7 @@ use crate::{
             raster_renderer::GlRasterRenderer,
             GlGameTexture, Viewport,
         },
-        sdl2::{Sdl2Display, WINDOW_RESOLUTION},
+        sdl2::{Sdl2Gfx, WINDOW_RESOLUTION},
         Palette, Point,
     },
     sys::Snapshotable,
@@ -109,7 +109,7 @@ impl Sdl2GlGfx {
     }
 }
 
-impl Sdl2Display for Sdl2GlGfx {
+impl Sdl2Gfx for Sdl2GlGfx {
     fn blit_game(&mut self, dst: &Rect) {
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
