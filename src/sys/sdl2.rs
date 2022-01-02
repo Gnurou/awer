@@ -60,14 +60,14 @@ pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
     }))
 }
 
-fn take_snapshot<T: AsRef<dyn gfx::Gfx> + ?Sized>(
+fn take_snapshot<G: gfx::Gfx + ?Sized, T: AsRef<G> + ?Sized>(
     history: &mut VecDeque<VmSnapshot>,
     vm: &Vm,
     gfx: &T,
 ) {
     const MAX_GAME_SNAPSHOTS: usize = 50;
 
-    history.push_front(VmSnapshot::new(vm, gfx));
+    history.push_front(VmSnapshot::new(vm, gfx.as_ref()));
 
     while history.len() > MAX_GAME_SNAPSHOTS {
         history.pop_back();

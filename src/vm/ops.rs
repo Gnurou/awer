@@ -299,12 +299,12 @@ pub fn op_sub(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool 
     false
 }
 
-pub fn op_setpalette(
+pub fn op_setpalette<G: gfx::Gfx + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
     sys: &VmSys,
-    _gfx: &mut dyn gfx::Gfx,
+    _gfx: &mut G,
 ) -> bool {
     // Why the right shift here?
     let palette_id = cursor.read_u8().unwrap() as usize;
@@ -341,12 +341,12 @@ fn lookup_buffer(state: &VmState, buffer_id: u8) -> usize {
     }
 }
 
-pub fn op_selectvideopage(
+pub fn op_selectvideopage<G: gfx::Gfx + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
     _sys: &VmSys,
-    _gfx: &mut dyn gfx::Gfx,
+    _gfx: &mut G,
 ) -> bool {
     let buffer_id = cursor.read_u8().unwrap();
     let buffer_id_resolved = lookup_buffer(state, buffer_id);
@@ -361,12 +361,12 @@ pub fn op_selectvideopage(
     false
 }
 
-pub fn op_fillvideopage(
+pub fn op_fillvideopage<G: gfx::Gfx + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
     _sys: &VmSys,
-    gfx: &mut dyn gfx::Gfx,
+    gfx: &mut G,
 ) -> bool {
     let page_id = cursor.read_u8().unwrap();
     let color = cursor.read_u8().unwrap();
@@ -377,12 +377,12 @@ pub fn op_fillvideopage(
     false
 }
 
-pub fn op_copyvideopage(
+pub fn op_copyvideopage<G: gfx::Gfx + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
     _sys: &VmSys,
-    gfx: &mut dyn gfx::Gfx,
+    gfx: &mut G,
 ) -> bool {
     // TODO source buffer sometimes have bit 0x40 set. Why?
     let src_page_id = cursor.read_u8().unwrap();
@@ -414,12 +414,12 @@ pub fn op_copyvideopage(
     false
 }
 
-pub fn op_blitframebuffer(
+pub fn op_blitframebuffer<G: gfx::Gfx + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
     _sys: &VmSys,
-    gfx: &mut dyn gfx::Gfx,
+    gfx: &mut G,
 ) -> bool {
     let page_id = cursor.read_u8().unwrap();
     trace!("op_blitframebuffer {:x}", page_id);
@@ -441,12 +441,12 @@ pub fn op_blitframebuffer(
     false
 }
 
-pub fn op_drawstring(
+pub fn op_drawstring<G: gfx::Gfx + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
     sys: &VmSys,
-    gfx: &mut dyn gfx::Gfx,
+    gfx: &mut G,
 ) -> bool {
     use crate::font::{CHAR_HEIGHT, CHAR_WIDTH};
 
@@ -496,12 +496,12 @@ pub fn op_drawstring(
 
 const DEFAULT_ZOOM: u16 = 0x40;
 
-pub fn op_sprs(
+pub fn op_sprs<G: gfx::Gfx + ?Sized>(
     op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
     sys: &VmSys,
-    gfx: &mut dyn gfx::Gfx,
+    gfx: &mut G,
 ) -> bool {
     let offset = (((((op & 0x7f) as u16) << 8) | cursor.read_u8().unwrap() as u16) * 2) as usize;
     let mut x = cursor.read_u8().unwrap() as i16;
@@ -528,12 +528,12 @@ pub fn op_sprs(
     false
 }
 
-pub fn op_sprl(
+pub fn op_sprl<G: gfx::Gfx + ?Sized>(
     op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
     sys: &VmSys,
-    gfx: &mut dyn gfx::Gfx,
+    gfx: &mut G,
 ) -> bool {
     let offset = (cursor.read_u16::<BE>().unwrap() * 2) as usize;
     let x = match op & 0x30 {
@@ -591,7 +591,7 @@ fn read_polygon(mut data_cursor: Cursor<&[u8]>) -> Polygon {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn draw_polygon(
+fn draw_polygon<G: gfx::Gfx + ?Sized>(
     render_buffer: usize,
     pos: (i16, i16),
     offset: (i16, i16),
@@ -599,7 +599,7 @@ fn draw_polygon(
     color: Option<u8>,
     segment: &[u8],
     start_offset: usize,
-    gfx: &mut dyn gfx::Gfx,
+    gfx: &mut G,
 ) {
     let mut cursor = Cursor::new(segment);
     match cursor.seek(SeekFrom::Start(start_offset as u64)) {
@@ -659,7 +659,7 @@ fn draw_polygon(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn draw_polygon_hierarchy(
+fn draw_polygon_hierarchy<G: gfx::Gfx + ?Sized>(
     render_buffer: usize,
     pos: (i16, i16),
     offset: (i16, i16),
@@ -667,7 +667,7 @@ fn draw_polygon_hierarchy(
     color: Option<u8>,
     mut cursor: Cursor<&[u8]>,
     segment: &[u8],
-    gfx: &mut dyn gfx::Gfx,
+    gfx: &mut G,
 ) {
     let offset = (
         offset.0 - cursor.read_u8().unwrap() as i16,
@@ -757,12 +757,12 @@ pub fn op_playmusic(_op: u8, cursor: &mut Cursor<&[u8]>, _state: &mut VmState) -
 //
 // This opcode is also used to switch between scenes. In such cases, |res_id|
 // will be 0x3e8x, where x is the number of the scene to load.
-pub fn op_loadresource(
+pub fn op_loadresource<G: gfx::Gfx + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
     sys: &mut VmSys,
-    gfx: &mut dyn gfx::Gfx,
+    gfx: &mut G,
 ) -> bool {
     let res_id = cursor.read_u16::<BE>().unwrap() as usize;
 
