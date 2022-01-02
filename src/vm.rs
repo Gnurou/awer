@@ -135,9 +135,9 @@ impl VmSnapshot {
     }
 
     /// Restore a previously captured snapshot into `vm` and `gfx`.
-    pub fn restore<G: gfx::Gfx + ?Sized, T: AsMut<G> + ?Sized>(self, vm: &mut Vm, gfx: &mut T) {
+    pub fn restore<G: gfx::Gfx + ?Sized>(self, vm: &mut Vm, gfx: &mut G) {
         vm.restore_snapshot(self.vm_state);
-        gfx.as_mut().restore_snapshot(self.gfx_state);
+        gfx.restore_snapshot(self.gfx_state);
     }
 }
 
@@ -394,11 +394,11 @@ impl Vm {
         nb_threads
     }
 
-    pub fn process<G: gfx::Gfx + ?Sized, T: AsMut<G> + ?Sized>(&mut self, gfx: &mut T) -> bool {
+    pub fn process<G: gfx::Gfx + ?Sized>(&mut self, gfx: &mut G) -> bool {
         debug!("===================");
         debug!("Starting round {}", self.round);
         debug!("===================");
-        let nb_threads = self.process_step(gfx.as_mut());
+        let nb_threads = self.process_step(gfx);
         debug!(
             "Ending round {}: {} threads have run",
             self.round, nb_threads

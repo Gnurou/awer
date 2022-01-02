@@ -131,7 +131,7 @@ impl<D: Sdl2Display + ?Sized> Sys for Sdl2Sys<D> {
                         Keycode::P => pause ^= true,
                         Keycode::B => {
                             if let Some(state) = history.pop_front() {
-                                state.restore(vm, self.display.as_mut());
+                                state.restore(vm, (*self.display).as_mut());
                                 snapshot_cpt = 0;
                             }
 
@@ -143,7 +143,7 @@ impl<D: Sdl2Display + ?Sized> Sys for Sdl2Sys<D> {
                         Keycode::N if pause => {
                             take_snapshot(&mut history, vm, self.display.as_ref());
                             vm.update_input(&input);
-                            vm.process(self.display.as_mut());
+                            vm.process((*self.display).as_mut());
                             ticks_to_wait = vm.get_frames_to_wait();
                         }
                         _ => {}
@@ -200,7 +200,7 @@ impl<D: Sdl2Display + ?Sized> Sys for Sdl2Sys<D> {
                 }
 
                 if ticks_to_wait == 0 {
-                    if !vm.process(self.display.as_mut()) {
+                    if !vm.process((*self.display).as_mut()) {
                         error!("0 threads to run, exiting.");
                         break 'run;
                     }
