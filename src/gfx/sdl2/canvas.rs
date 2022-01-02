@@ -147,7 +147,7 @@ impl Snapshotable for Sdl2CanvasGfx {
 impl Gfx for Sdl2CanvasGfx {}
 
 impl Sdl2Gfx for Sdl2CanvasGfx {
-    fn blit_game(&mut self, dst: &Rect) {
+    fn show_game_framebuffer(&mut self, dst: &Rect) {
         // Clear screen
         self.canvas
             .set_draw_color(sdl2::pixels::Color::RGB(0, 0, 0));

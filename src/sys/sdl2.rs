@@ -243,7 +243,7 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                 sdl2::rect::Rect::new((viewport.width() - w) as i32 / 2, 0, w, h)
             };
 
-            self.display.blit_game(&viewport_dst);
+            self.display.show_game_framebuffer(&viewport_dst);
         }
     }
 }

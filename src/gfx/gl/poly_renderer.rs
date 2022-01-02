@@ -15,7 +15,7 @@ use anyhow::Result;
 
 use self::programs::*;
 
-use super::GlGameTexture;
+use super::GlRenderer;
 
 /// Draw command for a polygon, requesting it to be drawn at coordinates (`x`,
 /// `y`) and with color `color`.
@@ -311,7 +311,7 @@ impl AsRef<IndexedTexture> for GlPolyRenderer {
     }
 }
 
-impl GlGameTexture for GlPolyRenderer {
+impl GlRenderer for GlPolyRenderer {
     fn update_texture(&mut self, page_id: usize) {
         self.framebuffer_index = page_id;
         self.redraw();

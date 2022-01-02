@@ -17,7 +17,7 @@ use crate::{
             indexed_frame_renderer::IndexedFrameRenderer,
             poly_renderer::{GlPolyRenderer, PolyRenderingMode},
             raster_renderer::GlRasterRenderer,
-            GlGameTexture, Viewport,
+            GlRenderer, Viewport,
         },
         sdl2::{Sdl2Gfx, WINDOW_RESOLUTION},
         Palette, Point,
@@ -110,7 +110,7 @@ impl Sdl2GlGfx {
 }
 
 impl Sdl2Gfx for Sdl2GlGfx {
-    fn blit_game(&mut self, dst: &Rect) {
+    fn show_game_framebuffer(&mut self, dst: &Rect) {
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
