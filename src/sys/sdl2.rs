@@ -43,18 +43,26 @@ pub fn new_from_args(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
         })
         .ok()?;
 
-    let display: Box<dyn Sdl2Display> = match matches.value_of("render").unwrap_or("raster") {
-        "raster" => Box::new(Sdl2CanvasGfx::new(&sdl_context).ok()?),
-        "gl_raster" => Box::new(Sdl2GlGfx::new(&sdl_context, RenderingMode::Raster).ok()?),
-        "gl_poly" => Box::new(Sdl2GlGfx::new(&sdl_context, RenderingMode::Poly).ok()?),
-        "gl_line" => Box::new(Sdl2GlGfx::new(&sdl_context, RenderingMode::Line).ok()?),
-        _ => return None,
-    };
-
-    Some(Box::new(Sdl2Sys {
-        sdl_context,
-        display,
-    }))
+    let backend = matches.value_of("render").unwrap_or("raster");
+    match backend {
+        "raster" => Some(Box::new(Sdl2Sys {
+            display: Sdl2CanvasGfx::new(&sdl_context).ok()?,
+            sdl_context,
+        }) as Box<dyn Sys>),
+        "gl_raster" => Some(Box::new(Sdl2Sys {
+            display: Sdl2GlGfx::new(&sdl_context, RenderingMode::Raster).ok()?,
+            sdl_context,
+        }) as Box<dyn Sys>),
+        "gl_poly" => Some(Box::new(Sdl2Sys {
+            display: Sdl2GlGfx::new(&sdl_context, RenderingMode::Poly).ok()?,
+            sdl_context,
+        }) as Box<dyn Sys>),
+        "gl_line" => Some(Box::new(Sdl2Sys {
+            display: Sdl2GlGfx::new(&sdl_context, RenderingMode::Line).ok()?,
+            sdl_context,
+        }) as Box<dyn Sys>),
+        _ => None,
+    }
 }
 
 fn take_snapshot<G: gfx::Gfx + ?Sized>(history: &mut VecDeque<VmSnapshot>, vm: &Vm, gfx: &G) {
