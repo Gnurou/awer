@@ -345,7 +345,7 @@ impl Vm {
         self.set_reg(VM_VARIABLE_HERO_ACTION_POS_MASK, mask);
     }
 
-    pub fn process_step(&mut self, gfx: &mut dyn gfx::Gfx) -> usize {
+    fn process_step(&mut self, gfx: &mut dyn gfx::Gfx) -> usize {
         // Check if we need to switch to a new part of the game.
         if let Some(requested_scene) = self.state.requested_scene.take() {
             info!("Loading scene {}", requested_scene);
@@ -454,10 +454,6 @@ impl Vm {
         // Reset all threads
         self.state.threads = Vm::init_threads();
         self.state.threads[0].state = ThreadState::Active(0);
-    }
-
-    pub fn get_resman(&mut self) -> &mut ResourceManager {
-        &mut self.sys.resman
     }
 
     pub fn get_frames_to_wait(&self) -> usize {
