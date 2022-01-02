@@ -110,8 +110,6 @@ impl Sdl2GlGfx {
 }
 
 impl Sdl2Display for Sdl2GlGfx {
-    type Gfx = Self;
-
     fn blit_game(&mut self, dst: &Rect) {
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
@@ -174,14 +172,6 @@ impl Sdl2Display for Sdl2GlGfx {
                 _ => {}
             }
         }
-    }
-
-    fn as_gfx(&self) -> &Self::Gfx {
-        self
-    }
-
-    fn as_gfx_mut(&mut self) -> &mut Self::Gfx {
-        self
     }
 }
 

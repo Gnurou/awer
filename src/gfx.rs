@@ -9,6 +9,7 @@ use log::debug;
 use std::{
     any::Any,
     fmt::{self, Debug, Formatter, Result},
+    ops::DerefMut,
 };
 
 use crate::sys::Snapshotable;
@@ -48,14 +49,63 @@ pub trait IndexedRenderer {
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]);
 }
 
+/// Proxy implementation for containers of `IndexedRenderer`.
+impl<R: IndexedRenderer + ?Sized, C: DerefMut<Target = R>> IndexedRenderer for C {
+    fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
+        self.deref_mut().fillvideopage(page_id, color_idx)
+    }
+
+    fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16) {
+        self.deref_mut()
+            .copyvideopage(src_page_id, dst_page_id, vscroll)
+    }
+
+    fn fillpolygon(
+        &mut self,
+        dst_page_id: usize,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        color_idx: u8,
+        zoom: u16,
+        bb: (u8, u8),
+        points: &[Point<u8>],
+    ) {
+        self.deref_mut()
+            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points)
+    }
+
+    fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8) {
+        self.deref_mut().draw_char(dst_page_id, pos, color_idx, c)
+    }
+
+    fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
+        self.deref_mut().blit_buffer(dst_page_id, buffer)
+    }
+}
+
 /// Trait for rendering an indexed-color buffer using a given palette on the screen.
 pub trait Display {
     /// Show `page_id` on the screen, using `palette` to render its actual colors.
     fn blitframebuffer(&mut self, page_id: usize, palette: &Palette);
 }
 
+/// Proxy implementation for containers of `Display`.
+impl<D: Display + ?Sized, C: DerefMut<Target = D>> Display for C {
+    fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
+        self.deref_mut().blitframebuffer(page_id, palette)
+    }
+}
+
 /// Trait providing the methods necessary for the VM to render the game.
 pub trait Gfx: IndexedRenderer + Display + Snapshotable<State = Box<dyn Any>> {}
+
+/// Proxy implementation for containers of `Gfx`.
+impl<
+        G: Gfx + ?Sized,
+        C: DerefMut<Target = G> + IndexedRenderer + Display + Snapshotable<State = Box<dyn Any>>,
+    > Gfx for C
+{
+}
 
 /// A point as described in the game's resources for polygons.
 #[repr(C)]

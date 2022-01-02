@@ -1,6 +1,8 @@
 #[cfg(feature = "sdl2-sys")]
 pub mod sdl2;
 
+use std::ops::DerefMut;
+
 use crate::vm::Vm;
 
 pub trait Sys {
@@ -23,4 +25,17 @@ pub trait Snapshotable {
     /// happen if `snapshot` did not come from `self`).
     ///
     fn restore_snapshot(&mut self, snapshot: Self::State) -> bool;
+}
+
+/// Proxy implementation for containers of `Snapshotable`.
+impl<S: Snapshotable + ?Sized, C: DerefMut<Target = S>> Snapshotable for C {
+    type State = S::State;
+
+    fn take_snapshot(&self) -> Self::State {
+        self.deref().take_snapshot()
+    }
+
+    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
+        self.deref_mut().restore_snapshot(snapshot)
+    }
 }
