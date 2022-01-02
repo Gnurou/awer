@@ -30,12 +30,13 @@ use std::{
 const TICKS_PER_SECOND: u64 = 50;
 const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
 
-pub struct Sdl2Sys {
+pub struct Sdl2Sys<D: Sdl2Display + ?Sized> {
     sdl_context: Sdl,
-    display: Box<dyn Sdl2Display>,
+    display: Box<D>,
 }
 
-pub fn new(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
+/// Creates a dynamic SDL Sys instance from the command-line arguments.
+pub fn new_from_args(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
     let sdl_context = sdl2::init()
         .map_err(|e| {
             log::error!("Failed to initialize SDL: {}", e);
@@ -70,7 +71,7 @@ fn take_snapshot<G: gfx::Gfx + ?Sized, T: AsRef<G> + ?Sized>(
     }
 }
 
-impl Sys for Sdl2Sys {
+impl<D: Sdl2Display + ?Sized> Sys for Sdl2Sys<D> {
     fn game_loop(&mut self, vm: &mut crate::vm::Vm) {
         // Events, time and input
         let mut sdl_events = self.sdl_context.event_pump().unwrap();
