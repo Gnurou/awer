@@ -32,7 +32,7 @@ const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECON
 
 pub struct Sdl2Sys<D: Sdl2Display + ?Sized> {
     sdl_context: Sdl,
-    display: Box<D>,
+    display: D,
 }
 
 /// Creates a dynamic SDL Sys instance from the command-line arguments.

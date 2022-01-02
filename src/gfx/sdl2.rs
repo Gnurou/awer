@@ -27,3 +27,25 @@ pub trait Sdl2Display {
     /// Return a mutable reference to the underlying `Gfx` implementation.
     fn as_gfx_mut(&mut self) -> &mut dyn Gfx;
 }
+
+impl<D: Sdl2Display + ?Sized> Sdl2Display for Box<D> {
+    fn blit_game(&mut self, dst: &Rect) {
+        AsMut::<D>::as_mut(self).blit_game(dst)
+    }
+
+    fn window(&self) -> &Window {
+        AsRef::<D>::as_ref(self).window()
+    }
+
+    fn handle_events(&mut self, events: &[Event]) {
+        AsMut::<D>::as_mut(self).handle_events(events)
+    }
+
+    fn as_gfx(&self) -> &dyn Gfx {
+        AsRef::<D>::as_ref(self).as_gfx()
+    }
+
+    fn as_gfx_mut(&mut self) -> &mut dyn Gfx {
+        AsMut::<D>::as_mut(self).as_gfx_mut()
+    }
+}
