@@ -1,18 +1,14 @@
 use anyhow::Result;
 use gfx::SCREEN_RESOLUTION;
 
-use crate::{
-    gfx::{self, gl::IndexedTexture, raster::RasterRenderer},
-    sys::Snapshotable,
-};
+use crate::gfx::{self, gl::IndexedTexture, raster::RasterRenderer};
 
-/// A renderer with which the game is rendered using the CPU at original resolution with a 16 colors
-/// indexed palette.
+// A simple proxy struct for a `RasterRenderer` with the ability to obtain a texture from any of the
+// rendered buffers that can be used with OpenGL.
 pub struct GlRasterRenderer {
     /// Regular CPU raster renderer where we will render the game.
     raster: RasterRenderer,
-
-    /// Texture where the framebuffer from `raster` will be copied to serve as a source.
+    /// Texture into which any buffer from `raster` can be copied in order to serve as a source.
     framebuffer_texture: IndexedTexture,
 }
 
@@ -35,47 +31,9 @@ impl GlRasterRenderer {
     }
 }
 
-impl gfx::IndexedRenderer for GlRasterRenderer {
-    fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
-        self.raster.fillvideopage(page_id, color_idx)
-    }
-
-    fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16) {
-        self.raster.copyvideopage(src_page_id, dst_page_id, vscroll)
-    }
-
-    fn fillpolygon(
-        &mut self,
-        dst_page_id: usize,
-        pos: (i16, i16),
-        offset: (i16, i16),
-        color_idx: u8,
-        zoom: u16,
-        bb: (u8, u8),
-        points: &[gfx::Point<u8>],
-    ) {
-        self.raster
-            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points)
-    }
-
-    fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8) {
-        self.raster.draw_char(dst_page_id, pos, color_idx, c)
-    }
-
-    fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
-        self.raster.blit_buffer(dst_page_id, buffer)
-    }
-}
-
-impl Snapshotable for GlRasterRenderer {
-    type State = <RasterRenderer as Snapshotable>::State;
-
-    fn take_snapshot(&self) -> Self::State {
-        self.raster.take_snapshot()
-    }
-
-    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
-        self.raster.restore_snapshot(snapshot)
+impl AsRef<RasterRenderer> for GlRasterRenderer {
+    fn as_ref(&self) -> &RasterRenderer {
+        &self.raster
     }
 }
 
