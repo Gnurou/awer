@@ -82,7 +82,7 @@ fn take_snapshot<G: gfx::Gfx + ?Sized>(history: &mut VecDeque<VmSnapshot>, vm: &
 }
 
 impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
-    fn game_loop(&mut self, vm: &mut crate::vm::Vm) {
+    fn game_loop(&mut self, vm: &mut Vm) {
         // Events, time and input
         let mut sdl_events = self.sdl_context.event_pump().unwrap();
         let mut last_tick_time = Instant::now();
@@ -105,18 +105,11 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
         const KEYPRESS_COOLDOWN_TICKS: usize = 1;
         let mut keypress_cooldown = KEYPRESS_COOLDOWN_TICKS;
 
-        let mut pending_events: Vec<Event> = Vec::new();
         let mut released_keys = Vec::new();
         'run: loop {
             // Update input
-
             released_keys.clear();
-            pending_events.clear();
             for event in sdl_events.poll_iter() {
-                pending_events.push(event);
-            }
-
-            for event in &pending_events {
                 match event {
                     Event::Quit { .. } => break 'run,
                     Event::Window {
@@ -162,9 +155,12 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                         keycode: Some(key),
                         repeat: false,
                         ..
-                    } => released_keys.push(*key),
+                    } => released_keys.push(key),
                     _ => {}
                 }
+
+                // Give the display subsystem a chance to manage its own input (hack!)
+                self.display.handle_event(&event);
             }
             vm.update_input(&input);
 
@@ -178,8 +174,6 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                     _ => {}
                 }
             }
-
-            self.display.handle_events(&pending_events);
 
             // Decrease keypress cooldown if we just gained focus.
             if keypress_cooldown > 0 {

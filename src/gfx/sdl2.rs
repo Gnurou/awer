@@ -20,7 +20,7 @@ pub trait Sdl2Gfx: Gfx {
 
     /// Gives the renderer a chance to handle its own input, to e.g. change rendering parameters.
     /// Also useful to catch window resize events.
-    fn handle_events(&mut self, _events: &[Event]) {}
+    fn handle_event(&mut self, _event: &Event) {}
 }
 
 /// Proxy implementation for containers of `Sdl2Gfx`.
@@ -33,7 +33,7 @@ impl<D: Sdl2Gfx + ?Sized + 'static, C: DerefMut<Target = D> + Gfx> Sdl2Gfx for C
         self.deref().window()
     }
 
-    fn handle_events(&mut self, events: &[Event]) {
-        self.deref_mut().handle_events(events)
+    fn handle_event(&mut self, event: &Event) {
+        self.deref_mut().handle_event(event)
     }
 }
