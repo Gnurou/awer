@@ -11,8 +11,8 @@ use crate::{
     gfx::{
         self,
         sdl2::{
-            canvas::Sdl2CanvasGfx,
-            gl::{RenderingMode, Sdl2GlGfx},
+            canvas_gfx::Sdl2CanvasGfx,
+            gl_gfx::{RenderingMode, Sdl2GlGfx},
             Sdl2Gfx,
         },
     },

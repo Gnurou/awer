@@ -1,5 +1,5 @@
-pub mod canvas;
-pub mod gl;
+pub mod canvas_gfx;
+pub mod gl_gfx;
 
 use std::ops::DerefMut;
 
