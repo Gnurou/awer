@@ -106,14 +106,11 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
         let mut keypress_cooldown = KEYPRESS_COOLDOWN_TICKS;
 
         let mut pending_events: Vec<Event> = Vec::new();
+        let mut released_keys = Vec::new();
         'run: loop {
             // Update input
-            // TODO keep the key released events in a separate input state, so
-            // we process all key pressed events when updating the VM even if
-            // press/release occured within the same game tick.
-            // TODO use wait_event_timeout() or wait_timeout_iter() to process
-            // events in real-time while maintaining game cadence.
 
+            released_keys.clear();
             pending_events.clear();
             for event in sdl_events.poll_iter() {
                 pending_events.push(event);
@@ -158,21 +155,30 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                         }
                         _ => {}
                     },
+                    // Store key released events so they can be processed later after the VM update.
+                    // This gives the game a chance to proceed keys that have been both pressed and
+                    // released within the same cycle.
                     Event::KeyUp {
                         keycode: Some(key),
                         repeat: false,
                         ..
-                    } => match key {
-                        Keycode::Left | Keycode::Right => input.horizontal = LeftRightDir::Neutral,
-                        Keycode::Up | Keycode::Down => input.vertical = UpDownDir::Neutral,
-                        Keycode::Space => input.button = ButtonState::Released,
-                        Keycode::F => fast_mode = false,
-                        _ => {}
-                    },
+                    } => released_keys.push(*key),
                     _ => {}
                 }
             }
             vm.update_input(&input);
+
+            // Now update the state of all the released keys.
+            for key in &released_keys {
+                match key {
+                    Keycode::Left | Keycode::Right => input.horizontal = LeftRightDir::Neutral,
+                    Keycode::Up | Keycode::Down => input.vertical = UpDownDir::Neutral,
+                    Keycode::Space => input.button = ButtonState::Released,
+                    Keycode::F => fast_mode = false,
+                    _ => {}
+                }
+            }
+
             self.display.handle_events(&pending_events);
 
             // Decrease keypress cooldown if we just gained focus.
