@@ -147,8 +147,7 @@ impl GlPolyRenderer {
 
     fn run_command_list(&mut self, commands_index: usize, rendering_mode: PolyRenderingMode) {
         let draw_commands = &self.draw_commands[commands_index];
-        let mut draw_runner = DrawCommandRunner::new(
-            &mut self.renderers,
+        let mut draw_runner = self.renderers.start_drawing(
             &self.render_texture_framebuffer,
             &self.render_texture_buffer0,
         );

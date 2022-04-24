@@ -52,6 +52,14 @@ impl Programs {
         }
     }
 
+    pub fn start_drawing<'a>(
+        &'a mut self,
+        target: &'a IndexedTexture,
+        buffer0: &'a IndexedTexture,
+    ) -> DrawCommandRunner<'a> {
+        DrawCommandRunner::new(self, target, buffer0)
+    }
+
     fn deactivate(&mut self) {
         match self.current {
             CurrentProgram::None => (),
@@ -126,7 +134,7 @@ impl<'a> Drop for DrawCommandRunner<'a> {
 }
 
 impl<'a> DrawCommandRunner<'a> {
-    pub fn new(
+    fn new(
         programs: &'a mut Programs,
         target: &'a IndexedTexture,
         buffer0: &'a IndexedTexture,
