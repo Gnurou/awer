@@ -1,4 +1,4 @@
-use clap::{App, Arg};
+use clap::Arg;
 
 mod font;
 mod gfx;
@@ -15,25 +15,25 @@ use sys::Sys;
 fn main() {
     env_logger::init();
 
-    let matches = App::new("Another World")
+    let matches = clap::Command::new("Another World")
         .version("0.1")
         .arg(
-            Arg::with_name("scene")
-                .short("S")
+            Arg::new("scene")
+                .short('S')
                 .long("scene")
                 .help("The scene to start from (0..9)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("render")
-                .short("r")
+            Arg::new("render")
+                .short('r')
                 .long("render")
                 .help("How to render the game (raster, gl_raster, gl_poly, gl_line)")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("dump_resources")
-                .short("d")
+            Arg::new("dump_resources")
+                .short('d')
                 .long("dump_resources")
                 .help("Dump all resources to disk"),
         )
