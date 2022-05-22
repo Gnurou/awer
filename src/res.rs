@@ -15,7 +15,7 @@ enum State {
     Loaded,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ResType {
     // Audio samples.
     // All entries of this type are loaded by the loadresource opcode.
@@ -46,16 +46,7 @@ pub enum ResType {
 
 impl fmt::Display for ResType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let s = match *self {
-            ResType::Sound => "Sound",
-            ResType::Music => "Music",
-            ResType::Bitmap => "Bitmap",
-            ResType::Palette => "Palette",
-            ResType::Bytecode => "Bytecode",
-            ResType::Cinematic => "Cinematic",
-            ResType::Unknown => "Unknown",
-        };
-        write!(f, "{}", s)
+        fmt::Debug::fmt(self, f)
     }
 }
 
