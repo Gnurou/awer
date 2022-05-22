@@ -160,8 +160,8 @@ impl Vm {
         // Vec is not copyable, we cannot initialize the threads array using
         // the [Thread {...}; VM_NUM_THREADS] syntax. So we leave that area
         // uninitialized and iterate over it to initialize the threads.
-        let mut threads: [MaybeUninit<Thread>; VM_NUM_THREADS];
-        threads = unsafe { MaybeUninit::uninit().assume_init() };
+        let mut threads: [MaybeUninit<Thread>; VM_NUM_THREADS] =
+            unsafe { MaybeUninit::uninit().assume_init() };
         for thread in threads.iter_mut() {
             *thread = MaybeUninit::new(Thread {
                 state: ThreadState::Inactive,
