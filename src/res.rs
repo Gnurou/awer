@@ -261,8 +261,8 @@ impl ResourceManager {
         let mut file = File::open("memlist.bin").expect("Cannot open memlist.bin!");
 
         loop {
-            // This file was supposed to be directly read into data structures, hence the "empty" bits which used
-            // to be zero-initialized pointers.
+            // This file was supposed to be directly read into data structures, hence the "empty"
+            // bits which used to be zero-initialized pointers.
             let state = file.read_u8()?;
             let res_type = file.read_u8()?;
             let _ = file.read_u16::<BE>()?;

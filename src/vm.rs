@@ -33,8 +33,9 @@ const VM_VARIABLE_SND_SYNC: usize = 0xf4; // 244
                                           // 0: max details.
                                           // 1: remove reflections. (?)
 const VM_VARIABLE_GFX_DETAIL: usize = 0xf6; // 246
-                                            // Design doc is not very legible. This may be used to control how many frames
-                                            // we took to render and run the game logic, as a way to pace the game?
+                                            // Design doc is not very legible. This may be used to
+                                            // control how many frames we took to render and run the
+                                            // game logic, as a way to pace the game?
 const VM_VARIABLE_SLICES_USED: usize = 0xf7; // 247
 const VM_VARIABLE_SCROLL_Y: usize = 0xf9; // 249
 const VM_VARIABLE_HERO_ACTION: usize = 0xfa; // 250
