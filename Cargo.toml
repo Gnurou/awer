@@ -15,6 +15,7 @@ env_logger = "0.9"
 byteorder = "1"
 clap = "3"
 anyhow = "1.0"
+enumn = "0.1"
 # Used with gl
 memoffset = "0.6"
 

@@ -1,12 +1,13 @@
 extern crate byteorder;
 
-use byteorder::{ReadBytesExt, BE};
 use std::{
     fmt,
     fs::File,
     io::{self, Read, Seek, SeekFrom},
 };
 
+use byteorder::{ReadBytesExt, BE};
+use enumn::N;
 use log::{debug, info};
 
 #[derive(PartialEq)]
@@ -15,33 +16,33 @@ enum State {
     Loaded,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, N)]
 pub enum ResType {
     // Audio samples.
     // All entries of this type are loaded by the loadresource opcode.
-    Sound = 0,
+    Sound,
     // Music.
     // All entries of this type are loaded by the loadresource opcode.
-    Music = 1,
+    Music,
     // Full-screen bitmaps used for the title screen as well as backgrounds for
     // some scenes. Apparently the game was on a rush to be finished and these
     // static backgrounds got added instead of being generated from polygons.
     // Loaded by the loadresource opcode.
-    Bitmap = 2,
+    Bitmap,
     // Groups of 64 palettes of 16 colors each (2 bytes per color, encoding
     // still a bit obscure).
     // All entries of this type are referenced from the scenes list.
-    Palette = 3,
+    Palette,
     // Bytecode for the virtual machine.
     // All entries of this type are referenced from the scenes list.
-    Bytecode = 4,
+    Bytecode,
     // Polygons for cinematic scenes.
     // All entries of this type are referenced from the scenes list.
-    Cinematic = 5,
+    Cinematic,
     // Not sure what this is yet, but seems like an alternative video segment.
     // There is only one entry of this type and it is referenced from the
     // scenes list.
-    Unknown = 6,
+    Unknown,
 }
 
 impl fmt::Display for ResType {
@@ -281,21 +282,9 @@ impl ResourceManager {
                 _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid state!")),
             };
 
-            let res_type = match res_type {
-                0 => ResType::Sound,
-                1 => ResType::Music,
-                2 => ResType::Bitmap,
-                3 => ResType::Palette,
-                4 => ResType::Bytecode,
-                5 => ResType::Cinematic,
-                6 => ResType::Unknown,
-                _ => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "Invalid resource type!",
-                    ))
-                }
-            };
+            let res_type = ResType::n(res_type).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "Invalid resource type!")
+            })?;
 
             debug!(
                 "Resource 0x{:02x} of type {} size {}",
