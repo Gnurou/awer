@@ -385,11 +385,19 @@ impl ResourceManager {
                 resource.bank_offset
             );
 
+            const DUMPED_RESOURCES_DIR: &str = "resources";
+            match std::fs::create_dir(DUMPED_RESOURCES_DIR) {
+                Ok(()) => (),
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => (),
+                Err(e) => return Err(e),
+            }
+
             use std::io::Write;
             match resource.res_type {
                 // for f in (ls img_*.dat); convert -size 320x200+0 -depth 8 gray:$f $f.png; end
                 ResType::Bitmap => {
-                    let mut file = File::create(format!("img_{:02x}.dat", i))?;
+                    let mut file =
+                        File::create(format!("{}/img_{:02x}.dat", DUMPED_RESOURCES_DIR, i))?;
                     file.write_all(
                         &MemEntry::fixup_bitmap(&resource.data)
                             .iter()
@@ -398,11 +406,21 @@ impl ResourceManager {
                     )?;
                 }
                 ResType::Bytecode => {
-                    let mut file = File::create(format!("code_{:02x}.dat", i)).unwrap();
+                    let mut file =
+                        File::create(format!("{}/code_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
+                            .unwrap();
                     file.write_all(&resource.data)?;
                 }
                 ResType::Cinematic => {
-                    let mut file = File::create(format!("cine_{:02x}.dat", i)).unwrap();
+                    let mut file =
+                        File::create(format!("{}/cine_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
+                            .unwrap();
+                    file.write_all(&resource.data)?;
+                }
+                ResType::Sound => {
+                    let mut file =
+                        File::create(format!("{}/sound_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
+                            .unwrap();
                     file.write_all(&resource.data)?;
                 }
                 _ => {}
