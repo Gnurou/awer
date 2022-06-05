@@ -32,9 +32,9 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::new("dump_resources")
+            Arg::new("dump-resources")
                 .short('d')
-                .long("dump_resources")
+                .long("dump-resources")
                 .help("Dump all resources to disk"),
         )
         .get_matches();
@@ -50,7 +50,7 @@ fn main() {
         _ => panic!("Invalid scene number!"),
     };
 
-    if matches.is_present("dump_resources") {
+    if matches.is_present("dump-resources") {
         println!("Dumping all resources...");
         let mut resman = res::ResourceManager::new().unwrap();
         resman.dump_resources().unwrap();
