@@ -25,12 +25,13 @@ What is working:
 * Virtual machine
 * Rendering of polygons, bitmaps, and text
 * Input
+* Sounds effects
 
 This makes the game basically playable.
 
 What is not completed yet:
 
-* Sound
+* Background music
 
 How to run
 ----------

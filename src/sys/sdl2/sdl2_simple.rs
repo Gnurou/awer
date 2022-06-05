@@ -4,6 +4,7 @@
 use clap::ArgMatches;
 use log::error;
 use sdl2::{
+    audio::AudioDevice,
     event::{Event, WindowEvent},
     keyboard::Keycode,
     rect::Rect,
@@ -11,6 +12,7 @@ use sdl2::{
 };
 
 use crate::{
+    audio,
     gfx::{
         self,
         sdl2::{
@@ -36,6 +38,7 @@ const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECON
 pub struct Sdl2Sys<D: Sdl2Gfx> {
     sdl_context: Sdl,
     display: D,
+    audio_device: AudioDevice<audio::ClassicMixer>,
 }
 
 /// Creates a dynamic SDL Sys instance from the command-line arguments.
@@ -46,29 +49,48 @@ pub fn new_from_args(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
         })
         .ok()?;
 
+    let audio = sdl_context.audio().unwrap();
+    let desired_spec = sdl2::audio::AudioSpecDesired {
+        freq: Some(22050),
+        channels: Some(1), // mono
+        samples: None,     // default sample size
+    };
+
+    let audio_device = audio
+        .open_playback(None, &desired_spec, |spec| {
+            crate::audio::ClassicMixer::new(spec.freq as u32)
+        })
+        .unwrap();
+    audio_device.resume();
+
     let backend = matches.value_of("render").unwrap_or("raster");
     match backend {
         "raster" => Some(Box::new(Sdl2Sys {
             display: Sdl2CanvasGfx::new(&sdl_context).ok()?,
             sdl_context,
+            audio_device,
         }) as Box<dyn Sys>),
         "gl_raster" => Some(Box::new(Sdl2Sys {
             display: Sdl2GlGfx::new(&sdl_context, RenderingMode::Raster).ok()?,
             sdl_context,
+            audio_device,
         }) as Box<dyn Sys>),
         "gl_poly" => Some(Box::new(Sdl2Sys {
             display: Sdl2GlGfx::new(&sdl_context, RenderingMode::Poly).ok()?,
             sdl_context,
+            audio_device,
         }) as Box<dyn Sys>),
         "gl_line" => Some(Box::new(Sdl2Sys {
             display: Sdl2GlGfx::new(&sdl_context, RenderingMode::Line).ok()?,
             sdl_context,
+            audio_device,
         }) as Box<dyn Sys>),
         // Just a test for Sdl2Gfx trait object.
         "gl_raster_boxed" => Some(Box::new(Sdl2Sys {
             display: Box::new(Sdl2GlGfx::new(&sdl_context, RenderingMode::Raster).ok()?)
                 as Box<dyn Sdl2Gfx>,
             sdl_context,
+            audio_device,
         }) as Box<dyn Sys>),
         _ => None,
     }
@@ -146,7 +168,7 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                         Keycode::N if pause => {
                             take_snapshot(&mut history, vm, &self.display);
                             vm.update_input(&input);
-                            vm.process(&mut self.display);
+                            vm.process(&mut self.display, &mut self.audio_device);
                             ticks_to_wait = vm.get_frames_to_wait();
                         }
                         _ => {}
@@ -213,7 +235,7 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                 }
 
                 if ticks_to_wait == 0 {
-                    if !vm.process(&mut self.display) {
+                    if !vm.process(&mut self.display, &mut self.audio_device) {
                         error!("0 threads to run, exiting.");
                         break 'run;
                     }
@@ -248,5 +270,7 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
 
             self.display.show_game_framebuffer(&viewport_dst);
         }
+
+        self.audio_device.pause();
     }
 }

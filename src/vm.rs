@@ -13,6 +13,7 @@ use std::{
 
 use self::ops::*;
 use crate::{
+    audio,
     gfx::{self, Palette},
     input::*,
     res::ResourceManager,
@@ -205,7 +206,13 @@ impl Vm {
         self.state.regs[i] = v;
     }
 
-    fn process_thread<G: gfx::Gfx + ?Sized>(&mut self, cur_thread: usize, pc: u64, gfx: &mut G) {
+    fn process_thread<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
+        &mut self,
+        cur_thread: usize,
+        pc: u64,
+        gfx: &mut G,
+        audio: &mut A,
+    ) {
         let mut cursor = self.code.get_cursor(pc);
 
         loop {
@@ -228,8 +235,6 @@ impl Vm {
                 0x15 => Some(op_or),
                 0x16 => Some(op_shl),
                 0x17 => Some(op_shr),
-                0x18 => Some(op_playsound),
-                0x1a => Some(op_playmusic),
                 _ => None,
             };
             if let Some(op) = op {
@@ -272,6 +277,21 @@ impl Vm {
             };
             if let Some(op) = op {
                 if op(opcode, &mut cursor, &mut self.state, &self.sys, gfx) {
+                    break;
+                } else {
+                    continue;
+                }
+            }
+
+            // Audio op - play sound or music.
+            type AudioOp<A> = fn(u8, &mut Cursor<&[u8]>, &mut VmState, &VmSys, &mut A) -> bool;
+            let op: Option<AudioOp<A>> = match opcode {
+                0x18 => Some(op_playsound),
+                0x1a => Some(op_playmusic),
+                _ => None,
+            };
+            if let Some(op) = op {
+                if op(opcode, &mut cursor, &mut self.state, &self.sys, audio) {
                     break;
                 } else {
                     continue;
@@ -345,7 +365,11 @@ impl Vm {
         self.set_reg(VM_VARIABLE_HERO_ACTION_POS_MASK, mask);
     }
 
-    fn process_step<G: gfx::Gfx + ?Sized>(&mut self, gfx: &mut G) -> usize {
+    fn process_step<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
+        &mut self,
+        gfx: &mut G,
+        audio: &mut A,
+    ) -> usize {
         // Check if we need to switch to a new part of the game.
         if let Some(requested_scene) = self.state.requested_scene.take() {
             info!("Loading scene {}", requested_scene);
@@ -383,7 +407,7 @@ impl Vm {
             debug!("Running thread {:02x}@{:04x}", thread_id, pc);
             debug!("---------------------");
 
-            self.process_thread(thread_id, pc, gfx);
+            self.process_thread(thread_id, pc, gfx, audio);
 
             match self.state.threads[thread_id].state {
                 ThreadState::Inactive => debug!("Thread {:02x} ended", thread_id),
@@ -395,11 +419,15 @@ impl Vm {
         nb_threads
     }
 
-    pub fn process<G: gfx::Gfx + ?Sized>(&mut self, gfx: &mut G) -> bool {
+    pub fn process<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
+        &mut self,
+        gfx: &mut G,
+        audio: &mut A,
+    ) -> bool {
         debug!("===================");
         debug!("Starting round {}", self.round);
         debug!("===================");
-        let nb_threads = self.process_step(gfx);
+        let nb_threads = self.process_step(gfx, audio);
         debug!(
             "Ending round {}: {} threads have run",
             self.round, nb_threads

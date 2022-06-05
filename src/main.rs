@@ -1,5 +1,6 @@
 use clap::Arg;
 
+mod audio;
 mod font;
 mod gfx;
 mod input;

@@ -307,7 +307,6 @@ impl ResourceManager {
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub fn get_resource(&self, index: usize) -> Option<&MemEntry> {
         if index == 0 || index >= self.resources.len() {
             return None;

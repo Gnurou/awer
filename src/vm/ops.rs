@@ -720,20 +720,65 @@ fn draw_polygon_hierarchy<G: gfx::Gfx + ?Sized>(
     }
 }
 
-pub fn op_playsound(_op: u8, cursor: &mut Cursor<&[u8]>, _state: &mut VmState) -> bool {
-    let res_id = cursor.read_u16::<BE>().unwrap();
-    let freq = cursor.read_u8().unwrap();
-    let vol = cursor.read_u8().unwrap();
+pub fn op_playsound<A: audio::Mixer + ?Sized>(
+    _op: u8,
+    cursor: &mut Cursor<&[u8]>,
+    _state: &mut VmState,
+    sys: &VmSys,
+    audio: &mut A,
+) -> bool {
+    let res_id = cursor.read_u16::<BE>().unwrap() as usize;
+    let freq_index = cursor.read_u8().unwrap();
+    let vol = std::cmp::min(cursor.read_u8().unwrap(), 0x3f);
     let channel = cursor.read_u8().unwrap();
 
-    warn!(
-        "op_playsound: {} {} {} {} - not yet implemented",
-        res_id, freq, vol, channel
+    trace!(
+        "op_playsound: {:02x} freq_index: {}, vol: {}, channel: {}",
+        res_id,
+        freq_index,
+        vol,
+        channel
     );
+
+    let freq = match audio::PLAYBACK_FREQUENCY.get(freq_index as usize) {
+        None => {
+            error!("invalid frequency index {}", freq_index);
+            return false;
+        }
+        Some(&freq) => freq,
+    };
+
+    let res = match sys.resman.get_resource(res_id) {
+        None => {
+            error!("failed to obtain resource {}", res_id);
+            return false;
+        }
+        Some(res) => res,
+    };
+
+    let len = (&res.data[..]).read_u16::<BE>().unwrap() * 2;
+    let loop_len = (&res.data[2..]).read_u16::<BE>().unwrap() * 2;
+    // The sample length becomes len + loop_len if we have a loop. In any case, it should be equal
+    // to the size of the resource minus the header.
+    let (len, loop_pos) = if loop_len != 0 {
+        (len + loop_len, Some(len as usize))
+    } else {
+        (len, None)
+    };
+    assert_eq!(len as usize, res.data.len() - 8);
+
+    audio.play(&res.data[8..], channel, freq, vol, loop_pos);
 
     false
 }
-pub fn op_playmusic(_op: u8, cursor: &mut Cursor<&[u8]>, _state: &mut VmState) -> bool {
+
+pub fn op_playmusic<A: audio::Mixer + ?Sized>(
+    _op: u8,
+    cursor: &mut Cursor<&[u8]>,
+    _state: &mut VmState,
+    _sys: &VmSys,
+    _audio: &mut A,
+) -> bool {
     let res_id = cursor.read_u16::<BE>().unwrap();
     let delay = cursor.read_u16::<BE>().unwrap();
     let pos = cursor.read_u8().unwrap();
