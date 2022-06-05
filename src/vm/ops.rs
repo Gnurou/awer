@@ -784,11 +784,10 @@ pub fn op_loadresource<G: gfx::Gfx + ?Sized>(
 
     // Just load a resource.
     let res = sys.resman.get_resource(res_id).unwrap();
-    match res.res_type {
-        // Bitmap resources are always loaded into buffer 0. Emulate this
-        // behavior.
-        res::ResType::Bitmap => gfx.blit_buffer(0, &res.data),
-        res_type => warn!("op_loadresource not implemented for type {}", res_type),
+    // Bitmap resources are always loaded into buffer 0. Emulate this
+    // behavior.
+    if let res::ResType::Bitmap = res.res_type {
+        gfx.blit_buffer(0, &res.data)
     };
 
     false
