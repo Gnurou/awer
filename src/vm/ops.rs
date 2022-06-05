@@ -783,7 +783,7 @@ pub fn op_loadresource<G: gfx::Gfx + ?Sized>(
     }
 
     // Just load a resource.
-    let res = sys.resman.get_resource(res_id).unwrap();
+    let res = sys.resman.load_resource(res_id).unwrap();
     // Bitmap resources are always loaded into buffer 0. Emulate this
     // behavior.
     if let res::ResType::Bitmap = res.res_type {

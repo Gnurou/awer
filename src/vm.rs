@@ -412,21 +412,21 @@ impl Vm {
         self.code.code = self
             .sys
             .resman
-            .get_resource(scene.code)
+            .load_resource(scene.code)
             .unwrap()
             .data
             .clone();
         self.sys.palette = self
             .sys
             .resman
-            .get_resource(scene.palette)
+            .load_resource(scene.palette)
             .unwrap()
             .data
             .clone();
         self.sys.cinematic = self
             .sys
             .resman
-            .get_resource(scene.video1)
+            .load_resource(scene.video1)
             .unwrap()
             .data
             .clone();
@@ -434,7 +434,7 @@ impl Vm {
             self.sys.video = self
                 .sys
                 .resman
-                .get_resource(scene.video2)
+                .load_resource(scene.video2)
                 .unwrap()
                 .data
                 .clone();

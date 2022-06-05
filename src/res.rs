@@ -307,7 +307,22 @@ impl ResourceManager {
         Ok(())
     }
 
-    pub fn get_resource(&mut self, index: usize) -> io::Result<&MemEntry> {
+    #[allow(dead_code)]
+    pub fn get_resource(&self, index: usize) -> Option<&MemEntry> {
+        if index == 0 || index >= self.resources.len() {
+            return None;
+        }
+
+        let resource = &self.resources[index];
+        if resource.state != State::Loaded {
+            return None;
+        }
+
+        Some(resource)
+    }
+
+    /// Load resource `index`, if it is not already loaded, and return it.
+    pub fn load_resource(&mut self, index: usize) -> io::Result<&MemEntry> {
         if index == 0 || index >= self.resources.len() {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
@@ -373,7 +388,7 @@ impl ResourceManager {
 
     pub fn dump_resources(&mut self) -> io::Result<()> {
         for i in 1..self.resources.len() {
-            let resource = self.get_resource(i)?;
+            let resource = self.load_resource(i)?;
 
             debug!(
                 "Entry 0x{:x} of type {} loaded: {} ({}) bytes @{:1x},0x{:08x}",
@@ -441,7 +456,7 @@ mod tests {
         assert_ne!(resman.resources.len(), 0);
 
         for i in 1..resman.resources.len() {
-            let resource = resman.get_resource(i)?;
+            let resource = resman.load_resource(i)?;
 
             debug!(
                 "Entry 0x{:x} of type {} loaded: {} ({}) bytes @{:1x},0x{:08x}",
