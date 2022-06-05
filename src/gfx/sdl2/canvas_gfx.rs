@@ -1,3 +1,8 @@
+//! A gfx module that renders the game using the CPU and SDL's Texture/Canvas methods.
+//!
+//! This way of doing does not rely on any particular SDL driver, i.e. it does not require OpenGL or
+//! any kind of hardware acceleration.
+
 use std::convert::TryFrom;
 
 use sdl2::{
@@ -17,17 +22,21 @@ use crate::{
 
 use super::WINDOW_RESOLUTION;
 
-/// A gfx module that renders the game using the CPU and SDL's Texture/Canvas methods.
-///
-/// This way of doing does not rely on any particular SDL driver, i.e. it does not require OpenGL or
-/// any kind of hardware acceleration.
+/// Pure software renderer and display for SDL2. `IndexedRenderer` is just implemented by proxying
+/// `raster`, and the other members are used to display the current game buffer on the screen.
 pub struct Sdl2CanvasGfx {
-    canvas: Canvas<Window>,
-    texture: Texture,
-    pixel_format: PixelFormat,
-    bytes_per_pixel: usize,
-
+    /// Software rasterizer from which we will get the game buffers to display.
     raster: RasterRenderer,
+
+    /// Canvas used to show the current game buffer on the actual display.
+    canvas: Canvas<Window>,
+    /// Texture onto which the game buffer to be displayed is rendered.
+    texture: Texture,
+    /// Native pixel format of the display.
+    pixel_format: PixelFormat,
+    /// Number of bytes per pixel, used when rendering the current buffer to the native pixel
+    /// format.
+    bytes_per_pixel: usize,
 }
 
 impl Sdl2CanvasGfx {

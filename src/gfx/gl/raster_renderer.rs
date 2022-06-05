@@ -7,8 +7,8 @@ use crate::gfx::{self, gl::IndexedTexture, raster::RasterRenderer};
 
 use super::GlRenderer;
 
-// A simple proxy struct for a `RasterRenderer` with the ability to obtain a texture from any of the
-// rendered buffers that can be used with OpenGL.
+/// A simple proxy struct for a `RasterRenderer` with the ability to obtain a texture from any of
+/// the rendered buffers that can be used with OpenGL.
 pub struct GlRasterRenderer {
     /// Regular CPU raster renderer where we will render the game.
     raster: RasterRenderer,

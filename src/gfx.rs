@@ -83,7 +83,7 @@ impl<R: IndexedRenderer + ?Sized, C: DerefMut<Target = R>> IndexedRenderer for C
     }
 }
 
-/// Trait for rendering an indexed-color buffer using a given palette on the screen.
+/// Trait for displaying an indexed-color buffer using a given palette on the screen.
 pub trait Display {
     /// Show `page_id` on the screen, using `palette` to render its actual colors.
     fn blitframebuffer(&mut self, page_id: usize, palette: &Palette);
