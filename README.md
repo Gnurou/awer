@@ -23,7 +23,7 @@ Not that the code is by any means clean or documented at the moment, it's comple
 What is working:
 
 * Virtual machine
-* Rendering of polygons and bitmaps
+* Rendering of polygons, bitmaps, and text
 * Input
 
 This makes the game basically playable.
@@ -31,7 +31,6 @@ This makes the game basically playable.
 What is not completed yet:
 
 * Sound
-* Rendering of text
 
 How to run
 ----------
