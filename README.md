@@ -57,7 +57,7 @@ Choose the rendering method.
 
 `gl_raster` is similar to `raster`, but uses a GL shader to convert and scale the game screen to our modern displays. It is more efficient than `raster`, but introduces a dependency to GL.
 
-`gl_poly` creates triangles from the polygons and renders them using OpenGL. This makes rendering fast and smooth at higher resolutions. However, since that's clearly not how the game was designed to be rendered, artefacts in the form of gaps and misshaped objects are to be expected. Also, transparency cannot be rendered faithfully in this mode.
+`gl_poly` creates triangles from the polygons and renders them using OpenGL. This makes rendering fast and smooth at higher resolutions. However, since that's clearly not how the game was designed to be rendered, artefacts in the form of gaps and misshaped objects are to be expected.
 
 <p align="center"><img src="/screenshots/poly.png?raw=true" width="75%"></p>
 
