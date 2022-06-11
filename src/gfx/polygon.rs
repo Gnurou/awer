@@ -52,19 +52,7 @@ impl Polygon {
         T: Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T> + Div<T, Output = T>,
         Point<T>: From<Point<i16>>,
     {
-        let mut iter = self.points.iter();
-        let next_line = match (iter.next(), iter.next_back()) {
-            (Some(cw), Some(ccw)) => Some((Point::<T>::from(*cw), Point::<T>::from(*ccw))),
-            (Some(cw), None) => Some((Point::<T>::from(*cw), Point::<T>::from(*cw))),
-            _ => None,
-        };
-
-        PolygonIter::<_, T> {
-            next_cw: iter.next(),
-            next_ccw: iter.next_back(),
-            iter,
-            next_line,
-        }
+        PolygonIter::<_, T>::new(self.points.iter())
     }
 }
 
@@ -87,6 +75,29 @@ pub struct PolygonIter<'a, U, T> {
     next_ccw: Option<&'a Point<U>>,
     // Line to return on the next call to next().
     next_line: Option<(Point<T>, Point<T>)>,
+}
+
+impl<'a, U, T> PolygonIter<'a, U, T>
+where
+    T: Copy + Default + PartialEq + PartialOrd,
+    T: Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T> + Div<T, Output = T>,
+    Point<T>: From<Point<U>>,
+    U: Copy,
+{
+    pub fn new(mut iter: Iter<'a, Point<U>>) -> Self {
+        let next_line = match (iter.next(), iter.next_back()) {
+            (Some(cw), Some(ccw)) => Some((Point::<T>::from(*cw), Point::<T>::from(*ccw))),
+            (Some(cw), None) => Some((Point::<T>::from(*cw), Point::<T>::from(*cw))),
+            _ => None,
+        };
+
+        PolygonIter::<_, T> {
+            next_cw: iter.next(),
+            next_ccw: iter.next_back(),
+            iter,
+            next_line,
+        }
+    }
 }
 
 impl<'a, U, T> Iterator for PolygonIter<'a, U, T>
