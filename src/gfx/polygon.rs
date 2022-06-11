@@ -62,7 +62,6 @@ impl Polygon {
             next_ccw: iter.next_back(),
             iter,
             next_line,
-            phantom: std::marker::PhantomData,
         }
     }
 }
@@ -75,56 +74,54 @@ impl Polygon {
 //       we need to reverse the back iterator to get the correct lines though.
 pub struct PolygonIter<'a, T> {
     iter: Iter<'a, Point<i16>>,
+    // Next point when going clockwise.
     next_cw: Option<&'a Point<i16>>,
+    // Next point when going counter-clockwise.
     next_ccw: Option<&'a Point<i16>>,
-    // The line to return on the next call to next().
+    // Line to return on the next call to next().
     next_line: Option<(Point<T>, Point<T>)>,
-
-    phantom: std::marker::PhantomData<T>,
 }
 
 impl<'a, T> Iterator for PolygonIter<'a, T>
 where
-    T: Copy + Default + PartialEq,
+    T: Copy + Default + PartialEq + PartialOrd,
     T: Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T> + Div<T, Output = T>,
     Point<T>: From<Point<i16>>,
 {
     type Item = (Point<T>, Point<T>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (p1, p2, cur_line, p1_1, p2_1) = match (self.next_cw, self.next_ccw, self.next_line) {
-            (Some(cw), Some(ccw), Some((p1, p2))) => (
-                cw,
-                ccw,
-                (p1, p2),
-                Point::<T>::from(*cw),
-                Point::<T>::from(*ccw),
-            ),
+        let (cur_line, p1, p2) = match (self.next_cw, self.next_ccw, self.next_line) {
+            (Some(cw), Some(ccw), Some((p1, p2))) => {
+                ((p1, p2), Point::<T>::from(*cw), Point::<T>::from(*ccw))
+            }
             // We parsed all the points.
             _ => return self.next_line.take(),
         };
 
-        self.next_line = match p1.y.cmp(&p2.y) {
+        self.next_line = match p1.y.partial_cmp(&p2.y) {
             // Create a new point on the line connecting p2 to its next point.
-            Ordering::Less => {
+            Some(Ordering::Less) => {
                 self.next_cw = self.iter.next();
-                let x = p2_1.x
-                    - ((p1_1.y - cur_line.1.y) * slope(&cur_line.1, &p2_1).unwrap_or_default());
-                Some((p1_1, Point::new(x, p1_1.y)))
+                let x =
+                    p2.x - ((p1.y - cur_line.1.y) * slope(&cur_line.1, &p2).unwrap_or_default());
+                Some((p1, Point::new(x, p1.y)))
             }
             // Create a new point on the line connecting p1 to its next point.
-            Ordering::Greater => {
+            Some(Ordering::Greater) => {
                 self.next_ccw = self.iter.next_back();
-                let x = p1_1.x
-                    - ((p2_1.y - cur_line.0.y) * slope(&cur_line.0, &p1_1).unwrap_or_default());
-                Some((Point::new(x, p2_1.y), p2_1))
+                let x =
+                    p1.x - ((p2.y - cur_line.0.y) * slope(&cur_line.0, &p1).unwrap_or_default());
+                Some((Point::new(x, p2.y), p2))
             }
             // Point share same y, return the line connecting them.
-            Ordering::Equal => {
+            Some(Ordering::Equal) => {
                 self.next_cw = self.iter.next();
                 self.next_ccw = self.iter.next_back();
-                Some((p1_1, p2_1))
+                Some((p1, p2))
             }
+            // We are in NaN territory, so something must have gone pretty wrong. Let's stop here.
+            None => None,
         };
 
         // We may return the same line twice in a row in case of a point or horizontal line.
