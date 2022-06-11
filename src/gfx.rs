@@ -109,7 +109,7 @@ impl<
 
 /// A point as described in the game's resources for polygons.
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Point<T> {
     pub x: T,
     pub y: T,
@@ -118,12 +118,6 @@ pub struct Point<T> {
 impl<T: fmt::Display> Debug for Point<T> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(f, "({},{})", self.x, self.y)
-    }
-}
-
-impl<T: PartialEq> PartialEq for Point<T> {
-    fn eq(&self, p: &Self) -> bool {
-        self.x == p.x && self.y == p.y
     }
 }
 
