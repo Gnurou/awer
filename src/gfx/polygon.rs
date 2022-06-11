@@ -86,7 +86,7 @@ where
 {
     pub fn new(mut iter: Iter<'a, Point<U>>) -> Self {
         let next_line = match (iter.next(), iter.next_back()) {
-            (Some(cw), Some(ccw)) => Some((Point::<T>::from(*cw), Point::<T>::from(*ccw))),
+            (Some(cw), Some(ccw)) => Some((Point::<T>::from(*ccw), Point::<T>::from(*cw))),
             (Some(cw), None) => Some((Point::<T>::from(*cw), Point::<T>::from(*cw))),
             _ => None,
         };
@@ -110,9 +110,9 @@ where
     type Item = (Point<T>, Point<T>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (cur_line, p1, p2) = match (self.next_cw, self.next_ccw, self.next_line) {
-            (Some(cw), Some(ccw), Some((p1, p2))) => {
-                ((p1, p2), Point::<T>::from(*cw), Point::<T>::from(*ccw))
+        let (cur_line, p1, p2) = match (self.next_ccw, self.next_cw, self.next_line) {
+            (Some(ccw), Some(cw), Some((p1, p2))) => {
+                ((p1, p2), Point::<T>::from(*ccw), Point::<T>::from(*cw))
             }
             // We parsed all the points.
             _ => return self.next_line.take(),
@@ -121,14 +121,14 @@ where
         self.next_line = match p1.y.partial_cmp(&p2.y) {
             // Create a new point on the line connecting p2 to its next point.
             Some(Ordering::Less) => {
-                self.next_cw = self.iter.next();
+                self.next_ccw = self.iter.next_back();
                 let x =
                     p2.x - ((p1.y - cur_line.1.y) * slope(&cur_line.1, &p2).unwrap_or_default());
                 Some((p1, Point::new(x, p1.y)))
             }
             // Create a new point on the line connecting p1 to its next point.
             Some(Ordering::Greater) => {
-                self.next_ccw = self.iter.next_back();
+                self.next_cw = self.iter.next();
                 let x =
                     p1.x - ((p2.y - cur_line.0.y) * slope(&cur_line.0, &p1).unwrap_or_default());
                 Some((Point::new(x, p2.y), p2))
@@ -212,7 +212,7 @@ mod test {
         .line_iter()
         .collect();
 
-        assert_eq!(lines, vec![(Point::new(7.0, 3.0), Point::new(2.0, 3.0))]);
+        assert_eq!(lines, vec![(Point::new(2.0, 3.0), Point::new(7.0, 3.0))]);
     }
 
     #[test]
@@ -256,7 +256,7 @@ mod test {
             lines,
             vec![
                 (Point::new(1.0, 0.0), Point::new(1.0, 0.0)),
-                (Point::new(2.0, 2.0), Point::new(0.0, 2.0)),
+                (Point::new(0.0, 2.0), Point::new(2.0, 2.0)),
             ]
         );
     }
@@ -278,8 +278,8 @@ mod test {
         assert_eq!(
             lines,
             vec![
-                (Point::new(2.0, 0.0), Point::new(0.0, 0.0)),
-                (Point::new(2.0, 2.0), Point::new(0.0, 2.0)),
+                (Point::new(0.0, 0.0), Point::new(2.0, 0.0)),
+                (Point::new(0.0, 2.0), Point::new(2.0, 2.0)),
             ]
         );
     }
@@ -305,10 +305,10 @@ mod test {
         assert_eq!(
             lines,
             vec![
-                (Point::new(2.0, 0.0), Point::new(1.0, 0.0)),
-                (Point::new(3.0, 1.0), Point::new(0.0, 1.0)),
-                (Point::new(3.0, 2.0), Point::new(0.0, 2.0)),
-                (Point::new(2.0, 3.0), Point::new(1.0, 3.0)),
+                (Point::new(1.0, 0.0), Point::new(2.0, 0.0)),
+                (Point::new(0.0, 1.0), Point::new(3.0, 1.0)),
+                (Point::new(0.0, 2.0), Point::new(3.0, 2.0)),
+                (Point::new(1.0, 3.0), Point::new(2.0, 3.0)),
             ]
         );
     }
@@ -332,10 +332,10 @@ mod test {
         assert_eq!(
             lines,
             vec![
-                (Point::new(2.0, 0.0), Point::new(0.0, 0.0)),
-                (Point::new(3.0, 1.0), Point::new(0.0, 1.0)),
-                (Point::new(2.0, 2.0), Point::new(0.0, 2.0)),
-                (Point::new(3.0, 3.0), Point::new(0.0, 3.0)),
+                (Point::new(0.0, 0.0), Point::new(2.0, 0.0)),
+                (Point::new(0.0, 1.0), Point::new(3.0, 1.0)),
+                (Point::new(0.0, 2.0), Point::new(2.0, 2.0)),
+                (Point::new(0.0, 3.0), Point::new(3.0, 3.0)),
             ]
         );
     }
@@ -359,10 +359,10 @@ mod test {
         assert_eq!(
             lines,
             vec![
-                (Point::new(2.0, 0.0), Point::new(0.0, 0.0)),
-                (Point::new(2.0, 1.0), Point::new(0.0, 1.0)),
-                (Point::new(2.0, 2.0), Point::new(1.0, 2.0)),
-                (Point::new(2.0, 3.0), Point::new(0.0, 3.0)),
+                (Point::new(0.0, 0.0), Point::new(2.0, 0.0)),
+                (Point::new(0.0, 1.0), Point::new(2.0, 1.0)),
+                (Point::new(1.0, 2.0), Point::new(2.0, 2.0)),
+                (Point::new(0.0, 3.0), Point::new(2.0, 3.0)),
             ]
         );
     }
@@ -385,9 +385,9 @@ mod test {
         assert_eq!(
             lines,
             vec![
-                (Point::new(2.0, 0.0), Point::new(1.0, 0.0)),
-                (Point::new(3.0, 1.0), Point::new(0.5, 1.0)),
-                (Point::new(2.0, 2.0), Point::new(0.0, 2.0)),
+                (Point::new(1.0, 0.0), Point::new(2.0, 0.0)),
+                (Point::new(0.5, 1.0), Point::new(3.0, 1.0)),
+                (Point::new(0.0, 2.0), Point::new(2.0, 2.0)),
             ]
         );
     }
@@ -410,9 +410,9 @@ mod test {
         assert_eq!(
             lines,
             vec![
-                (Point::new(1.0, 0.0), Point::new(0.0, 0.0)),
-                (Point::new(1.5, 1.0), Point::new(1.0, 1.0)),
-                (Point::new(2.0, 2.0), Point::new(0.0, 2.0)),
+                (Point::new(0.0, 0.0), Point::new(1.0, 0.0)),
+                (Point::new(1.0, 1.0), Point::new(1.5, 1.0)),
+                (Point::new(0.0, 2.0), Point::new(2.0, 2.0)),
             ]
         );
     }
