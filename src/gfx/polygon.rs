@@ -46,8 +46,10 @@ impl Polygon {
     }
 
     #[allow(dead_code)]
-    pub fn line_iter<T>(&self) -> PolygonIter<T>
+    pub fn line_iter<T>(&self) -> PolygonIter<i16, T>
     where
+        T: Copy + Default + PartialEq + PartialOrd,
+        T: Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T> + Div<T, Output = T>,
         Point<T>: From<Point<i16>>,
     {
         let mut iter = self.points.iter();
@@ -57,7 +59,7 @@ impl Polygon {
             _ => None,
         };
 
-        PolygonIter::<T> {
+        PolygonIter::<_, T> {
             next_cw: iter.next(),
             next_ccw: iter.next_back(),
             iter,
@@ -66,27 +68,33 @@ impl Polygon {
     }
 }
 
-/// An iterator that returns all the horizontal lines from which we can infer
-/// the shape of the polygon, from top to bottom.
-/// These lines can be connected together in order to produce a set of quads
-/// that fills the polygon.
+/// An iterator that returns all the horizontal lines from which we can infer the shape of the
+/// polygon, from top to bottom.
+///
+/// These lines can be connected together in order to produce a set of quads that fills the polygon.
+///
+/// `U` is the original type of the points in the polygon, whereas `T` is the type on which we want
+/// to perform the operations. It can be different if e.g. `U` is an integer type, in which case we
+/// will likely want `T` to be some kind of floating point in order to get good precision.
+///
 // TODO: Windows type implements DoubleEndedIterator! We can use that. Maybe
 //       we need to reverse the back iterator to get the correct lines though.
-pub struct PolygonIter<'a, T> {
-    iter: Iter<'a, Point<i16>>,
+pub struct PolygonIter<'a, U, T> {
+    iter: Iter<'a, Point<U>>,
     // Next point when going clockwise.
-    next_cw: Option<&'a Point<i16>>,
+    next_cw: Option<&'a Point<U>>,
     // Next point when going counter-clockwise.
-    next_ccw: Option<&'a Point<i16>>,
+    next_ccw: Option<&'a Point<U>>,
     // Line to return on the next call to next().
     next_line: Option<(Point<T>, Point<T>)>,
 }
 
-impl<'a, T> Iterator for PolygonIter<'a, T>
+impl<'a, U, T> Iterator for PolygonIter<'a, U, T>
 where
     T: Copy + Default + PartialEq + PartialOrd,
     T: Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T> + Div<T, Output = T>,
-    Point<T>: From<Point<i16>>,
+    Point<T>: From<Point<U>>,
+    U: Copy,
 {
     type Item = (Point<T>, Point<T>);
 
