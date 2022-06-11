@@ -127,7 +127,12 @@ where
             }
         };
 
-        Some(cur_line)
+        // We may return the same line twice in a row in case of a point or horizontal line.
+        if Some(cur_line) == self.next_line {
+            self.next()
+        } else {
+            Some(cur_line)
+        }
     }
 }
 
@@ -162,21 +167,59 @@ mod test {
 
     #[test]
     fn iterator_point() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new((0, 0), vec![Point::new(2, 3)])
-            .line_iter()
-            .collect();
+        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new(
+            (0, 0),
+            vec![
+                Point::new(2, 3),
+                Point::new(2, 3),
+                Point::new(2, 3),
+                Point::new(2, 3),
+            ],
+        )
+        .line_iter()
+        .collect();
 
-        assert_eq!(lines, vec![(Point::new(2.0, 3.0), Point::new(2.0, 3.0)),]);
+        assert_eq!(lines, vec![(Point::new(2.0, 3.0), Point::new(2.0, 3.0))]);
     }
 
     #[test]
-    fn iterator_line() {
-        let lines: Vec<(Point<f64>, Point<f64>)> =
-            Polygon::new((0, 0), vec![Point::new(2, 3), Point::new(7, 3)])
-                .line_iter()
-                .collect();
+    fn iterator_hline() {
+        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new(
+            (0, 0),
+            vec![
+                Point::new(7, 3),
+                Point::new(7, 3),
+                Point::new(2, 3),
+                Point::new(2, 3),
+            ],
+        )
+        .line_iter()
+        .collect();
 
-        assert_eq!(lines, vec![(Point::new(2.0, 3.0), Point::new(7.0, 3.0)),]);
+        assert_eq!(lines, vec![(Point::new(7.0, 3.0), Point::new(2.0, 3.0))]);
+    }
+
+    #[test]
+    fn iterator_vline() {
+        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new(
+            (0, 0),
+            vec![
+                Point::new(3, 3),
+                Point::new(3, 10),
+                Point::new(3, 10),
+                Point::new(3, 3),
+            ],
+        )
+        .line_iter()
+        .collect();
+
+        assert_eq!(
+            lines,
+            vec![
+                (Point::new(3.0, 3.0), Point::new(3.0, 3.0)),
+                (Point::new(3.0, 10.0), Point::new(3.0, 10.0))
+            ]
+        );
     }
 
     #[test]
