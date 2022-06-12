@@ -11,15 +11,14 @@ use crate::{
     sys::Snapshotable,
 };
 
-#[derive(Clone)]
-pub struct IndexedImage([u8; SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1]]);
-
 /// Apply the zoom function on a point's coordinate `p`: multiply it by `zoom`,
 /// then divide by 64.
 fn scale(p: i16, zoom: u16) -> i16 {
     ((p as i32 * zoom as i32) / 64) as i16
 }
 
+/// Compute the slope between `p1` and `p2`, i.e. the amount of sub-pixels one must move
+/// horizontally on each y step in order to draw a connected line between the points.
 fn slope_step(p1: &Point<i32>, p2: &Point<i32>) -> i32 {
     let dy = p2.y - p1.y;
     let dx = p2.x - p1.x;
@@ -30,6 +29,9 @@ fn slope_step(p1: &Point<i32>, p2: &Point<i32>) -> i32 {
         0
     }
 }
+
+#[derive(Clone)]
+pub struct IndexedImage([u8; SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1]]);
 
 impl Default for IndexedImage {
     fn default() -> Self {
