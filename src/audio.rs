@@ -105,13 +105,6 @@ impl Mixer for ClassicMixer {
             chunk_inc: ((freq as usize) << 8) / self.output_freq as usize,
             chunk_pos: 8, // Skip header.
         };
-
-        println!(
-            "{} {} {}",
-            ((freq as usize) << 8) / self.output_freq as usize,
-            (freq as usize) << 8,
-            self.output_freq
-        );
     }
 }
 
