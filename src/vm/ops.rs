@@ -748,16 +748,16 @@ pub fn op_playsound<A: audio::Mixer + ?Sized>(
         Some(&freq) => freq,
     };
 
-    let res = match sys.resman.get_resource(res_id) {
+    let data = match sys.resman.get_resource(res_id) {
         None => {
             error!("failed to obtain resource {}", res_id);
             return false;
         }
-        Some(res) => res,
+        Some(res) => res.data,
     };
 
-    let len = (&res.data[..]).read_u16::<BE>().unwrap() * 2;
-    let loop_len = (&res.data[2..]).read_u16::<BE>().unwrap() * 2;
+    let len = (&data[..]).read_u16::<BE>().unwrap() * 2;
+    let loop_len = (&data[2..]).read_u16::<BE>().unwrap() * 2;
     // The sample length becomes len + loop_len if we have a loop. In any case, it should be equal
     // to the size of the resource minus the header.
     let (len, loop_pos) = if loop_len != 0 {
@@ -765,9 +765,9 @@ pub fn op_playsound<A: audio::Mixer + ?Sized>(
     } else {
         (len, None)
     };
-    assert_eq!(len as usize, res.data.len() - 8);
+    assert_eq!(len as usize, data.len() - 8);
 
-    audio.play(&res.data[8..], channel, freq, vol, loop_pos);
+    audio.play(&data[8..], channel, freq, vol, loop_pos);
 
     false
 }
@@ -791,17 +791,18 @@ pub fn op_playmusic<A: audio::Mixer + ?Sized>(
     false
 }
 
-// Asks the resource manager to load a resource from disk.
-// This is apparently used to trigger the loading of sounds and musics as
-// they become needed. Other resources like palettes, bytecode and video
-// segments are specified from the scenes list.
+/// Asks the resource manager to load a resource from disk.
+///
+/// This is apparently used to trigger the loading of sounds and musics at the beginning of a scene.
+/// Other resources like palettes, bytecode and video segments are specified from the scenes list
+/// and loaded with it.
 //
-// This opcode made sense on systems with very little memory. On modern
-// hardware we can just keep everything in memory, however we can always ping
-// the resource manager and let it decide how assets should be managed.
+/// This opcode made sense on systems with very little memory. On modern hardware we can just keep
+/// everything in memory, however we can always ping the resource manager and let it decide how
+/// assets should be managed.
 //
-// This opcode is also used to switch between scenes. In such cases, |res_id|
-// will be 0x3e8x, where x is the number of the scene to load.
+/// This opcode is also used to switch between scenes. In such cases, |res_id|
+/// will be 0x3e8x, where x is the number of the scene to load.
 pub fn op_loadresource<G: gfx::Gfx + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
@@ -832,7 +833,7 @@ pub fn op_loadresource<G: gfx::Gfx + ?Sized>(
     // Bitmap resources are always loaded into buffer 0. Emulate this
     // behavior.
     if let res::ResType::Bitmap = res.res_type {
-        gfx.blit_buffer(0, &res.data)
+        gfx.blit_buffer(0, res.data)
     };
 
     false

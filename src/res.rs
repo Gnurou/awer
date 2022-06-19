@@ -10,12 +10,6 @@ use byteorder::{ReadBytesExt, BE};
 use enumn::N;
 use log::{debug, info};
 
-#[derive(PartialEq)]
-enum State {
-    NotLoaded,
-    Loaded,
-}
-
 #[derive(Clone, Copy, PartialEq, Debug, N)]
 pub enum ResType {
     // Audio samples.
@@ -179,37 +173,50 @@ impl<'a> UnpackContext<'a> {
 }
 
 #[allow(dead_code)]
-pub struct MemEntry {
-    state: State,
-    pub res_type: ResType,
-    pub data: Vec<u8>,
+struct MemEntryInfo {
     // not sure what this is?
     rank_num: u8,
     bank_id: u8,
     bank_offset: u32,
     packed_size: usize,
-    pub size: usize,
+    size: usize,
+}
+
+#[derive(PartialEq)]
+enum MemEntryState {
+    NotLoaded,
+    Loaded(Vec<u8>),
+}
+
+pub struct MemEntry {
+    pub res_type: ResType,
+    state: MemEntryState,
+    info: MemEntryInfo,
+}
+
+pub struct LoadedResource<'a> {
+    pub res_type: ResType,
+    pub data: &'a Vec<u8>,
 }
 
 impl MemEntry {
     fn load(&mut self) -> io::Result<()> {
-        if self.size == 0 {
+        if self.info.size == 0 {
             return Ok(());
         }
 
-        let mut file = File::open(format!("bank{:02x}", self.bank_id))?;
-        file.seek(SeekFrom::Start(self.bank_offset as u64))?;
+        let mut file = File::open(format!("bank{:02x}", self.info.bank_id))?;
+        file.seek(SeekFrom::Start(self.info.bank_offset as u64))?;
 
-        let mut data = vec![0u8; self.size];
-        file.read_exact(&mut data[..self.packed_size])?;
+        let mut data = vec![0u8; self.info.size];
+        file.read_exact(&mut data[..self.info.packed_size])?;
 
-        if self.size > self.packed_size {
-            let unpack_ctx = UnpackContext::new(&mut data[..], self.packed_size as usize);
+        if self.info.size > self.info.packed_size {
+            let unpack_ctx = UnpackContext::new(&mut data[..], self.info.packed_size as usize);
             unpack_ctx.unpack()?;
         }
 
-        self.data = data;
-        self.state = State::Loaded;
+        self.state = MemEntryState::Loaded(data);
 
         Ok(())
     }
@@ -276,8 +283,8 @@ impl ResourceManager {
             let _ = file.read_u16::<BE>()?;
             let size = file.read_u16::<BE>()?;
 
-            let state = match state {
-                0 => State::NotLoaded,
+            match state {
+                0 => (),
                 0xff => break,
                 _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid state!")),
             };
@@ -294,51 +301,56 @@ impl ResourceManager {
             );
 
             self.resources.push(MemEntry {
-                state,
                 res_type,
-                data: Vec::new(),
-                rank_num,
-                bank_id,
-                bank_offset,
-                packed_size: psize as usize,
-                size: size as usize,
+                state: MemEntryState::NotLoaded,
+                info: MemEntryInfo {
+                    rank_num,
+                    bank_id,
+                    bank_offset,
+                    packed_size: psize as usize,
+                    size: size as usize,
+                },
             });
         }
         Ok(())
     }
 
-    pub fn get_resource(&self, index: usize) -> Option<&MemEntry> {
-        if index == 0 || index >= self.resources.len() {
-            return None;
-        }
+    /// Returns the resource type and data of resource entry `index` if it is already loaded.
+    ///
+    /// If the entry is not already loaded, no attempt to load it is done and `None` is returned.
+    pub fn get_resource(&self, index: usize) -> Option<LoadedResource> {
+        let res = self.resources.get(index)?;
 
-        let resource = &self.resources[index];
-        if resource.state != State::Loaded {
-            return None;
+        match &res.state {
+            MemEntryState::Loaded(data) => Some(LoadedResource {
+                res_type: res.res_type,
+                data,
+            }),
+            MemEntryState::NotLoaded => None,
         }
-
-        Some(resource)
     }
 
-    /// Load resource `index`, if it is not already loaded, and return it.
-    pub fn load_resource(&mut self, index: usize) -> io::Result<&MemEntry> {
-        if index == 0 || index >= self.resources.len() {
-            return Err(io::Error::new(
-                io::ErrorKind::NotFound,
-                "Resource does not exist!",
-            ));
-        }
+    /// Returns the resource type and data of resource entry `index`, loading it if necessary.
+    pub fn load_resource(&mut self, index: usize) -> io::Result<LoadedResource> {
+        let res = self
+            .resources
+            .get_mut(index)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Resource does not exist!"))?;
 
-        let res = &mut self.resources[index];
-        if res.state != State::Loaded {
+        if matches!(res.state, MemEntryState::NotLoaded) {
             info!(
                 "Loading resource 0x{:02x} of type {}, size {}",
-                index, res.res_type, res.size
+                index, res.res_type, res.info.size
             );
             res.load()?;
         }
 
-        Ok(res)
+        self.get_resource(index).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "Resource unavailable after loading",
+            )
+        })
     }
 
     fn show_stats_for(&self, res_type: ResType) {
@@ -347,7 +359,7 @@ impl ResourceManager {
             .iter()
             .filter(|x| x.res_type == res_type)
             .fold((0usize, 0usize, 0usize), |p, x| {
-                (p.0 + 1, p.1 + x.packed_size, p.2 + x.size)
+                (p.0 + 1, p.1 + x.info.packed_size, p.2 + x.info.size)
             });
         info!(
             "{}: {} entries, size {} -> {}",
@@ -372,8 +384,8 @@ impl ResourceManager {
         for res in self.resources.iter() {
             let stat = &mut stats[res.res_type as usize];
             stat.nb_resources += 1;
-            stat.packed_size += res.packed_size as usize;
-            stat.size += res.size as usize;
+            stat.packed_size += res.info.packed_size as usize;
+            stat.size += res.info.size as usize;
         }
 
         self.show_stats_for(ResType::Sound);
@@ -387,16 +399,17 @@ impl ResourceManager {
 
     pub fn dump_resources(&mut self) -> io::Result<()> {
         for i in 1..self.resources.len() {
-            let resource = self.load_resource(i)?;
+            let _ = self.load_resource(i)?;
+            let resource = &self.resources[i];
 
             debug!(
                 "Entry 0x{:x} of type {} loaded: {} ({}) bytes @{:1x},0x{:08x}",
                 i,
                 resource.res_type,
-                resource.size,
-                resource.packed_size,
-                resource.bank_id,
-                resource.bank_offset
+                resource.info.size,
+                resource.info.packed_size,
+                resource.info.bank_id,
+                resource.info.bank_offset
             );
 
             const DUMPED_RESOURCES_DIR: &str = "resources";
@@ -407,13 +420,19 @@ impl ResourceManager {
             }
 
             use std::io::Write;
+
+            let data = match &resource.state {
+                MemEntryState::Loaded(data) => data,
+                MemEntryState::NotLoaded => continue,
+            };
+
             match resource.res_type {
                 // for f in (ls img_*.dat); convert -size 320x200+0 -depth 8 gray:$f $f.png; end
                 ResType::Bitmap => {
                     let mut file =
                         File::create(format!("{}/img_{:02x}.dat", DUMPED_RESOURCES_DIR, i))?;
                     file.write_all(
-                        &MemEntry::fixup_bitmap(&resource.data)
+                        &MemEntry::fixup_bitmap(data)
                             .iter()
                             .map(|x| x << 4)
                             .collect::<Vec<u8>>(),
@@ -423,19 +442,19 @@ impl ResourceManager {
                     let mut file =
                         File::create(format!("{}/code_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
                             .unwrap();
-                    file.write_all(&resource.data)?;
+                    file.write_all(data)?;
                 }
                 ResType::Cinematic => {
                     let mut file =
                         File::create(format!("{}/cine_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
                             .unwrap();
-                    file.write_all(&resource.data)?;
+                    file.write_all(data)?;
                 }
                 ResType::Sound => {
                     let mut file =
                         File::create(format!("{}/sound_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
                             .unwrap();
-                    file.write_all(&resource.data)?;
+                    file.write_all(data)?;
                 }
                 _ => {}
             };
