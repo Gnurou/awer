@@ -1,3 +1,5 @@
+use crate::audio::SoundSample;
+
 use super::{ClassicMixer, Mixer, MixerChannel};
 use log::debug;
 
@@ -16,15 +18,16 @@ impl sdl2::audio::AudioCallback for ClassicMixer {
                 volume,
                 chunk_pos,
                 chunk_inc,
-                loop_start,
             } = channel
             {
+                let loop_pos = sample.loop_pos();
+
                 'chan: for c in out.iter_mut() {
                     let mut sample_pos = *chunk_pos >> 8;
                     let delta = *chunk_pos & 0xff;
 
                     if sample_pos >= sample.len() {
-                        match *loop_start {
+                        match loop_pos {
                             None => {
                                 debug!("channel {}: stop as end of sample reached", ch_id);
                                 *channel = MixerChannel::Inactive;
@@ -39,7 +42,7 @@ impl sdl2::audio::AudioCallback for ClassicMixer {
                     }
 
                     // The sample is not stored as u8 but i8 in the resource.
-                    let s = sample[sample_pos] as i8;
+                    let s = sample.data[sample_pos] as i8;
                     // Apply volume.
                     let v = s as i16 * *volume as i16 / 0x40;
                     // Mix and clamp.
@@ -58,14 +61,7 @@ impl sdl2::audio::AudioCallback for ClassicMixer {
 }
 
 impl Mixer for sdl2::audio::AudioDevice<ClassicMixer> {
-    fn play(
-        &mut self,
-        sample: &[u8],
-        channel: u8,
-        freq: u16,
-        volume: u8,
-        loop_start: Option<usize>,
-    ) {
-        self.lock().play(sample, channel, freq, volume, loop_start)
+    fn play(&mut self, sample: Box<SoundSample>, channel: u8, freq: u16, volume: u8) {
+        self.lock().play(sample, channel, freq, volume)
     }
 }

@@ -10,6 +10,8 @@ use byteorder::{ReadBytesExt, BE};
 use enumn::N;
 use log::{debug, info};
 
+use crate::audio::SoundSample;
+
 #[derive(Clone, Copy, PartialEq, Debug, N)]
 pub enum ResType {
     // Audio samples.
@@ -197,6 +199,15 @@ pub struct MemEntry {
 pub struct LoadedResource<'a> {
     pub res_type: ResType,
     pub data: &'a Vec<u8>,
+}
+
+impl<'a> LoadedResource<'a> {
+    pub fn into_sound(self) -> Option<Box<SoundSample>> {
+        match self.res_type {
+            ResType::Sound => Some(unsafe { SoundSample::new(self.data.clone()) }),
+            _ => None,
+        }
+    }
 }
 
 impl MemEntry {

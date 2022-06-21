@@ -4,6 +4,63 @@ use log::{debug, error};
 
 const NUM_AUDIO_CHANNELS: usize = 4;
 
+/// A loaded resource reinterpreted as a sound sample.
+///
+/// Samples are single-channel, signed 8-bit and can feature an optional loop point.
+#[repr(C)]
+pub struct SoundSample {
+    /// Length of the sample until the loop point (full length is there is no loop point).
+    len: u16,
+    /// Length of the sample after the loop point (zero if there is no loop point).
+    loop_len: u16,
+    /// Not sure what that is...
+    _fill: u32,
+    /// Audio sample data. Length is len + loop_len.
+    pub data: [i8],
+}
+
+impl SoundSample {
+    /// Create a new `SoundSample` by reinterpreting a resource's byte data.
+    ///
+    /// This is highly unsafe and must only be called on resource data which type is
+    /// [[crate::res::ResType::Sound]].
+    pub unsafe fn new(mut data: Vec<u8>) -> Box<Self> {
+        let ptr = data.as_mut_ptr();
+        let num_samples = data.len() - 8;
+        std::mem::forget(data);
+
+        let sound = Box::from_raw(std::mem::transmute::<_, *mut SoundSample>((
+            ptr,
+            num_samples,
+        )));
+
+        // Consistency check.
+        assert_eq!(sound.len_from_header(), sound.len() as usize);
+
+        sound
+    }
+
+    /// Return the starting position of the loop, if any.
+    pub fn loop_pos(&self) -> Option<usize> {
+        match self.loop_len {
+            0 => None,
+            _ => Some(u16::from_be(self.len) as usize * 2),
+        }
+    }
+
+    /// Return the total length of the sample as specified by the header.
+    ///
+    /// Only used for consistency checking as this may require endianness meddling.
+    fn len_from_header(&self) -> usize {
+        u16::from_be(self.len) as usize * 2 + u16::from_be(self.loop_len) as usize * 2
+    }
+
+    /// Return the total length of the sample.
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+}
+
 /// Trait for sound mixers. A mixer is capable of playing audio samples over several channels
 /// and mixing them into a single output.
 pub trait Mixer {
@@ -15,14 +72,7 @@ pub trait Mixer {
     /// freq: frequency of playback, in Hz.
     /// volume: volume of playback, between 0 and 63.
     /// loop_start: whether the sample loops, and if so, at which position of `sample`.
-    fn play(
-        &mut self,
-        sample: &[u8],
-        channel: u8,
-        freq: u16,
-        volume: u8,
-        loop_start: Option<usize>,
-    );
+    fn play(&mut self, sample: Box<SoundSample>, channel: u8, freq: u16, volume: u8);
 
     // TODO add an iterator method that returns mixed samples. On MixerChannel, add an iterator
     // method that returns the next sample value or None if nothing is playing.
@@ -35,11 +85,9 @@ enum MixerChannel {
     /// Something is being played on this channel.
     Active {
         /// Sample currently being played.
-        sample: Vec<u8>,
+        sample: Box<SoundSample>,
         /// Playback volume.
         volume: u8,
-        /// Position of the playback loop, if any.
-        loop_start: Option<usize>,
         /// We multiply the current sample position by 256 in order to perform sub-sample
         /// arithmetic. This is the current position times 256, plus an offset between the current
         /// and the next sample.
@@ -74,21 +122,13 @@ impl ClassicMixer {
 }
 
 impl Mixer for ClassicMixer {
-    fn play(
-        &mut self,
-        sample: &[u8],
-        channel: u8,
-        freq: u16,
-        volume: u8,
-        loop_start: Option<usize>,
-    ) {
+    fn play(&mut self, sample: Box<SoundSample>, channel: u8, freq: u16, volume: u8) {
         debug!(
-            "channel {}: play sample length {}, freq {}, volume {}, loop_start {:?}",
+            "channel {}: play sample length {}, freq {}, volume {}",
             channel,
             sample.len(),
             freq,
             volume,
-            loop_start
         );
         let channel = match self.channels.get_mut(channel as usize) {
             None => {
@@ -99,9 +139,8 @@ impl Mixer for ClassicMixer {
         };
 
         *channel = MixerChannel::Active {
-            sample: sample.to_owned(),
+            sample,
             volume,
-            loop_start: loop_start.map(|p| p as usize),
             chunk_inc: ((freq as usize) << 8) / self.output_freq as usize,
             chunk_pos: 8, // Skip header.
         };

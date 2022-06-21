@@ -748,26 +748,15 @@ pub fn op_playsound<A: audio::Mixer + ?Sized>(
         Some(&freq) => freq,
     };
 
-    let data = match sys.resman.get_resource(res_id) {
+    let res = match sys.resman.get_resource(res_id).and_then(|r| r.into_sound()) {
         None => {
             error!("failed to obtain resource {}", res_id);
             return false;
         }
-        Some(res) => res.data,
+        Some(res) => res,
     };
 
-    let len = (&data[..]).read_u16::<BE>().unwrap() * 2;
-    let loop_len = (&data[2..]).read_u16::<BE>().unwrap() * 2;
-    // The sample length becomes len + loop_len if we have a loop. In any case, it should be equal
-    // to the size of the resource minus the header.
-    let (len, loop_pos) = if loop_len != 0 {
-        (len + loop_len, Some(len as usize))
-    } else {
-        (len, None)
-    };
-    assert_eq!(len as usize, data.len() - 8);
-
-    audio.play(&data[8..], channel, freq, vol, loop_pos);
+    audio.play(res, channel, freq, vol);
 
     false
 }
