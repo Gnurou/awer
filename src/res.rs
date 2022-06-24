@@ -204,7 +204,7 @@ pub struct LoadedResource<'a> {
 impl<'a> LoadedResource<'a> {
     pub fn into_sound(self) -> Option<Box<SoundSample>> {
         match self.res_type {
-            ResType::Sound => Some(unsafe { SoundSample::new(self.data.clone()) }),
+            ResType::Sound => Some(unsafe { SoundSample::from_raw_resource(self.data.clone()) }),
             _ => None,
         }
     }

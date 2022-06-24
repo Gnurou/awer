@@ -24,15 +24,15 @@ impl SoundSample {
     ///
     /// This is highly unsafe and must only be called on resource data which type is
     /// [[crate::res::ResType::Sound]].
-    pub unsafe fn new(mut data: Vec<u8>) -> Box<Self> {
+    pub unsafe fn from_raw_resource(mut data: Vec<u8>) -> Box<Self> {
         let ptr = data.as_mut_ptr();
-        let num_samples = data.len() - 8;
+        // Remove the size of the header and filler
+        let len = data.len() - 8;
         std::mem::forget(data);
 
-        let sound = Box::from_raw(std::mem::transmute::<_, *mut SoundSample>((
-            ptr,
-            num_samples,
-        )));
+        let slice = core::slice::from_raw_parts(ptr as *const (), len);
+        let ptr = slice as *const [()] as *const SoundSample;
+        let sound = Box::from_raw(ptr as *mut SoundSample);
 
         // Consistency check.
         assert_eq!(sound.len_from_header(), sound.len() as usize);
