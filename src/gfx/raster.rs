@@ -1,5 +1,4 @@
 use std::{
-    any::Any,
     cell::{Ref, RefCell},
     cmp::{max, min},
 };
@@ -358,20 +357,15 @@ impl IndexedRenderer for RasterRenderer {
 }
 
 impl Snapshotable for RasterRenderer {
-    type State = Box<dyn Any>;
+    type State = Self;
 
     fn take_snapshot(&self) -> Self::State {
-        Box::new(self.clone())
+        self.clone()
     }
 
     fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
-        if let Ok(snapshot) = snapshot.downcast::<Self>() {
-            *self = *snapshot;
-            true
-        } else {
-            log::error!("Attempting to restore invalid gfx snapshot, ignoring");
-            false
-        }
+        *self = snapshot;
+        true
     }
 }
 

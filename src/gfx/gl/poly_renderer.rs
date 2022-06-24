@@ -1,7 +1,5 @@
 mod programs;
 
-use std::any::Any;
-
 use gl::types::{GLint, GLuint};
 
 // TODO not elegant, but needed for now.
@@ -86,11 +84,6 @@ pub struct GlPolyRenderer {
     render_texture_framebuffer: IndexedTexture,
 
     renderers: Programs,
-}
-
-struct State {
-    draw_commands: [Vec<DrawCommand>; 4],
-    framebuffer_index: usize,
 }
 
 impl Drop for GlPolyRenderer {
@@ -282,25 +275,25 @@ impl gfx::IndexedRenderer for GlPolyRenderer {
     }
 }
 
+pub struct GlPolyRendererSnapshot {
+    draw_commands: [Vec<DrawCommand>; 4],
+    framebuffer_index: usize,
+}
+
 impl Snapshotable for GlPolyRenderer {
-    type State = Box<dyn Any>;
+    type State = GlPolyRendererSnapshot;
 
     fn take_snapshot(&self) -> Self::State {
-        Box::new(State {
+        GlPolyRendererSnapshot {
             draw_commands: self.draw_commands.clone(),
             framebuffer_index: self.framebuffer_index,
-        })
+        }
     }
 
     fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
-        if let Ok(state) = snapshot.downcast::<State>() {
-            self.draw_commands = state.draw_commands;
-            self.framebuffer_index = state.framebuffer_index;
-            true
-        } else {
-            log::error!("Attempting to restore invalid gfx snapshot, ignoring");
-            false
-        }
+        self.draw_commands = snapshot.draw_commands;
+        self.framebuffer_index = snapshot.framebuffer_index;
+        true
     }
 }
 

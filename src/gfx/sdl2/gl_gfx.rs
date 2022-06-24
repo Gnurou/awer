@@ -19,6 +19,7 @@ use crate::{
             raster_renderer::GlRasterRenderer,
             GlRenderer, Viewport,
         },
+        raster::RasterRenderer,
         sdl2::{Sdl2Gfx, WINDOW_RESOLUTION},
         Display, Palette, Point,
     },
@@ -222,9 +223,9 @@ impl gfx::Display for Sdl2GlGfx {
     }
 }
 
-struct State {
-    raster_renderer: Box<dyn Any>,
-    poly_renderer: Box<dyn Any>,
+struct Sdl2GfxSnapshot {
+    raster_renderer: <RasterRenderer as Snapshotable>::State,
+    poly_renderer: <GlPolyRenderer as Snapshotable>::State,
     current_framebuffer: usize,
     palette: Palette,
 }
@@ -233,7 +234,7 @@ impl Snapshotable for Sdl2GlGfx {
     type State = Box<dyn Any>;
 
     fn take_snapshot(&self) -> Self::State {
-        Box::new(State {
+        Box::new(Sdl2GfxSnapshot {
             raster_renderer: self.raster_renderer.take_snapshot(),
             poly_renderer: self.poly_renderer.take_snapshot(),
             current_framebuffer: self.current_framebuffer,
@@ -242,7 +243,7 @@ impl Snapshotable for Sdl2GlGfx {
     }
 
     fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
-        if let Ok(state) = snapshot.downcast::<State>() {
+        if let Ok(state) = snapshot.downcast::<Sdl2GfxSnapshot>() {
             self.raster_renderer.restore_snapshot(state.raster_renderer);
             self.poly_renderer.restore_snapshot(state.poly_renderer);
             self.blitframebuffer(state.current_framebuffer, &state.palette);
