@@ -3,7 +3,7 @@
 //! This way of doing does not rely on any particular SDL driver, i.e. it does not require OpenGL or
 //! any kind of hardware acceleration.
 
-use std::convert::TryFrom;
+use std::{any::Any, convert::TryFrom};
 
 use sdl2::{
     pixels::PixelFormat,
@@ -16,7 +16,7 @@ use sdl2::{
 use anyhow::{anyhow, Result};
 
 use crate::{
-    gfx::{self, raster::RasterRenderer, sdl2::Sdl2Gfx, Color, Gfx, Palette},
+    gfx::{self, raster::RasterRenderer, sdl2::Sdl2Gfx, Color, Display, Gfx, Palette},
     sys::Snapshotable,
 };
 
@@ -27,6 +27,9 @@ use super::WINDOW_RESOLUTION;
 pub struct Sdl2CanvasGfx {
     /// Software rasterizer from which we will get the game buffers to display.
     raster: RasterRenderer,
+
+    current_framebuffer: usize,
+    current_palette: Palette,
 
     /// Canvas used to show the current game buffer on the actual display.
     canvas: Canvas<Window>,
@@ -65,6 +68,8 @@ impl Sdl2CanvasGfx {
 
         Ok(Sdl2CanvasGfx {
             canvas,
+            current_framebuffer: 0,
+            current_palette: Default::default(),
             texture,
             pixel_format,
             bytes_per_pixel,
@@ -107,6 +112,10 @@ impl gfx::IndexedRenderer for Sdl2CanvasGfx {
 
 impl gfx::Display for Sdl2CanvasGfx {
     fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
+        // Keep information useful for snapshotting...
+        self.current_framebuffer = page_id;
+        self.current_palette = palette.clone();
+
         // Maps each palette index to the native color of the current display.
         let palette_to_color = {
             let mut palette_to_color = [0u32; gfx::PALETTE_SIZE];
@@ -141,15 +150,31 @@ impl gfx::Display for Sdl2CanvasGfx {
     }
 }
 
+struct Sdl2CanvasGfxSnapshot {
+    raster: RasterRenderer,
+    current_framebuffer: usize,
+    current_palette: Palette,
+}
+
 impl Snapshotable for Sdl2CanvasGfx {
-    type State = <RasterRenderer as Snapshotable>::State;
+    type State = Box<dyn Any>;
 
     fn take_snapshot(&self) -> Self::State {
-        self.raster.take_snapshot()
+        Box::new(Sdl2CanvasGfxSnapshot {
+            raster: self.raster.clone(),
+            current_framebuffer: self.current_framebuffer,
+            current_palette: self.current_palette.clone(),
+        })
     }
 
     fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
-        self.raster.restore_snapshot(snapshot)
+        if let Ok(snapshot) = snapshot.downcast::<Sdl2CanvasGfxSnapshot>() {
+            self.raster = snapshot.raster;
+            self.blitframebuffer(snapshot.current_framebuffer, &snapshot.current_palette);
+            true
+        } else {
+            false
+        }
     }
 }
 
