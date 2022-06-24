@@ -20,7 +20,7 @@ use crate::{
             GlRenderer, Viewport,
         },
         sdl2::{Sdl2Gfx, WINDOW_RESOLUTION},
-        Palette, Point,
+        Display, Palette, Point,
     },
     sys::Snapshotable,
 };
@@ -48,12 +48,8 @@ pub struct Sdl2GlGfx {
     poly_renderer: GlPolyRenderer,
 
     framebuffer_renderer: IndexedFrameRenderer,
+    current_framebuffer: usize,
     palette: Palette,
-}
-
-struct State {
-    raster_renderer: Box<dyn Any>,
-    poly_renderer: Box<dyn Any>,
 }
 
 impl Sdl2GlGfx {
@@ -104,6 +100,7 @@ impl Sdl2GlGfx {
                 )?
             },
             framebuffer_renderer: IndexedFrameRenderer::new()?,
+            current_framebuffer: 0,
             palette: Default::default(),
         })
     }
@@ -216,12 +213,20 @@ impl gfx::IndexedRenderer for Sdl2GlGfx {
 
 impl gfx::Display for Sdl2GlGfx {
     fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
+        self.current_framebuffer = page_id;
         self.palette = palette.clone();
         match self.rendering_mode {
             RenderingMode::Raster => self.raster_renderer.update_texture(page_id),
             RenderingMode::Poly | RenderingMode::Line => self.poly_renderer.update_texture(page_id),
         };
     }
+}
+
+struct State {
+    raster_renderer: Box<dyn Any>,
+    poly_renderer: Box<dyn Any>,
+    current_framebuffer: usize,
+    palette: Palette,
 }
 
 impl Snapshotable for Sdl2GlGfx {
@@ -231,6 +236,8 @@ impl Snapshotable for Sdl2GlGfx {
         Box::new(State {
             raster_renderer: self.raster_renderer.take_snapshot(),
             poly_renderer: self.poly_renderer.take_snapshot(),
+            current_framebuffer: self.current_framebuffer,
+            palette: self.palette.clone(),
         })
     }
 
@@ -238,6 +245,7 @@ impl Snapshotable for Sdl2GlGfx {
         if let Ok(state) = snapshot.downcast::<State>() {
             self.raster_renderer.restore_snapshot(state.raster_renderer);
             self.poly_renderer.restore_snapshot(state.poly_renderer);
+            self.blitframebuffer(state.current_framebuffer, &state.palette);
             true
         } else {
             log::error!("Attempting to restore invalid gfx snapshot, ignoring");
