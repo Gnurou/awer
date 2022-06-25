@@ -8,7 +8,7 @@ use std::{
 
 use byteorder::{ReadBytesExt, BE};
 use enumn::N;
-use log::{debug, info};
+use log::{debug, info, warn};
 
 use crate::audio::SoundSample;
 
@@ -469,7 +469,21 @@ impl ResourceManager {
                             .unwrap();
                     file.write_all(data)?;
                 }
-                _ => {}
+                ResType::Music => {
+                    let mut file =
+                        File::create(format!("{}/music_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
+                            .unwrap();
+                    file.write_all(data)?;
+                }
+                ResType::Palette => {
+                    let mut file =
+                        File::create(format!("{}/palette_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
+                            .unwrap();
+                    file.write_all(data)?;
+                }
+                ResType::Unknown => {
+                    warn!("Skipping unknown resource {:02x}", i);
+                }
             };
         }
 
