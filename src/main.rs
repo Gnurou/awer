@@ -33,10 +33,16 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            Arg::new("list-resources")
+                .short('l')
+                .long("list-resources")
+                .help("List all the available resources with their properties and exit"),
+        )
+        .arg(
             Arg::new("dump-resources")
                 .short('d')
                 .long("dump-resources")
-                .help("Dump all resources to disk"),
+                .help("Dump all resources into the \"resources\" folder and exit"),
         )
         .get_matches();
 
@@ -51,10 +57,22 @@ fn main() {
         _ => panic!("Invalid scene number!"),
     };
 
+    let mut must_exit = false;
+
+    if matches.is_present("list-resources") {
+        let resman = res::ResourceManager::new().unwrap();
+        resman.list_resources();
+        must_exit = true;
+    }
+
     if matches.is_present("dump-resources") {
         println!("Dumping all resources...");
         let mut resman = res::ResourceManager::new().unwrap();
         resman.dump_resources().unwrap();
+        must_exit = true;
+    }
+
+    if must_exit {
         return;
     }
 

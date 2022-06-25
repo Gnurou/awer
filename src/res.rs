@@ -174,8 +174,10 @@ impl<'a> UnpackContext<'a> {
     }
 }
 
+#[derive(Debug)]
 #[allow(dead_code)]
 struct MemEntryInfo {
+    res_type: ResType,
     // not sure what this is?
     rank_num: u8,
     bank_id: u8,
@@ -184,14 +186,14 @@ struct MemEntryInfo {
     size: usize,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 enum MemEntryState {
     NotLoaded,
     Loaded(Vec<u8>),
 }
 
+#[derive(Debug)]
 pub struct MemEntry {
-    pub res_type: ResType,
     state: MemEntryState,
     info: MemEntryInfo,
 }
@@ -214,6 +216,7 @@ impl MemEntry {
     fn load(&mut self) -> io::Result<()> {
         // Some resources happen to be empty but are still referenced during the game...
         if self.info.size == 0 {
+            println!("{:#?}", self);
             self.state = MemEntryState::Loaded(vec![]);
             return Ok(());
         }
@@ -274,7 +277,6 @@ impl ResourceManager {
             resources: Vec::new(),
         };
         ret.load_mementries()?;
-        ret.show_stats();
         Ok(ret)
     }
 
@@ -314,9 +316,9 @@ impl ResourceManager {
             );
 
             self.resources.push(MemEntry {
-                res_type,
                 state: MemEntryState::NotLoaded,
                 info: MemEntryInfo {
+                    res_type,
                     rank_num,
                     bank_id,
                     bank_offset,
@@ -336,7 +338,7 @@ impl ResourceManager {
 
         match &res.state {
             MemEntryState::Loaded(data) => Some(LoadedResource {
-                res_type: res.res_type,
+                res_type: res.info.res_type,
                 data,
             }),
             MemEntryState::NotLoaded => None,
@@ -353,7 +355,7 @@ impl ResourceManager {
         if matches!(res.state, MemEntryState::NotLoaded) {
             info!(
                 "Loading resource 0x{:02x} of type {}, size {}",
-                index, res.res_type, res.info.size
+                index, res.info.res_type, res.info.size
             );
             res.load()?;
         }
@@ -370,11 +372,11 @@ impl ResourceManager {
         let (nb_res, psize, size) = self
             .resources
             .iter()
-            .filter(|x| x.res_type == res_type)
+            .filter(|x| x.info.res_type == res_type)
             .fold((0usize, 0usize, 0usize), |p, x| {
                 (p.0 + 1, p.1 + x.info.packed_size, p.2 + x.info.size)
             });
-        info!(
+        println!(
             "{}: {} entries, size {} -> {}",
             res_type, nb_res, psize, size
         );
@@ -395,7 +397,7 @@ impl ResourceManager {
             size: 0,
         }; 7];
         for res in self.resources.iter() {
-            let stat = &mut stats[res.res_type as usize];
+            let stat = &mut stats[res.info.res_type as usize];
             stat.nb_resources += 1;
             stat.packed_size += res.info.packed_size as usize;
             stat.size += res.info.size as usize;
@@ -410,6 +412,20 @@ impl ResourceManager {
         self.show_stats_for(ResType::Unknown);
     }
 
+    pub fn list_resources(&self) {
+        for (i, resource_info) in self
+            .resources
+            .iter()
+            .enumerate()
+            .map(|(i, entry)| (i, &entry.info))
+        {
+            println!("Entry 0x{:02x}: {:?}", i, resource_info);
+        }
+
+        println!("Entries stats by type:");
+        self.show_stats();
+    }
+
     pub fn dump_resources(&mut self) -> io::Result<()> {
         for i in 1..self.resources.len() {
             let _ = self.load_resource(i)?;
@@ -418,7 +434,7 @@ impl ResourceManager {
             debug!(
                 "Entry 0x{:x} of type {} loaded: {} ({}) bytes @{:1x},0x{:08x}",
                 i,
-                resource.res_type,
+                resource.info.res_type,
                 resource.info.size,
                 resource.info.packed_size,
                 resource.info.bank_id,
@@ -439,7 +455,7 @@ impl ResourceManager {
                 MemEntryState::NotLoaded => continue,
             };
 
-            match resource.res_type {
+            match resource.info.res_type {
                 // for f in (ls img_*.dat); convert -size 320x200+0 -depth 8 gray:$f $f.png; end
                 ResType::Bitmap => {
                     let mut file =
