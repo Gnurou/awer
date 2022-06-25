@@ -734,7 +734,10 @@ pub fn op_playsound<A: audio::Mixer + ?Sized>(
 
     trace!(
         "op_playsound: {:02x} freq_index: {}, vol: {}, channel: {}",
-        res_id, freq_index, vol, channel
+        res_id,
+        freq_index,
+        vol,
+        channel
     );
 
     let freq = match audio::PLAYBACK_FREQUENCY.get(freq_index as usize) {

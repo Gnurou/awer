@@ -76,4 +76,8 @@ impl Mixer for sdl2::audio::AudioDevice<ClassicMixer> {
     fn play(&mut self, sample_id: usize, channel: u8, freq: u16, volume: u8) {
         self.lock().play(sample_id, channel, freq, volume)
     }
+
+    fn reset(&mut self) {
+        self.lock().reset()
+    }
 }

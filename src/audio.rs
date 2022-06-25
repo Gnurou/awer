@@ -102,6 +102,9 @@ pub trait Mixer {
     /// loop_start: whether the sample loops, and if so, at which position of `sample`.
     fn play(&mut self, sample_id: usize, channel: u8, freq: u16, volume: u8);
 
+    /// Stop playback and clear all state, including loaded samples.
+    fn reset(&mut self);
+
     // TODO add an iterator method that returns mixed samples. On MixerChannel, add an iterator
     // method that returns the next sample value or None if nothing is playing.
 }
@@ -177,6 +180,11 @@ impl Mixer for ClassicMixer {
             chunk_inc: ((freq as usize) << 8) / self.output_freq as usize,
             chunk_pos: 8, // Skip header.
         };
+    }
+
+    fn reset(&mut self) {
+        self.channels = Default::default();
+        self.samples = Default::default();
     }
 }
 

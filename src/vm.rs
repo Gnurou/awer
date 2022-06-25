@@ -381,6 +381,7 @@ impl Vm {
         if let Some(requested_scene) = self.state.requested_scene.take() {
             info!("Loading scene {}", requested_scene);
             self.init(&scenes::SCENES[requested_scene]);
+            audio.reset();
         }
 
         let mut actionable_threads = Vec::<(usize, u64)>::new();
