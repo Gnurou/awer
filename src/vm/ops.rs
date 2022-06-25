@@ -750,7 +750,7 @@ pub fn op_playsound<A: audio::Mixer + ?Sized>(
 
     let res = match sys.resman.get_resource(res_id).and_then(|r| r.into_sound()) {
         None => {
-            error!("failed to obtain resource {}", res_id);
+            error!("failed to obtain sound resource 0x{:02x}", res_id);
             return false;
         }
         Some(res) => res,

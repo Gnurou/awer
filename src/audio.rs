@@ -4,19 +4,29 @@ use log::{debug, error};
 
 const NUM_AUDIO_CHANNELS: usize = 4;
 
-/// A loaded resource reinterpreted as a sound sample.
+/// Header of a sound sample.
 ///
-/// Samples are single-channel, signed 8-bit and can feature an optional loop point.
+/// Separated from the rest so we can use `std::mem::size_of` and `memoffset::offset_of` on it.
 #[repr(C)]
-pub struct SoundSample {
+#[derive(Debug)]
+struct SoundSampleHeader {
     /// Length of the sample until the loop point (full length is there is no loop point).
     len: u16,
     /// Length of the sample after the loop point (zero if there is no loop point).
     loop_len: u16,
     /// Not sure what that is...
     _fill: u32,
+}
+
+/// A loaded resource reinterpreted as a sound sample.
+///
+/// Samples are single-channel, signed 8-bit and can feature an optional loop point.
+#[repr(C)]
+#[derive(Debug)]
+pub struct SoundSample {
+    header: SoundSampleHeader,
     /// Audio sample data. Length is len + loop_len.
-    pub data: [i8],
+    data: [i8],
 }
 
 impl SoundSample {
@@ -32,7 +42,11 @@ impl SoundSample {
 
         let slice = core::slice::from_raw_parts(ptr as *const (), len);
         let ptr = slice as *const [()] as *const SoundSample;
-        let sound = Box::from_raw(ptr as *mut SoundSample);
+        let mut sound = Box::from_raw(ptr as *mut SoundSample);
+
+        // Endianness fixup.
+        sound.header.len = u16::from_be(sound.header.len);
+        sound.header.loop_len = u16::from_be(sound.header.loop_len);
 
         // Consistency check.
         assert_eq!(sound.len_from_header(), sound.len() as usize);
@@ -42,9 +56,9 @@ impl SoundSample {
 
     /// Return the starting position of the loop, if any.
     pub fn loop_pos(&self) -> Option<usize> {
-        match self.loop_len {
+        match self.header.loop_len {
             0 => None,
-            _ => Some(u16::from_be(self.len) as usize * 2),
+            _ => Some(self.header.len as usize * 2),
         }
     }
 
@@ -52,7 +66,7 @@ impl SoundSample {
     ///
     /// Only used for consistency checking as this may require endianness meddling.
     fn len_from_header(&self) -> usize {
-        u16::from_be(self.len) as usize * 2 + u16::from_be(self.loop_len) as usize * 2
+        self.header.len as usize * 2 + self.header.loop_len as usize * 2
     }
 
     /// Return the total length of the sample.
@@ -155,3 +169,20 @@ pub const PLAYBACK_FREQUENCY: [u16; 40] = [
     0x33FB, 0x370D, 0x3A43, 0x3DDF, 0x4157, 0x4538, 0x4998, 0x4DAE, 0x5240, 0x5764, 0x5C9A, 0x61C8,
     0x6793, 0x6E19, 0x7485, 0x7BBD,
 ];
+
+#[cfg(test)]
+mod tests {
+    use std::mem::size_of;
+
+    use memoffset::offset_of;
+
+    use super::*;
+
+    /// Check that the layout of the [`SoundSample`] structure is as expected.
+    #[test]
+    fn test_sample_layout() {
+        assert_eq!(size_of::<SoundSampleHeader>(), 0x8);
+        assert_eq!(offset_of!(SoundSampleHeader, len), 0x0);
+        assert_eq!(offset_of!(SoundSampleHeader, loop_len), 0x2);
+    }
+}
