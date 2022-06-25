@@ -1,6 +1,7 @@
 mod sdl2;
+use std::{collections::BTreeMap, mem::size_of};
 
-use log::{debug, error};
+use log::{debug, error, warn};
 
 const NUM_AUDIO_CHANNELS: usize = 4;
 
@@ -18,6 +19,12 @@ struct SoundSampleHeader {
     _fill: u32,
 }
 
+impl SoundSampleHeader {
+    fn len(&self) -> usize {
+        self.len as usize * 2 + self.loop_len as usize * 2
+    }
+}
+
 /// A loaded resource reinterpreted as a sound sample.
 ///
 /// Samples are single-channel, signed 8-bit and can feature an optional loop point.
@@ -25,7 +32,7 @@ struct SoundSampleHeader {
 #[derive(Debug)]
 pub struct SoundSample {
     header: SoundSampleHeader,
-    /// Audio sample data. Length is len + loop_len.
+    /// Audio sample data.
     data: [i8],
 }
 
@@ -37,21 +44,29 @@ impl SoundSample {
     pub unsafe fn from_raw_resource(mut data: Vec<u8>) -> Box<Self> {
         let ptr = data.as_mut_ptr();
         // Remove the size of the header and filler
-        let len = data.len() - 8;
+        let mut data_len = data.len() - size_of::<SoundSampleHeader>();
         std::mem::forget(data);
 
-        let slice = core::slice::from_raw_parts(ptr as *const (), len);
-        let ptr = slice as *const [()] as *const SoundSample;
-        let mut sound = Box::from_raw(ptr as *mut SoundSample);
-
+        let header = ptr as *mut SoundSampleHeader;
+        let mut header = &mut *header;
         // Endianness fixup.
-        sound.header.len = u16::from_be(sound.header.len);
-        sound.header.loop_len = u16::from_be(sound.header.loop_len);
+        header.len = u16::from_be(header.len);
+        header.loop_len = u16::from_be(header.loop_len);
 
         // Consistency check.
-        assert_eq!(sound.len_from_header(), sound.len() as usize);
+        if header.len() != data_len {
+            warn!(
+                "sound resource reported a length of {} bytes, but header says {}",
+                header.len(),
+                data_len
+            );
+            data_len = std::cmp::min(header.len(), data_len);
+        }
 
-        sound
+        let slice = core::slice::from_raw_parts(ptr as *const (), data_len);
+        let ptr = slice as *const [()] as *const SoundSample;
+
+        Box::from_raw(ptr as *mut SoundSample)
     }
 
     /// Return the starting position of the loop, if any.
@@ -60,13 +75,6 @@ impl SoundSample {
             0 => None,
             _ => Some(self.header.len as usize * 2),
         }
-    }
-
-    /// Return the total length of the sample as specified by the header.
-    ///
-    /// Only used for consistency checking as this may require endianness meddling.
-    fn len_from_header(&self) -> usize {
-        self.header.len as usize * 2 + self.header.loop_len as usize * 2
     }
 
     /// Return the total length of the sample.
@@ -78,15 +86,21 @@ impl SoundSample {
 /// Trait for sound mixers. A mixer is capable of playing audio samples over several channels
 /// and mixing them into a single output.
 pub trait Mixer {
+    /// Load a sample for being played later.
+    ///
+    /// The `sample` will be referred to by `id` when the `play` method is
+    /// invoked to play it.
+    fn add_sample(&mut self, id: usize, sample: Box<SoundSample>);
+
     /// Play an audio effect on a channel.
     ///
-    /// sample: the sample to play. Although it is passed as a slice of u8, the data is actually
-    /// i8.
+    /// sample_id: the ID of the sample to play. The sample has normally been
+    /// loaded previously using `add_sample`.
     /// channel: channel to play on. Valid range: [0..3]
     /// freq: frequency of playback, in Hz.
     /// volume: volume of playback, between 0 and 63.
     /// loop_start: whether the sample loops, and if so, at which position of `sample`.
-    fn play(&mut self, sample: Box<SoundSample>, channel: u8, freq: u16, volume: u8);
+    fn play(&mut self, sample_id: usize, channel: u8, freq: u16, volume: u8);
 
     // TODO add an iterator method that returns mixed samples. On MixerChannel, add an iterator
     // method that returns the next sample value or None if nothing is playing.
@@ -98,8 +112,8 @@ enum MixerChannel {
     Inactive,
     /// Something is being played on this channel.
     Active {
-        /// Sample currently being played.
-        sample: Box<SoundSample>,
+        /// ID of the sample currently being played.
+        sample_id: usize,
         /// Playback volume.
         volume: u8,
         /// We multiply the current sample position by 256 in order to perform sub-sample
@@ -124,6 +138,8 @@ pub struct ClassicMixer {
     channels: [MixerChannel; NUM_AUDIO_CHANNELS],
     /// Output frequency at which we will mix.
     output_freq: u32,
+
+    samples: BTreeMap<usize, Box<SoundSample>>,
 }
 
 impl ClassicMixer {
@@ -131,18 +147,21 @@ impl ClassicMixer {
         Self {
             channels: Default::default(),
             output_freq,
+            samples: Default::default(),
         }
     }
 }
 
 impl Mixer for ClassicMixer {
-    fn play(&mut self, sample: Box<SoundSample>, channel: u8, freq: u16, volume: u8) {
+    fn add_sample(&mut self, id: usize, sample: Box<SoundSample>) {
+        debug!("added sample with resource ID {:02}", id);
+        self.samples.insert(id, sample);
+    }
+
+    fn play(&mut self, sample_id: usize, channel: u8, freq: u16, volume: u8) {
         debug!(
-            "channel {}: play sample length {}, freq {}, volume {}",
-            channel,
-            sample.len(),
-            freq,
-            volume,
+            "channel {}: play sample {:02x}, freq {}, volume {}",
+            channel, sample_id, freq, volume,
         );
         let channel = match self.channels.get_mut(channel as usize) {
             None => {
@@ -153,7 +172,7 @@ impl Mixer for ClassicMixer {
         };
 
         *channel = MixerChannel::Active {
-            sample,
+            sample_id,
             volume,
             chunk_inc: ((freq as usize) << 8) / self.output_freq as usize,
             chunk_pos: 8, // Skip header.

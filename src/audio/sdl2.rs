@@ -1,7 +1,7 @@
 use crate::audio::SoundSample;
 
 use super::{ClassicMixer, Mixer, MixerChannel};
-use log::debug;
+use log::{debug, warn};
 
 impl sdl2::audio::AudioCallback for ClassicMixer {
     type Channel = i8;
@@ -14,12 +14,20 @@ impl sdl2::audio::AudioCallback for ClassicMixer {
 
         for (ch_id, channel) in &mut self.channels.iter_mut().enumerate() {
             if let MixerChannel::Active {
-                sample,
+                sample_id,
                 volume,
                 chunk_pos,
                 chunk_inc,
             } = channel
             {
+                let sample = match self.samples.get(sample_id) {
+                    Some(sample) => sample,
+                    None => {
+                        warn!("sample {:02x} is not loaded, aborting playback", sample_id);
+                        *channel = MixerChannel::Inactive;
+                        continue;
+                    }
+                };
                 let loop_pos = sample.loop_pos();
 
                 'chan: for c in out.iter_mut() {
@@ -61,7 +69,11 @@ impl sdl2::audio::AudioCallback for ClassicMixer {
 }
 
 impl Mixer for sdl2::audio::AudioDevice<ClassicMixer> {
-    fn play(&mut self, sample: Box<SoundSample>, channel: u8, freq: u16, volume: u8) {
-        self.lock().play(sample, channel, freq, volume)
+    fn add_sample(&mut self, id: usize, sample: Box<SoundSample>) {
+        self.lock().add_sample(id, sample)
+    }
+
+    fn play(&mut self, sample_id: usize, channel: u8, freq: u16, volume: u8) {
+        self.lock().play(sample_id, channel, freq, volume)
     }
 }

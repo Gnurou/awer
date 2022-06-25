@@ -724,7 +724,7 @@ pub fn op_playsound<A: audio::Mixer + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     _state: &mut VmState,
-    sys: &VmSys,
+    _sys: &VmSys,
     audio: &mut A,
 ) -> bool {
     let res_id = cursor.read_u16::<BE>().unwrap() as usize;
@@ -734,10 +734,7 @@ pub fn op_playsound<A: audio::Mixer + ?Sized>(
 
     trace!(
         "op_playsound: {:02x} freq_index: {}, vol: {}, channel: {}",
-        res_id,
-        freq_index,
-        vol,
-        channel
+        res_id, freq_index, vol, channel
     );
 
     let freq = match audio::PLAYBACK_FREQUENCY.get(freq_index as usize) {
@@ -748,15 +745,7 @@ pub fn op_playsound<A: audio::Mixer + ?Sized>(
         Some(&freq) => freq,
     };
 
-    let res = match sys.resman.get_resource(res_id).and_then(|r| r.into_sound()) {
-        None => {
-            error!("failed to obtain sound resource 0x{:02x}", res_id);
-            return false;
-        }
-        Some(res) => res,
-    };
-
-    audio.play(res, channel, freq, vol);
+    audio.play(res_id, channel, freq, vol);
 
     false
 }
@@ -792,13 +781,16 @@ pub fn op_playmusic<A: audio::Mixer + ?Sized>(
 //
 /// This opcode is also used to switch between scenes. In such cases, |res_id|
 /// will be 0x3e8x, where x is the number of the scene to load.
-pub fn op_loadresource<G: gfx::Gfx + ?Sized>(
+pub fn op_loadresource<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
     sys: &mut VmSys,
     gfx: &mut G,
+    audio: &mut A,
 ) -> bool {
+    use res::ResType;
+
     let res_id = cursor.read_u16::<BE>().unwrap() as usize;
 
     // In the original game, this meant "free all memory". Since we don't have
@@ -819,11 +811,27 @@ pub fn op_loadresource<G: gfx::Gfx + ?Sized>(
 
     // Just load a resource.
     let res = sys.resman.load_resource(res_id).unwrap();
-    // Bitmap resources are always loaded into buffer 0. Emulate this
-    // behavior.
-    if let res::ResType::Bitmap = res.res_type {
-        gfx.blit_buffer(0, res.data)
-    };
+
+    match res.res_type {
+        // Load sounds into our mixer so they can be played back later.
+        ResType::Sound => {
+            let sample = match res.into_sound() {
+                Some(sample) => sample,
+                None => {
+                    error!(
+                        "failed to convert resource {:02x} into a sound sample",
+                        res_id
+                    );
+                    return false;
+                }
+            };
+            audio.add_sample(res_id, sample);
+        }
+        // Bitmap resources are always loaded into buffer 0. Emulate this
+        // behavior.
+        ResType::Bitmap => gfx.blit_buffer(0, res.data),
+        _ => (),
+    }
 
     false
 }

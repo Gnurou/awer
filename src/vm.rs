@@ -300,7 +300,14 @@ impl Vm {
 
             // Resource op - can do anything, really.
             if opcode == 0x19 {
-                if op_loadresource(opcode, &mut cursor, &mut self.state, &mut self.sys, gfx) {
+                if op_loadresource(
+                    opcode,
+                    &mut cursor,
+                    &mut self.state,
+                    &mut self.sys,
+                    gfx,
+                    audio,
+                ) {
                     break;
                 } else {
                     continue;
