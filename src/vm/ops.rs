@@ -813,7 +813,13 @@ pub fn op_loadresource<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
     }
 
     // Just load a resource.
-    let res = sys.resman.load_resource(res_id).unwrap();
+    let res = match sys.resman.load_resource(res_id) {
+        Ok(res) => res,
+        Err(e) => {
+            error!("error while loading resource: {:#}", e);
+            return false;
+        }
+    };
 
     match res.res_type {
         // Load sounds into our mixer so they can be played back later.
@@ -832,7 +838,7 @@ pub fn op_loadresource<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
         }
         // Bitmap resources are always loaded into buffer 0. Emulate this
         // behavior.
-        ResType::Bitmap => gfx.blit_buffer(0, res.data),
+        ResType::Bitmap => gfx.blit_buffer(0, &res.data),
         _ => (),
     }
 

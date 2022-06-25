@@ -445,35 +445,11 @@ impl Vm {
     }
 
     pub fn init(&mut self, scene: &scenes::Scene) {
-        self.code.code = self
-            .sys
-            .resman
-            .load_resource(scene.code)
-            .unwrap()
-            .data
-            .clone();
-        self.sys.palette = self
-            .sys
-            .resman
-            .load_resource(scene.palette)
-            .unwrap()
-            .data
-            .clone();
-        self.sys.cinematic = self
-            .sys
-            .resman
-            .load_resource(scene.video1)
-            .unwrap()
-            .data
-            .clone();
+        self.code.code = self.sys.resman.load_resource(scene.code).unwrap().data;
+        self.sys.palette = self.sys.resman.load_resource(scene.palette).unwrap().data;
+        self.sys.cinematic = self.sys.resman.load_resource(scene.video1).unwrap().data;
         if scene.video2 != 0 {
-            self.sys.video = self
-                .sys
-                .resman
-                .load_resource(scene.video2)
-                .unwrap()
-                .data
-                .clone();
+            self.sys.video = self.sys.resman.load_resource(scene.video2).unwrap().data;
         }
         // Random seed
         self.set_reg(VM_VARIABLE_RANDOM_SEED, 0xbeefu16 as i16);
