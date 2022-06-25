@@ -212,7 +212,9 @@ impl<'a> LoadedResource<'a> {
 
 impl MemEntry {
     fn load(&mut self) -> io::Result<()> {
+        // Some resources happen to be empty but are still referenced during the game...
         if self.info.size == 0 {
+            self.state = MemEntryState::Loaded(vec![]);
             return Ok(());
         }
 
@@ -485,19 +487,9 @@ mod tests {
         assert_ne!(resman.resources.len(), 0);
 
         for i in 1..resman.resources.len() {
+            let expected_size = resman.resources[i].info.size;
             let resource = resman.load_resource(i)?;
-
-            debug!(
-                "Entry 0x{:x} of type {} loaded: {} ({}) bytes @{:1x},0x{:08x}",
-                i,
-                resource.res_type,
-                resource.size,
-                resource.packed_size,
-                resource.bank_id,
-                resource.bank_offset
-            );
-
-            assert_eq!(resource.size, resource.data.len());
+            assert_eq!(expected_size, resource.data.len());
         }
 
         Ok(())
