@@ -8,7 +8,7 @@ use std::{
 
 use byteorder::{ReadBytesExt, BE};
 use enumn::N;
-use log::{debug, info, warn};
+use log::{debug, info};
 
 use crate::audio::SoundSample;
 
@@ -482,7 +482,10 @@ impl ResourceManager {
                     file.write_all(data)?;
                 }
                 ResType::Unknown => {
-                    warn!("Skipping unknown resource {:02x}", i);
+                    let mut file =
+                        File::create(format!("{}/unknown_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
+                            .unwrap();
+                    file.write_all(data)?;
                 }
             };
         }
