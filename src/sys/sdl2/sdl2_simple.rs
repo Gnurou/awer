@@ -31,7 +31,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-const TICKS_PER_SECOND: u64 = 50;
+const TICKS_PER_SECOND: u64 = 60;
 const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
 
 pub struct Sdl2Sys<D: Sdl2Gfx> {
