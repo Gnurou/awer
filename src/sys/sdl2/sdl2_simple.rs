@@ -31,7 +31,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-const TICKS_PER_SECOND: u64 = 60;
+const TICKS_PER_SECOND: u64 = 50;
 const DURATION_PER_TICK: Duration =
     // Use microseconds to add precision.
     Duration::from_micros(1_000_000 / TICKS_PER_SECOND);
