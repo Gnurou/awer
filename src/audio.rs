@@ -1,4 +1,5 @@
-mod sdl2;
+pub mod sdl2;
+
 use std::{collections::BTreeMap, mem::size_of};
 
 use log::{debug, error, warn};

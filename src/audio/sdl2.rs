@@ -1,7 +1,9 @@
 use crate::audio::SoundSample;
 
-use super::{ClassicMixer, Mixer, MixerChannel};
+use anyhow::anyhow;
 use log::{debug, warn};
+
+use super::{ClassicMixer, Mixer, MixerChannel};
 
 impl sdl2::audio::AudioCallback for ClassicMixer {
     type Channel = i8;
@@ -79,5 +81,50 @@ impl Mixer for sdl2::audio::AudioDevice<ClassicMixer> {
 
     fn reset(&mut self) {
         self.lock().reset()
+    }
+}
+
+pub struct Sdl2Audio {
+    mixer: sdl2::audio::AudioDevice<ClassicMixer>,
+}
+
+impl Sdl2Audio {
+    /// Create a new SDL2 audio device from a SDL context.
+    ///
+    /// `output_freq` is the desired output frequency of the audio playback. SDL may choose a
+    /// different one if it is not supported by the audio system.
+    pub fn new(sdl_context: &sdl2::Sdl, output_freq: usize) -> anyhow::Result<Self> {
+        let audio = sdl_context.audio().map_err(|s| anyhow!(s))?;
+
+        let desired_spec = sdl2::audio::AudioSpecDesired {
+            freq: Some(output_freq as i32),
+            channels: Some(1), // mono
+            samples: None,     // default sample size
+        };
+
+        let audio_device = audio
+            .open_playback(None, &desired_spec, |spec| {
+                crate::audio::ClassicMixer::new(spec.freq as u32)
+            })
+            .map_err(|s| anyhow!(s))?;
+        audio_device.resume();
+
+        Ok(Self {
+            mixer: audio_device,
+        })
+    }
+}
+
+impl Mixer for Sdl2Audio {
+    fn add_sample(&mut self, id: usize, sample: Box<SoundSample>) {
+        self.mixer.add_sample(id, sample)
+    }
+
+    fn play(&mut self, sample_id: usize, channel: u8, freq: u16, volume: u8) {
+        self.mixer.play(sample_id, channel, freq, volume)
+    }
+
+    fn reset(&mut self) {
+        self.mixer.reset()
     }
 }

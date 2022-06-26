@@ -4,7 +4,6 @@
 use clap::ArgMatches;
 use log::error;
 use sdl2::{
-    audio::AudioDevice,
     event::{Event, WindowEvent},
     keyboard::Keycode,
     rect::Rect,
@@ -12,7 +11,7 @@ use sdl2::{
 };
 
 use crate::{
-    audio,
+    audio::sdl2::Sdl2Audio,
     gfx::{
         self,
         sdl2::{
@@ -38,30 +37,22 @@ const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECON
 pub struct Sdl2Sys<D: Sdl2Gfx> {
     sdl_context: Sdl,
     display: D,
-    audio_device: AudioDevice<audio::ClassicMixer>,
+    audio_device: Sdl2Audio,
 }
 
 /// Creates a dynamic SDL Sys instance from the command-line arguments.
 pub fn new_from_args(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
     let sdl_context = sdl2::init()
         .map_err(|e| {
-            log::error!("Failed to initialize SDL: {}", e);
+            error!("Failed to initialize SDL: {}", e);
         })
         .ok()?;
 
-    let audio = sdl_context.audio().unwrap();
-    let desired_spec = sdl2::audio::AudioSpecDesired {
-        freq: Some(22050),
-        channels: Some(1), // mono
-        samples: None,     // default sample size
-    };
-
-    let audio_device = audio
-        .open_playback(None, &desired_spec, |spec| {
-            crate::audio::ClassicMixer::new(spec.freq as u32)
+    let audio_device = Sdl2Audio::new(&sdl_context, 22050)
+        .map_err(|e| {
+            error!("Failed to initialize SDL audio device: {}", e);
         })
-        .unwrap();
-    audio_device.resume();
+        .ok()?;
 
     let backend = matches.value_of("render").unwrap_or("raster");
     match backend {
@@ -270,7 +261,5 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
 
             self.display.show_game_framebuffer(&viewport_dst);
         }
-
-        self.audio_device.pause();
     }
 }
