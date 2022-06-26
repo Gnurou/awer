@@ -198,15 +198,13 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                 keypress_cooldown -= 1;
             }
 
-            let mut duration_since_last_tick = Instant::now().duration_since(last_tick_time);
+            let duration_since_last_tick = Instant::now().duration_since(last_tick_time);
 
             // Wait until the time slice for the current game tick is elapsed
             if duration_since_last_tick < DURATION_PER_TICK {
                 thread::sleep(DURATION_PER_TICK - duration_since_last_tick);
             }
-            duration_since_last_tick = Instant::now().duration_since(last_tick_time);
-
-            // Update VM state
+            // Get how many ticks we need to run and set last_tick_time to current tick.
             let ticks_to_run = if pause {
                 last_tick_time = Instant::now();
                 0
@@ -214,12 +212,12 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                 last_tick_time = Instant::now();
                 8
             } else {
-                let ticks_to_run = duration_since_last_tick.as_millis() as u32
-                    / DURATION_PER_TICK.as_millis() as u32;
-                last_tick_time += DURATION_PER_TICK * ticks_to_run;
-                std::cmp::min(ticks_to_run, 16)
+                // We don't use `Instant::now` because this would make time skew slightly forward.
+                last_tick_time += DURATION_PER_TICK;
+                1
             };
 
+            // Update VM state
             for _ in 0..ticks_to_run {
                 snapshot_cpt += 1;
                 if snapshot_cpt == TICKS_PER_SNAPSHOT {
