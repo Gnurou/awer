@@ -460,8 +460,8 @@ impl Vm {
         self.set_reg(0xdc, 0x21);
 
         // TODO is this really needed?
-        //self.set_reg(0x54, 0x81);
-        //self.set_reg(0xe4, 0x14);
+        self.set_reg(0x54, 0x81);
+        self.set_reg(0xe4, 0x14);
 
         // Reset all threads
         self.state.threads = Vm::init_threads();
