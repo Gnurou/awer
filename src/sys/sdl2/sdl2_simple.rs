@@ -32,7 +32,9 @@ use std::{
 };
 
 const TICKS_PER_SECOND: u64 = 60;
-const DURATION_PER_TICK: Duration = Duration::from_millis(1000 / TICKS_PER_SECOND);
+const DURATION_PER_TICK: Duration =
+    // Use microseconds to add precision.
+    Duration::from_micros(1_000_000 / TICKS_PER_SECOND);
 
 pub struct Sdl2Sys<D: Sdl2Gfx> {
     sdl_context: Sdl,
