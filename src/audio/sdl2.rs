@@ -71,11 +71,11 @@ impl sdl2::audio::AudioCallback for ClassicMixer {
 }
 
 impl Mixer for sdl2::audio::AudioDevice<ClassicMixer> {
-    fn add_sample(&mut self, id: usize, sample: Box<SoundSample>) {
+    fn add_sample(&mut self, id: u8, sample: Box<SoundSample>) {
         self.lock().add_sample(id, sample)
     }
 
-    fn play(&mut self, sample_id: usize, channel: u8, freq: u16, volume: u8) {
+    fn play(&mut self, sample_id: u8, channel: u8, freq: u16, volume: u8) {
         self.lock().play(sample_id, channel, freq, volume)
     }
 
@@ -116,11 +116,11 @@ impl Sdl2Audio {
 }
 
 impl Mixer for Sdl2Audio {
-    fn add_sample(&mut self, id: usize, sample: Box<SoundSample>) {
+    fn add_sample(&mut self, id: u8, sample: Box<SoundSample>) {
         self.mixer.add_sample(id, sample)
     }
 
-    fn play(&mut self, sample_id: usize, channel: u8, freq: u16, volume: u8) {
+    fn play(&mut self, sample_id: u8, channel: u8, freq: u16, volume: u8) {
         self.mixer.play(sample_id, channel, freq, volume)
     }
 

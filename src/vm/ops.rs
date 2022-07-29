@@ -727,7 +727,7 @@ pub fn op_playsound<A: audio::Mixer + ?Sized>(
     _sys: &VmSys,
     audio: &mut A,
 ) -> bool {
-    let res_id = cursor.read_u16::<BE>().unwrap() as usize;
+    let res_id = cursor.read_u16::<BE>().unwrap() as u8;
     let freq_index = cursor.read_u8().unwrap();
     let vol = std::cmp::min(cursor.read_u8().unwrap(), 0x3f);
     let channel = cursor.read_u8().unwrap();
@@ -834,7 +834,7 @@ pub fn op_loadresource<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
                     return false;
                 }
             };
-            audio.add_sample(res_id, sample);
+            audio.add_sample(res_id as u8, sample);
         }
         // Bitmap resources are always loaded into buffer 0. Emulate this
         // behavior.

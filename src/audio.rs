@@ -91,7 +91,7 @@ pub trait Mixer {
     ///
     /// The `sample` will be referred to by `id` when the `play` method is
     /// invoked to play it.
-    fn add_sample(&mut self, id: usize, sample: Box<SoundSample>);
+    fn add_sample(&mut self, id: u8, sample: Box<SoundSample>);
 
     /// Play an audio effect on a channel.
     ///
@@ -101,7 +101,7 @@ pub trait Mixer {
     /// freq: frequency of playback, in Hz.
     /// volume: volume of playback, between 0 and 63.
     /// loop_start: whether the sample loops, and if so, at which position of `sample`.
-    fn play(&mut self, sample_id: usize, channel: u8, freq: u16, volume: u8);
+    fn play(&mut self, sample_id: u8, channel: u8, freq: u16, volume: u8);
 
     /// Stop playback and clear all state, including loaded samples.
     fn reset(&mut self);
@@ -117,7 +117,7 @@ enum MixerChannel {
     /// Something is being played on this channel.
     Active {
         /// ID of the sample currently being played.
-        sample_id: usize,
+        sample_id: u8,
         /// Playback volume.
         volume: u8,
         /// We multiply the current sample position by 256 in order to perform sub-sample
@@ -143,7 +143,7 @@ pub struct ClassicMixer {
     /// Output frequency at which we will mix.
     output_freq: u32,
 
-    samples: BTreeMap<usize, Box<SoundSample>>,
+    samples: BTreeMap<u8, Box<SoundSample>>,
 }
 
 impl ClassicMixer {
@@ -157,12 +157,12 @@ impl ClassicMixer {
 }
 
 impl Mixer for ClassicMixer {
-    fn add_sample(&mut self, id: usize, sample: Box<SoundSample>) {
+    fn add_sample(&mut self, id: u8, sample: Box<SoundSample>) {
         debug!("added sample with resource ID {:02}", id);
         self.samples.insert(id, sample);
     }
 
-    fn play(&mut self, sample_id: usize, channel: u8, freq: u16, volume: u8) {
+    fn play(&mut self, sample_id: u8, channel: u8, freq: u16, volume: u8) {
         debug!(
             "channel {}: play sample {:02x}, freq {}, volume {}",
             channel, sample_id, freq, volume,
