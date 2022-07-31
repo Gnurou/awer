@@ -206,7 +206,7 @@ impl Vm {
         self.state.regs[i] = v;
     }
 
-    fn process_thread<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
+    fn process_thread<G: gfx::Gfx + ?Sized, A: audio::Mixer + audio::MusicPlayer + ?Sized>(
         &mut self,
         cur_thread: usize,
         pc: u64,
@@ -372,7 +372,7 @@ impl Vm {
         self.set_reg(VM_VARIABLE_HERO_ACTION_POS_MASK, mask);
     }
 
-    fn process_step<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
+    fn process_step<G: gfx::Gfx + ?Sized, A: audio::Mixer + audio::MusicPlayer + ?Sized>(
         &mut self,
         gfx: &mut G,
         audio: &mut A,
@@ -427,7 +427,7 @@ impl Vm {
         nb_threads
     }
 
-    pub fn process<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
+    pub fn process<G: gfx::Gfx + ?Sized, A: audio::Mixer + audio::MusicPlayer + ?Sized>(
         &mut self,
         gfx: &mut G,
         audio: &mut A,

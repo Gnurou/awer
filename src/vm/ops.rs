@@ -753,21 +753,56 @@ pub fn op_playsound<A: audio::Mixer + ?Sized>(
     false
 }
 
-pub fn op_playmusic<A: audio::Mixer + ?Sized>(
+fn delay_to_tempo(delay: u16) -> usize {
+    delay as usize * 60 / 7050
+}
+
+pub fn op_playmusic<A: audio::Mixer + audio::MusicPlayer + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     _state: &mut VmState,
-    _sys: &VmSys,
-    _audio: &mut A,
+    sys: &VmSys,
+    audio: &mut A,
 ) -> bool {
-    let res_id = cursor.read_u16::<BE>().unwrap();
+    let res_id = cursor.read_u16::<BE>().unwrap() as usize;
     let delay = cursor.read_u16::<BE>().unwrap();
     let pos = cursor.read_u8().unwrap();
 
-    warn!(
-        "op_playmusic: {} {} {} - not yet implemented",
-        res_id, delay, pos
-    );
+    trace!("op_playmusic: {:02x} delay: {} pos: {}", res_id, delay, pos);
+
+    match (res_id, delay) {
+        // Stop the player.
+        (0, 0) => audio.stop_music(),
+        // Update the playback speed.
+        (0, new_delay) => {
+            let new_tempo = delay_to_tempo(new_delay);
+            audio.update_tempo(new_tempo);
+        }
+        // Load new music module and start playback.
+        (res_id, delay) => match sys
+            .resman
+            // TODO mmm we are probably preloading the music, right? In that case this should just
+            // retrieve it, or probably a Rc to it...
+            .load_resource(res_id)
+            .ok()
+            .and_then(|r| r.into_music())
+        {
+            None => {
+                error!("failed to obtain music resource 0x{:02x}", res_id);
+                return false;
+            }
+            Some(music) => {
+                // Take the default delay of the music if none is specified.
+                let delay = if delay == 0 {
+                    music.header.delay
+                } else {
+                    delay
+                };
+                let tempo = delay_to_tempo(delay);
+                audio.play_music(music, tempo, pos as u16)
+            }
+        },
+    };
 
     false
 }

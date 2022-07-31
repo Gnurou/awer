@@ -1,6 +1,13 @@
+mod music;
 pub mod sdl2;
 
-use std::{collections::BTreeMap, mem::size_of};
+use std::{
+    collections::BTreeMap,
+    mem::size_of,
+    sync::{Arc, Mutex},
+};
+
+pub use music::*;
 
 use log::{debug, error, warn};
 
@@ -103,11 +110,55 @@ pub trait Mixer {
     /// loop_start: whether the sample loops, and if so, at which position of `sample`.
     fn play(&mut self, sample_id: u8, channel: u8, freq: u16, volume: u8);
 
+    /// Stop playback on `channel`.
+    fn stop(&mut self, channel: u8);
+
     /// Stop playback and clear all state, including loaded samples.
     fn reset(&mut self);
 
     // TODO add an iterator method that returns mixed samples. On MixerChannel, add an iterator
     // method that returns the next sample value or None if nothing is playing.
+}
+
+/// Thread-safe mixer.
+struct ProtectedMixer<M: Mixer + Send>(Arc<Mutex<M>>);
+
+impl<M: Mixer + Send> ProtectedMixer<M> {
+    fn new(mixer: M) -> Self {
+        ProtectedMixer(Arc::new(Mutex::new(mixer)))
+    }
+}
+
+impl<M: Mixer + Send> Mixer for ProtectedMixer<M> {
+    fn add_sample(&mut self, id: u8, sample: Box<SoundSample>) {
+        self.0.lock().unwrap().add_sample(id, sample)
+    }
+
+    fn play(&mut self, sample_id: u8, channel: u8, freq: u16, volume: u8) {
+        self.0
+            .lock()
+            .unwrap()
+            .play(sample_id, channel, freq, volume)
+    }
+
+    fn stop(&mut self, channel: u8) {
+        self.0.lock().unwrap().stop(channel)
+    }
+
+    fn reset(&mut self) {
+        self.0.lock().unwrap().reset()
+    }
+}
+
+pub trait MusicPlayer {
+    fn play_music(&mut self, music: Box<MusicModule>, tempo: usize, pos: u16);
+    fn update_tempo(&mut self, tempo: usize);
+    fn stop_music(&mut self);
+
+    fn pause(&mut self);
+    fn resume(&mut self);
+
+    fn take_value_of_0xf4(&self) -> Option<i16>;
 }
 
 /// Single channel or a mixer, which can currently be playing something or not.
@@ -158,7 +209,7 @@ impl ClassicMixer {
 
 impl Mixer for ClassicMixer {
     fn add_sample(&mut self, id: u8, sample: Box<SoundSample>) {
-        debug!("added sample with resource ID {:02}", id);
+        debug!("added sample with resource ID {:02x}", id);
         self.samples.insert(id, sample);
     }
 
@@ -181,6 +232,20 @@ impl Mixer for ClassicMixer {
             chunk_inc: ((freq as usize) << 8) / self.output_freq as usize,
             chunk_pos: 8, // Skip header.
         };
+    }
+
+    fn stop(&mut self, channel: u8) {
+        debug!("channel {}: stop", channel);
+
+        let channel = match self.channels.get_mut(channel as usize) {
+            None => {
+                error!("invalid channel index {}", channel);
+                return;
+            }
+            Some(channel) => channel,
+        };
+
+        *channel = MixerChannel::Inactive;
     }
 
     fn reset(&mut self) {

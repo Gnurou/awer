@@ -10,7 +10,7 @@ use byteorder::{ReadBytesExt, BE};
 use enumn::N;
 use log::debug;
 
-use crate::audio::SoundSample;
+use crate::audio::{MusicModule, SoundSample};
 
 #[derive(Clone, Copy, PartialEq, Debug, N)]
 pub enum ResType {
@@ -195,6 +195,13 @@ impl LoadedResource {
     pub fn into_sound(self) -> Option<Box<SoundSample>> {
         match self.res_type {
             ResType::Sound => Some(unsafe { SoundSample::from_raw_resource(self.data) }),
+            _ => None,
+        }
+    }
+
+    pub fn into_music(self) -> Option<Box<MusicModule>> {
+        match self.res_type {
+            ResType::Music => Some(unsafe { MusicModule::from_raw_resource(self.data) }),
             _ => None,
         }
     }

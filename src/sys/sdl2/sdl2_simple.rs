@@ -11,7 +11,7 @@ use sdl2::{
 };
 
 use crate::{
-    audio::sdl2::Sdl2Audio,
+    audio::{sdl2::Sdl2Audio, MusicPlayer},
     gfx::{
         self,
         sdl2::{
@@ -146,7 +146,14 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                         Keycode::Down => input.vertical = UpDownDir::Down,
                         Keycode::Space => input.button = ButtonState::Pushed,
                         Keycode::F => fast_mode = true,
-                        Keycode::P => pause ^= true,
+                        Keycode::P => {
+                            pause ^= true;
+                            if pause {
+                                self.audio_device.pause();
+                            } else {
+                                self.audio_device.resume();
+                            }
+                        }
                         Keycode::B => {
                             if let Some(state) = history.pop_front() {
                                 state.restore(vm, &mut self.display);
@@ -161,6 +168,9 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                         Keycode::N if pause => {
                             take_snapshot(&mut history, vm, &self.display);
                             vm.update_input(&input);
+                            if let Some(value_of_0xf4) = self.audio_device.take_value_of_0xf4() {
+                                vm.set_reg(0xf4, value_of_0xf4);
+                            }
                             vm.process(&mut self.display, &mut self.audio_device);
                             ticks_to_wait = vm.get_frames_to_wait();
                         }
@@ -226,6 +236,9 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                 }
 
                 if ticks_to_wait == 0 {
+                    if let Some(value_of_0xf4) = self.audio_device.take_value_of_0xf4() {
+                        vm.set_reg(0xf4, value_of_0xf4);
+                    }
                     if !vm.process(&mut self.display, &mut self.audio_device) {
                         error!("0 threads to run, exiting.");
                         break 'run;
