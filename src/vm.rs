@@ -176,9 +176,12 @@ impl Vm {
     pub fn new() -> Result<Vm> {
         let resman = ResourceManager::new()?;
 
+        let mut regs = [0; VM_NUM_VARIABLES];
+        Self::set_regs_initial_values(&mut regs);
+
         Ok(Vm {
             state: VmState {
-                regs: [0; VM_NUM_VARIABLES],
+                regs,
                 threads: Vm::init_threads(),
                 requested_scene: None,
                 render_buffer: 0,
@@ -380,7 +383,7 @@ impl Vm {
         // Check if we need to switch to a new part of the game.
         if let Some(requested_scene) = self.state.requested_scene.take() {
             info!("Loading scene {}", requested_scene);
-            self.init(&scenes::SCENES[requested_scene]);
+            self.init_for_scene(&scenes::SCENES[requested_scene]);
             audio.reset();
         }
 
@@ -444,25 +447,33 @@ impl Vm {
         nb_threads != 0
     }
 
-    pub fn init(&mut self, scene: &scenes::Scene) {
+    fn set_regs_initial_values(regs: &mut [i16; VM_NUM_VARIABLES]) {
+        // Random seed
+        // TODO make actually random...
+        regs[VM_VARIABLE_RANDOM_SEED] = 0xbeefu16 as i16;
+
+        // Seems to be necessary for scene 2.
+        regs[0xbc] = 0x10;
+        regs[0xf2] = 0xfa0;
+        regs[0xdc] = 0x21;
+
+        // TODO is this really needed?
+        regs[0x54] = 0x81;
+
+        // Necessary for scene 4 to start properly.
+        regs[0xc6] = 0x80;
+    }
+
+    pub fn init_for_scene(&mut self, scene: &scenes::Scene) {
+        // Is this really necessary?
+        self.set_reg(0xe4, 0x14);
+
         self.code.code = self.sys.resman.load_resource(scene.code).unwrap().data;
         self.sys.palette = self.sys.resman.load_resource(scene.palette).unwrap().data;
         self.sys.cinematic = self.sys.resman.load_resource(scene.video1).unwrap().data;
         if scene.video2 != 0 {
             self.sys.video = self.sys.resman.load_resource(scene.video2).unwrap().data;
         }
-        // Random seed
-        self.set_reg(VM_VARIABLE_RANDOM_SEED, 0xbeefu16 as i16);
-
-        // Seems to be necessary for scene 2.
-        self.set_reg(0xbc, 0x10);
-        self.set_reg(0xf2, 0xfa0);
-        self.set_reg(0xdc, 0x21);
-
-        // TODO is this really needed?
-        self.set_reg(0x54, 0x81);
-        self.set_reg(0xe4, 0x14);
-
         // Reset all threads
         self.state.threads = Vm::init_threads();
         self.state.threads[0].state = ThreadState::Active(0);

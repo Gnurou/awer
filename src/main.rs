@@ -79,7 +79,7 @@ fn main() {
     let mut sys: Box<dyn Sys> = sys::sdl2::sdl2_simple::new_from_args(&matches).unwrap();
 
     let mut vm = Box::new(vm::Vm::new().unwrap());
-    vm.init(&scenes::SCENES[start_scene]);
+    vm.init_for_scene(&scenes::SCENES[start_scene]);
 
     sys.game_loop(&mut vm);
 }
