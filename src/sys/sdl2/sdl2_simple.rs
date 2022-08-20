@@ -103,7 +103,7 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
     fn game_loop(&mut self, vm: &mut Vm) {
         // Events, time and input
         let mut sdl_events = self.sdl_context.event_pump().unwrap();
-        let mut last_tick_time = Instant::now();
+        let mut next_tick_time = Instant::now();
         let mut ticks_to_wait = 0;
         let mut input = InputState::new();
 
@@ -208,23 +208,30 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                 keypress_cooldown -= 1;
             }
 
-            let duration_since_last_tick = Instant::now().duration_since(last_tick_time);
-
-            // Wait until the time slice for the current game tick is elapsed
-            if duration_since_last_tick < DURATION_PER_TICK {
-                thread::sleep(DURATION_PER_TICK - duration_since_last_tick);
+            // Wait until the time slice for the current game tick is elapsed.
+            let now = Instant::now();
+            match now - next_tick_time {
+                d if d < DURATION_PER_TICK => {
+                    thread::sleep(DURATION_PER_TICK - d);
+                }
+                _ => (),
             }
-            // Get how many ticks we need to run and set last_tick_time to current tick.
+            let now = Instant::now();
+
+            // Get how many ticks we need to run and set next_tick_time to the next tick.
             let ticks_to_run = if pause {
-                last_tick_time = Instant::now();
+                next_tick_time = Instant::now();
                 0
             } else if fast_mode {
-                last_tick_time = Instant::now();
+                next_tick_time = Instant::now();
                 8
             } else {
-                // We don't use `Instant::now` because this would make time skew slightly forward.
-                last_tick_time += DURATION_PER_TICK;
-                1
+                let mut ticks_to_run = 1;
+                next_tick_time += DURATION_PER_TICK;
+                while now + (DURATION_PER_TICK * ticks_to_run) < next_tick_time {
+                    ticks_to_run += 1;
+                }
+                ticks_to_run
             };
 
             // Update VM state
