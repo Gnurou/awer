@@ -247,9 +247,15 @@ impl IndexedRenderer for RasterRenderer {
 
     fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16) {
         if src_page_id == dst_page_id {
-            log::error!("cannot copy page into itself!");
+            log::warn!("cannot copy video page into itself");
             return;
         }
+
+        if vscroll < -199 || vscroll > 199 {
+            log::warn!("out-of-range vscroll for copyvideopage: {}", vscroll);
+            return;
+        }
+
         let src = &self.buffers[src_page_id].borrow_mut();
         let src_len = src.0.len();
         let dst = &mut self.buffers[dst_page_id].borrow_mut();
