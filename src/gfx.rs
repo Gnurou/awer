@@ -109,7 +109,7 @@ impl<
 
 /// A point as described in the game's resources for polygons.
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Point<T> {
     pub x: T,
     pub y: T,

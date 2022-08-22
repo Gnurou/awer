@@ -12,7 +12,7 @@ use log::debug;
 
 use crate::audio::{MusicModule, SoundSample};
 
-#[derive(Clone, Copy, PartialEq, Debug, N)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, N)]
 pub enum ResType {
     // Audio samples.
     // All entries of this type are loaded by the loadresource opcode.

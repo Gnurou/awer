@@ -251,7 +251,7 @@ impl IndexedRenderer for RasterRenderer {
             return;
         }
 
-        if vscroll < -199 || vscroll > 199 {
+        if !(-199..=199).contains(&vscroll) {
             log::warn!("out-of-range vscroll for copyvideopage: {}", vscroll);
             return;
         }
@@ -262,12 +262,12 @@ impl IndexedRenderer for RasterRenderer {
         let dst_len = dst.0.len();
 
         let src_start = if vscroll < 0 {
-            vscroll.abs() as usize * SCREEN_RESOLUTION[0]
+            vscroll.unsigned_abs() as usize * SCREEN_RESOLUTION[0]
         } else {
             0
         };
         let dst_start = if vscroll > 0 {
-            vscroll.abs() as usize * SCREEN_RESOLUTION[0]
+            vscroll.unsigned_abs() as usize * SCREEN_RESOLUTION[0]
         } else {
             0
         };
