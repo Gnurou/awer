@@ -35,10 +35,8 @@ pub enum ResType {
     // Polygons for cinematic scenes.
     // All entries of this type are referenced from the scenes list.
     Cinematic,
-    // Not sure what this is yet, but seems like an alternative video segment.
-    // There is only one entry of this type and it is referenced from the
-    // scenes list.
-    Unknown,
+    // Polygons for in-game animations.
+    Poly,
 }
 
 impl fmt::Display for ResType {
@@ -372,7 +370,7 @@ impl ResourceManager {
         self.show_stats_for(ResType::Palette);
         self.show_stats_for(ResType::Bytecode);
         self.show_stats_for(ResType::Cinematic);
-        self.show_stats_for(ResType::Unknown);
+        self.show_stats_for(ResType::Poly);
     }
 
     pub fn list_resources(&self) {
@@ -450,9 +448,9 @@ impl ResourceManager {
                             .unwrap();
                     file.write_all(&data)?;
                 }
-                ResType::Unknown => {
+                ResType::Poly => {
                     let mut file =
-                        File::create(format!("{}/unknown_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
+                        File::create(format!("{}/poly_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
                             .unwrap();
                     file.write_all(&data)?;
                 }
