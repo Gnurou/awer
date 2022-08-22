@@ -115,9 +115,6 @@ pub trait Mixer {
 
     /// Stop playback and clear all state, including loaded samples.
     fn reset(&mut self);
-
-    // TODO add an iterator method that returns mixed samples. On MixerChannel, add an iterator
-    // method that returns the next sample value or None if nothing is playing.
 }
 
 /// Thread-safe mixer.
@@ -184,6 +181,77 @@ enum MixerChannel {
 impl Default for MixerChannel {
     fn default() -> Self {
         Self::Inactive
+    }
+}
+
+impl ClassicMixer {
+    /// Fill `out` with the next chunk of mixed audio from all our active channels.
+    fn fill_buffer(&mut self, out: &mut [i8]) {
+        for (ch_id, channel) in &mut self.channels.iter_mut().enumerate() {
+            if let MixerChannel::Active {
+                sample_id,
+                volume,
+                chunk_pos,
+                chunk_inc,
+            } = channel
+            {
+                let sample = match self.samples.get(sample_id) {
+                    Some(sample) => sample,
+                    None => {
+                        warn!("sample {:02x} is not loaded, aborting playback", sample_id);
+                        *channel = MixerChannel::Inactive;
+                        continue;
+                    }
+                };
+                let loop_pos = sample.loop_pos();
+
+                'chan: for c in out.iter_mut() {
+                    let mut sample_pos = *chunk_pos >> 8;
+                    let delta = *chunk_pos & 0xff;
+
+                    if sample_pos >= sample.len() {
+                        match loop_pos {
+                            None => {
+                                debug!("channel {}: stop as end of sample reached", ch_id);
+                                *channel = MixerChannel::Inactive;
+                                break 'chan;
+                            }
+                            Some(p) => {
+                                debug!("channel {}: looping", ch_id,);
+                                sample_pos = p + sample_pos - sample.len();
+                                *chunk_pos = (sample_pos << 8) + delta;
+                            }
+                        }
+                    }
+
+                    // Get following sample for interpolation.
+                    let next_sample_pos = match sample_pos + 1 {
+                        pos if pos >= sample.len() => match loop_pos {
+                            None => sample_pos,
+                            Some(p) => p,
+                        },
+                        pos => pos,
+                    };
+
+                    // Interpolate.
+                    let ilc = (*chunk_pos & 0xff) as isize;
+                    let s1 = sample.data[sample_pos] as isize;
+                    let s2 = sample.data[next_sample_pos] as isize;
+                    let s = (s1 * (0x100 - ilc) + (s2 * ilc)) >> 8;
+                    // Apply volume.
+                    let v = s as i16 * *volume as i16 / 0x40;
+                    // Mix and clamp.
+                    let b = v + *c as i16;
+                    *c = match b {
+                        v if v < i8::MIN as i16 => i8::MIN,
+                        v if v > i8::MAX as i16 => i8::MAX,
+                        _ => b as i8,
+                    };
+
+                    *chunk_pos += *chunk_inc;
+                }
+            }
+        }
     }
 }
 

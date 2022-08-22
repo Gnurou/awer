@@ -6,87 +6,19 @@ use std::{
 use crate::audio::{ClassicMusicPlayer, MusicPlayer, ProtectedMixer, SoundSample};
 
 use anyhow::anyhow;
-use log::{debug, warn};
 
-use super::{ClassicMixer, Mixer, MixerChannel};
+use super::{ClassicMixer, Mixer};
 
 impl sdl2::audio::AudioCallback for ProtectedMixer<ClassicMixer> {
     type Channel = i8;
 
     fn callback(&mut self, out: &mut [Self::Channel]) {
-        let mut lock = self.0.lock().unwrap();
-        let mixer = &mut *lock;
-
         // First set the whole buffer to silence as SDL2 doesn't do it for us.
         for s in out.iter_mut() {
             *s = 0;
         }
 
-        for (ch_id, channel) in &mut mixer.channels.iter_mut().enumerate() {
-            if let MixerChannel::Active {
-                sample_id,
-                volume,
-                chunk_pos,
-                chunk_inc,
-            } = channel
-            {
-                let sample = match mixer.samples.get(sample_id) {
-                    Some(sample) => sample,
-                    None => {
-                        warn!("sample {:02x} is not loaded, aborting playback", sample_id);
-                        *channel = MixerChannel::Inactive;
-                        continue;
-                    }
-                };
-                let loop_pos = sample.loop_pos();
-
-                'chan: for c in out.iter_mut() {
-                    let mut sample_pos = *chunk_pos >> 8;
-                    let delta = *chunk_pos & 0xff;
-
-                    if sample_pos >= sample.len() {
-                        match loop_pos {
-                            None => {
-                                debug!("channel {}: stop as end of sample reached", ch_id);
-                                *channel = MixerChannel::Inactive;
-                                break 'chan;
-                            }
-                            Some(p) => {
-                                debug!("channel {}: looping", ch_id,);
-                                sample_pos = p + sample_pos - sample.len();
-                                *chunk_pos = (sample_pos << 8) + delta;
-                            }
-                        }
-                    }
-
-                    // Get following sample for interpolation.
-                    let next_sample_pos = match sample_pos + 1 {
-                        pos if pos >= sample.len() => match loop_pos {
-                            None => sample_pos,
-                            Some(p) => p,
-                        },
-                        pos => pos,
-                    };
-
-                    // Interpolate.
-                    let ilc = (*chunk_pos & 0xff) as isize;
-                    let s1 = sample.data[sample_pos] as isize;
-                    let s2 = sample.data[next_sample_pos] as isize;
-                    let s = (s1 * (0x100 - ilc) + (s2 * ilc)) >> 8;
-                    // Apply volume.
-                    let v = s as i16 * *volume as i16 / 0x40;
-                    // Mix and clamp.
-                    let b = v + *c as i16;
-                    *c = match b {
-                        v if v < i8::MIN as i16 => i8::MIN,
-                        v if v > i8::MAX as i16 => i8::MAX,
-                        _ => b as i8,
-                    };
-
-                    *chunk_pos += *chunk_inc;
-                }
-            }
-        }
+        self.0.lock().unwrap().fill_buffer(out)
     }
 }
 
