@@ -25,7 +25,7 @@ use crate::{
 use byteorder::{ReadBytesExt, BE};
 
 const VM_NUM_THREADS: usize = 64;
-const VM_NUM_VARIABLES: usize = 256;
+pub const VM_NUM_VARIABLES: usize = 256;
 
 const VM_VARIABLE_RANDOM_SEED: u8 = 0x3c; // 60
 const VM_VARIABLE_LAST_KEYCHAR: u8 = 0xda; // 218

@@ -22,7 +22,7 @@ use crate::{
     },
     input::{ButtonState, InputState, LeftRightDir, UpDownDir},
     sys::Sys,
-    vm::{Vm, VmSnapshot},
+    vm::{Vm, VmSnapshot, VM_NUM_VARIABLES},
 };
 
 use std::{
@@ -117,6 +117,14 @@ fn take_snapshot<G: gfx::Gfx + ?Sized>(history: &mut VecDeque<Snapshot>, vm: &Vm
 
 impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
     fn game_loop(&mut self, vm: &mut Vm) {
+        // GUI
+        let mut imgui = imgui::Context::create();
+        imgui.set_ini_filename(None);
+        let mut imgui_sdl2 = imgui_sdl2::ImguiSdl2::new(&mut imgui, self.display.window());
+        let imgui_renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| {
+            self.sdl_context.video().unwrap().gl_get_proc_address(s) as _
+        });
+
         // Events, time and input
         let mut sdl_events = self.sdl_context.event_pump().unwrap();
         let mut next_tick_time = Instant::now();
@@ -143,7 +151,18 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
         'run: loop {
             // Update input
             released_keys.clear();
+
+            let mut pending_events: Vec<Event> = Vec::new();
             for event in sdl_events.poll_iter() {
+                imgui_sdl2.handle_event(&mut imgui, &event);
+                if imgui_sdl2.ignore_event(&event) {
+                    continue;
+                }
+
+                pending_events.push(event);
+            }
+
+            for event in pending_events {
                 match event {
                     Event::Quit { .. } => break 'run,
                     Event::Window {
@@ -309,7 +328,50 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                 sdl2::rect::Rect::new((viewport.width() - w) as i32 / 2, 0, w, h)
             };
 
+            // Prepare UI
+            imgui_sdl2.prepare_frame(
+                imgui.io_mut(),
+                self.display.window(),
+                &sdl_events.mouse_state(),
+            );
+            // TODO replace with actual time
+            let io = imgui.io_mut();
+            io.delta_time = DURATION_PER_TICK.as_secs_f32();
+            io.font_global_scale = 2.0;
+            let ui = imgui.frame();
+
+            imgui::Window::new("Registers")
+                .build(&ui, || {
+                    ui.text(" ");
+
+                    for i in 0..16 {
+                        ui.same_line();
+                        ui.next_column();
+                        ui.text(format!(" {:1x}  ", i));
+                    }
+
+                    for reg_idx in 0..VM_NUM_VARIABLES {
+                        if reg_idx % 16 == 0 {
+                            ui.text(format!("{:x}", reg_idx / 16));
+                            ui.same_line();
+                        }
+                        let reg_value = vm.get_reg(reg_idx as u8);
+                        ui.text(format!("{:04x}", reg_value));
+                        if reg_idx % 16 != 15 {
+                            ui.same_line();
+                        }
+                        ui.next_column();
+                    }
+                });
+
+            //ui.show_demo_window(&mut true);
+
             self.display.show_game_framebuffer(&viewport_dst);
+
+            // Render UI on top
+            imgui_sdl2.prepare_render(&ui, self.display.window());
+            imgui_renderer.render(ui);
+
             self.display.present();
         }
     }
