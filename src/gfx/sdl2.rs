@@ -12,8 +12,11 @@ pub const WINDOW_RESOLUTION: [u32; 2] = [1280, 800];
 
 /// Trait for handling display for `Sdl2Sys`, while providing access to common graphics methods.
 pub trait Sdl2Gfx: Gfx {
-    /// Display the current framebuffer into the `dst` rectangle of the actual display.
+    /// Display the current framebuffer into the `dst` rectangle of the render buffer.
     fn show_game_framebuffer(&mut self, dst: &Rect);
+
+    /// Present the render buffer on the screen.
+    fn present(&mut self);
 
     /// Returns the window the renderer will render into.
     fn window(&self) -> &Window;
@@ -27,6 +30,10 @@ pub trait Sdl2Gfx: Gfx {
 impl<D: Sdl2Gfx + ?Sized + 'static, C: DerefMut<Target = D> + Gfx> Sdl2Gfx for C {
     fn show_game_framebuffer(&mut self, dst: &Rect) {
         self.deref_mut().show_game_framebuffer(dst)
+    }
+
+    fn present(&mut self) {
+        self.deref_mut().present()
     }
 
     fn window(&self) -> &Window {

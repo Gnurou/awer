@@ -130,7 +130,9 @@ impl Sdl2Gfx for Sdl2GlGfx {
                 height: dst.height() as i32,
             },
         );
+    }
 
+    fn present(&mut self) {
         self.window.gl_swap_window();
     }
 

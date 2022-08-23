@@ -188,7 +188,9 @@ impl Sdl2Gfx for Sdl2CanvasGfx {
         self.canvas.clear();
         // Blit the game screen into the window viewport
         self.canvas.copy(&self.texture, None, Some(*dst)).unwrap();
+    }
 
+    fn present(&mut self) {
         self.canvas.present();
     }
 

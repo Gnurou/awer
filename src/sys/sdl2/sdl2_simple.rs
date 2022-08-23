@@ -280,6 +280,7 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
             };
 
             self.display.show_game_framebuffer(&viewport_dst);
+            self.display.present();
         }
     }
 }
