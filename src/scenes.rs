@@ -7,7 +7,7 @@ pub struct Scene {
 
 // Static data for the game. Defines scenes
 // and which data should be loaded for each
-pub const SCENES: [Scene; 10] = [
+pub const SCENES: [Scene; 9] = [
     // Copy protection (0)
     Scene {
         palette: 0x14,
@@ -63,12 +63,7 @@ pub const SCENES: [Scene; 10] = [
         video1: 0x2b,
         video2: 0x11,
     },
-    Scene {
-        palette: 0x7d,
-        code: 0x7e,
-        video1: 0x7f,
-        video2: 0x00,
-    },
+    // Password (8)
     Scene {
         palette: 0x7d,
         code: 0x7e,
