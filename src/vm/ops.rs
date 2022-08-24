@@ -394,7 +394,7 @@ pub fn op_copyvideopage<G: gfx::Gfx + ?Sized>(
     let vscroll = if src_page_id >= 0xfe || src_page_id & 0x80 == 0 {
         0
     } else {
-        state.regs[VM_VARIABLE_SCROLL_Y]
+        state.regs[VM_VARIABLE_SCROLL_Y as usize]
     };
     trace!(
         "op_copyvideopage {:x} ({:x}) -> {:x} ({:x}) @{}",
@@ -436,7 +436,7 @@ pub fn op_blitframebuffer<G: gfx::Gfx + ?Sized>(
     gfx.blitframebuffer(state.front_buffer, &state.palette);
 
     // Assume that we render very fast, which should be the case.
-    state.regs[VM_VARIABLE_SLICES_USED] = 1;
+    state.regs[VM_VARIABLE_SLICES_USED as usize] = 1;
 
     false
 }

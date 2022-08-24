@@ -27,24 +27,24 @@ use byteorder::{ReadBytesExt, BE};
 const VM_NUM_THREADS: usize = 64;
 const VM_NUM_VARIABLES: usize = 256;
 
-const VM_VARIABLE_RANDOM_SEED: usize = 0x3c; // 60
-const VM_VARIABLE_LAST_KEYCHAR: usize = 0xda; // 218
-const VM_VARIABLE_HERO_POS_UPDOWN: usize = 0xe5; // 229
-const VM_VARIABLE_SND_SYNC: usize = 0xf4; // 244
-                                          // 0: max details.
-                                          // 1: remove reflections. (?)
-const VM_VARIABLE_GFX_DETAIL: usize = 0xf6; // 246
-                                            // Design doc is not very legible. This may be used to
-                                            // control how many frames we took to render and run the
-                                            // game logic, as a way to pace the game?
-const VM_VARIABLE_SLICES_USED: usize = 0xf7; // 247
-const VM_VARIABLE_SCROLL_Y: usize = 0xf9; // 249
-const VM_VARIABLE_HERO_ACTION: usize = 0xfa; // 250
-const VM_VARIABLE_HERO_POS_JUMP_DOWN: usize = 0xfb; // 251
-const VM_VARIABLE_HERO_POS_LEFT_RIGHT: usize = 0xfc; // 252
-const VM_VARIABLE_HERO_POS_MASK: usize = 0xfd; // 253
-const VM_VARIABLE_HERO_ACTION_POS_MASK: usize = 0xfe; // 254
-const VM_VARIABLE_PAUSE_SLICES: usize = 0xff; // 255
+const VM_VARIABLE_RANDOM_SEED: u8 = 0x3c; // 60
+const VM_VARIABLE_LAST_KEYCHAR: u8 = 0xda; // 218
+const VM_VARIABLE_HERO_POS_UPDOWN: u8 = 0xe5; // 229
+const VM_VARIABLE_SND_SYNC: u8 = 0xf4; // 244
+                                       // 0: max details.
+                                       // 1: remove reflections. (?)
+const VM_VARIABLE_GFX_DETAIL: u8 = 0xf6; // 246
+                                         // Design doc is not very legible. This may be used to
+                                         // control how many frames we took to render and run the
+                                         // game logic, as a way to pace the game?
+const VM_VARIABLE_SLICES_USED: u8 = 0xf7; // 247
+const VM_VARIABLE_SCROLL_Y: u8 = 0xf9; // 249
+const VM_VARIABLE_HERO_ACTION: u8 = 0xfa; // 250
+const VM_VARIABLE_HERO_POS_JUMP_DOWN: u8 = 0xfb; // 251
+const VM_VARIABLE_HERO_POS_LEFT_RIGHT: u8 = 0xfc; // 252
+const VM_VARIABLE_HERO_POS_MASK: u8 = 0xfd; // 253
+const VM_VARIABLE_HERO_ACTION_POS_MASK: u8 = 0xfe; // 254
+const VM_VARIABLE_PAUSE_SLICES: u8 = 0xff; // 255
 
 #[derive(Clone, Copy)]
 enum ThreadState {
@@ -201,12 +201,12 @@ impl Vm {
         })
     }
 
-    pub fn get_reg(&self, i: usize) -> i16 {
-        self.state.regs[i]
+    pub fn get_reg(&self, i: u8) -> i16 {
+        self.state.regs[i as usize]
     }
 
-    pub fn set_reg(&mut self, i: usize, v: i16) {
-        self.state.regs[i] = v;
+    pub fn set_reg(&mut self, i: u8, v: i16) {
+        self.state.regs[i as usize] = v;
     }
 
     fn process_thread<G: gfx::Gfx + ?Sized, A: audio::Mixer + audio::MusicPlayer + ?Sized>(
@@ -450,7 +450,7 @@ impl Vm {
     fn set_regs_initial_values(regs: &mut [i16; VM_NUM_VARIABLES]) {
         // Random seed
         // TODO make actually random...
-        regs[VM_VARIABLE_RANDOM_SEED] = 0xbeefu16 as i16;
+        regs[VM_VARIABLE_RANDOM_SEED as usize] = 0xbeefu16 as i16;
 
         // Seems to be necessary for scene 2.
         regs[0xbc] = 0x10;
@@ -480,7 +480,7 @@ impl Vm {
     }
 
     pub fn get_frames_to_wait(&self) -> usize {
-        self.state.regs[VM_VARIABLE_PAUSE_SLICES] as usize
+        self.get_reg(VM_VARIABLE_PAUSE_SLICES) as usize
     }
 }
 
