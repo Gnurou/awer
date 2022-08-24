@@ -435,7 +435,7 @@ pub fn op_blitframebuffer<G: gfx::Gfx + ?Sized>(
     state.front_buffer = new_front;
     gfx.blitframebuffer(state.front_buffer, &state.palette);
 
-    // Assume that we render very fast, which should be the case.
+    // TODO this doesn't seem to ever be used?
     state.regs[VM_VARIABLE_SLICES_USED as usize] = 1;
 
     false
