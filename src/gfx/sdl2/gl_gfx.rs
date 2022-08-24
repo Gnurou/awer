@@ -244,10 +244,11 @@ impl Snapshotable for Sdl2GlGfx {
         })
     }
 
-    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
-        if let Ok(state) = snapshot.downcast::<Sdl2GfxSnapshot>() {
-            self.raster_renderer.restore_snapshot(state.raster_renderer);
-            self.poly_renderer.restore_snapshot(state.poly_renderer);
+    fn restore_snapshot(&mut self, snapshot: &Self::State) -> bool {
+        if let Some(state) = snapshot.downcast_ref::<Sdl2GfxSnapshot>() {
+            self.raster_renderer
+                .restore_snapshot(&state.raster_renderer);
+            self.poly_renderer.restore_snapshot(&state.poly_renderer);
             self.blitframebuffer(state.current_framebuffer, &state.palette);
             true
         } else {

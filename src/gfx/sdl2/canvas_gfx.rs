@@ -150,6 +150,7 @@ impl gfx::Display for Sdl2CanvasGfx {
     }
 }
 
+#[derive(Clone)]
 struct Sdl2CanvasGfxSnapshot {
     raster: RasterRenderer,
     current_framebuffer: usize,
@@ -167,9 +168,9 @@ impl Snapshotable for Sdl2CanvasGfx {
         })
     }
 
-    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
-        if let Ok(snapshot) = snapshot.downcast::<Sdl2CanvasGfxSnapshot>() {
-            self.raster = snapshot.raster;
+    fn restore_snapshot(&mut self, snapshot: &Self::State) -> bool {
+        if let Some(snapshot) = snapshot.downcast_ref::<Sdl2CanvasGfxSnapshot>() {
+            self.raster = snapshot.raster.clone();
             self.blitframebuffer(snapshot.current_framebuffer, &snapshot.current_palette);
             true
         } else {

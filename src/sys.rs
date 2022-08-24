@@ -24,7 +24,7 @@ pub trait Snapshotable {
     /// Returns `true` if the snapshot has been successfully reapplied, `false` otherwise (might
     /// happen if `snapshot` did not come from `self`).
     ///
-    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool;
+    fn restore_snapshot(&mut self, snapshot: &Self::State) -> bool;
 }
 
 /// Proxy implementation for containers of `Snapshotable`.
@@ -35,7 +35,7 @@ impl<S: Snapshotable + ?Sized, C: DerefMut<Target = S>> Snapshotable for C {
         self.deref().take_snapshot()
     }
 
-    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
+    fn restore_snapshot(&mut self, snapshot: &Self::State) -> bool {
         self.deref_mut().restore_snapshot(snapshot)
     }
 }

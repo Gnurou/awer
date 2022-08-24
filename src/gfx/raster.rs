@@ -369,8 +369,8 @@ impl Snapshotable for RasterRenderer {
         self.clone()
     }
 
-    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
-        *self = snapshot;
+    fn restore_snapshot(&mut self, snapshot: &Self::State) -> bool {
+        *self = snapshot.clone();
         true
     }
 }

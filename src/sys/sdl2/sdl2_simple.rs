@@ -89,10 +89,26 @@ pub fn new_from_args(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
     }
 }
 
-fn take_snapshot<G: gfx::Gfx + ?Sized>(history: &mut VecDeque<VmSnapshot>, vm: &Vm, gfx: &G) {
+struct Snapshot {
+    // Full snapshot of the VM state.
+    snapshot: VmSnapshot,
+    // Whether the snapshot has just been restored and we should skip it if 'B' is pressed.
+    just_restored: bool,
+}
+
+impl From<VmSnapshot> for Snapshot {
+    fn from(snapshot: VmSnapshot) -> Self {
+        Self {
+            snapshot,
+            just_restored: false,
+        }
+    }
+}
+
+fn take_snapshot<G: gfx::Gfx + ?Sized>(history: &mut VecDeque<Snapshot>, vm: &Vm, gfx: &G) {
     const MAX_GAME_SNAPSHOTS: usize = 50;
 
-    history.push_front(VmSnapshot::new(vm, gfx));
+    history.push_front(VmSnapshot::new(vm, gfx).into());
 
     while history.len() > MAX_GAME_SNAPSHOTS {
         history.pop_back();
@@ -113,7 +129,7 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
 
         // State rewind
         const TICKS_PER_SNAPSHOT: usize = 200;
-        let mut history: VecDeque<VmSnapshot> = VecDeque::new();
+        let mut history: VecDeque<Snapshot> = VecDeque::new();
         let mut snapshot_cpt = 0;
         take_snapshot(&mut history, vm, &self.display);
 
@@ -155,14 +171,18 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                             }
                         }
                         Keycode::B => {
-                            if let Some(state) = history.pop_front() {
-                                state.restore(vm, &mut self.display);
-                                snapshot_cpt = 0;
+                            if let Some(state) = history.front() {
+                                // If the state has just been restored, remove it unless that would
+                                // mean we are left with just one state.
+                                if state.just_restored && history.len() >= 2 {
+                                    history.pop_front();
+                                }
                             }
 
-                            // If we are back to the first state, keep a copy.
-                            if history.is_empty() {
-                                take_snapshot(&mut history, vm, &self.display);
+                            if let Some(state) = history.front_mut() {
+                                state.snapshot.restore(vm, &mut self.display);
+                                snapshot_cpt = 0;
+                                state.just_restored = true;
                             }
                         }
                         Keycode::N if pause => {
@@ -234,9 +254,19 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
                 ticks_to_run
             };
 
+            // If we try to restore a state twice within that cooldown, we will restore the state
+            // before that one instead.
+            const SNAPSHOT_REMOVAL_COOLDOWN: usize = 10;
             // Update VM state
             for _ in 0..ticks_to_run {
                 snapshot_cpt += 1;
+
+                if snapshot_cpt == SNAPSHOT_REMOVAL_COOLDOWN {
+                    if let Some(snapshot) = history.front_mut() {
+                        snapshot.just_restored = false;
+                    }
+                }
+
                 if snapshot_cpt == TICKS_PER_SNAPSHOT {
                     take_snapshot(&mut history, vm, &self.display);
                     snapshot_cpt = 0;

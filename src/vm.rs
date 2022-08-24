@@ -137,9 +137,9 @@ impl VmSnapshot {
     }
 
     /// Restore a previously captured snapshot into `vm` and `gfx`.
-    pub fn restore<G: gfx::Gfx + ?Sized>(self, vm: &mut Vm, gfx: &mut G) {
-        vm.restore_snapshot(self.vm_state);
-        gfx.restore_snapshot(self.gfx_state);
+    pub fn restore<G: gfx::Gfx + ?Sized>(&self, vm: &mut Vm, gfx: &mut G) {
+        vm.restore_snapshot(&self.vm_state);
+        gfx.restore_snapshot(&self.gfx_state);
     }
 }
 
@@ -491,8 +491,8 @@ impl Snapshotable for Vm {
         self.state.clone()
     }
 
-    fn restore_snapshot(&mut self, state: Self::State) -> bool {
-        self.state = state;
+    fn restore_snapshot(&mut self, state: &Self::State) -> bool {
+        self.state = state.clone();
         true
     }
 }

@@ -275,6 +275,7 @@ impl gfx::IndexedRenderer for GlPolyRenderer {
     }
 }
 
+#[derive(Clone)]
 pub struct GlPolyRendererSnapshot {
     draw_commands: [Vec<DrawCommand>; 4],
     framebuffer_index: usize,
@@ -290,8 +291,8 @@ impl Snapshotable for GlPolyRenderer {
         }
     }
 
-    fn restore_snapshot(&mut self, snapshot: Self::State) -> bool {
-        self.draw_commands = snapshot.draw_commands;
+    fn restore_snapshot(&mut self, snapshot: &Self::State) -> bool {
+        self.draw_commands = snapshot.draw_commands.clone();
         self.framebuffer_index = snapshot.framebuffer_index;
         true
     }
