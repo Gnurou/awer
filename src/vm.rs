@@ -430,7 +430,7 @@ impl Vm {
         nb_threads
     }
 
-    pub fn process<G: gfx::Gfx + ?Sized, A: audio::Mixer + audio::MusicPlayer + ?Sized>(
+    pub fn process_round<G: gfx::Gfx + ?Sized, A: audio::Mixer + audio::MusicPlayer + ?Sized>(
         &mut self,
         gfx: &mut G,
         audio: &mut A,
