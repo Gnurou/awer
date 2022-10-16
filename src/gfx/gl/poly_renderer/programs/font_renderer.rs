@@ -27,7 +27,7 @@ pub struct FontRenderer {
 }
 
 impl Program for FontRenderer {
-    fn activate(&self, _target_texture: &IndexedTexture, _buffer0: &IndexedTexture) {
+    fn activate(&mut self, _target_texture: &IndexedTexture, _buffer0: &IndexedTexture) {
         unsafe {
             gl::UseProgram(self.program);
         }

@@ -14,9 +14,9 @@ pub trait Program {
     /// Activate the program, i.e. make it ready to draw. `target_texture` is where incoming draw
     /// commands should be rendered, while `buffer0` is a texture with framebuffer 0 (which is used
     /// as a source for some commands).
-    fn activate(&self, _target_texture: &IndexedTexture, _buffer0: &IndexedTexture) {}
+    fn activate(&mut self, _target_texture: &IndexedTexture, _buffer0: &IndexedTexture) {}
     /// Deactivate the program, flushing any pending operations.
-    fn deactivate(&self) {}
+    fn deactivate(&mut self) {}
 }
 
 /// Keep track of which program is current.

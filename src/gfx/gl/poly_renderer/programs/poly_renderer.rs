@@ -1,5 +1,3 @@
-use std::cell::{Cell, RefCell};
-
 use crate::gfx::{gl::*, polygon::Polygon, SCREEN_RESOLUTION};
 
 use super::Program;
@@ -43,9 +41,9 @@ pub struct PolyRenderer {
     self_uniform: GLint,
     buffer0_uniform: GLint,
 
-    vertices_array: RefCell<Vec<VertexShaderInput>>,
-    indices_array: RefCell<Vec<u16>>,
-    draw_type: Cell<GLuint>,
+    vertices: Vec<VertexShaderInput>,
+    indices: Vec<u16>,
+    draw_type: GLuint,
 }
 
 impl Drop for PolyRenderer {
@@ -59,7 +57,7 @@ impl Drop for PolyRenderer {
 }
 
 impl Program for PolyRenderer {
-    fn activate(&self, target_texture: &IndexedTexture, buffer0: &IndexedTexture) {
+    fn activate(&mut self, target_texture: &IndexedTexture, buffer0: &IndexedTexture) {
         let dimensions = target_texture.dimensions();
         unsafe {
             gl::UseProgram(self.program);
@@ -80,7 +78,7 @@ impl Program for PolyRenderer {
         }
     }
 
-    fn deactivate(&self) {
+    fn deactivate(&mut self) {
         self.draw();
     }
 }
@@ -174,14 +172,14 @@ impl PolyRenderer {
             program,
             self_uniform,
             buffer0_uniform,
-            vertices_array: Default::default(),
-            indices_array: Default::default(),
-            draw_type: Cell::new(gl::TRIANGLE_STRIP),
+            vertices: Default::default(),
+            indices: Default::default(),
+            draw_type: gl::TRIANGLE_STRIP,
         })
     }
 
     pub fn draw_poly(
-        &self,
+        &mut self,
         poly: &Polygon,
         pos: (i16, i16),
         offset: (i16, i16),
@@ -216,26 +214,24 @@ impl PolyRenderer {
             }
         };
 
-        if draw_type != self.draw_type.get() {
-            if !self.vertices_array.borrow().is_empty() {
+        if draw_type != self.draw_type {
+            if !self.vertices.is_empty() {
                 self.draw();
             }
-            self.draw_type.set(draw_type);
+            self.draw_type = draw_type;
         }
 
         // If our number of vertices would exceed the number of indexes we support, perform a draw
         // call and start clean. We use >= here because the last element is used to indicate a
         // primitive restart.
-        if self.vertices_array.borrow().len() + poly.points.len() >= u16::MAX as usize {
+        if self.vertices.len() + poly.points.len() >= u16::MAX as usize {
             self.draw();
         }
 
         let zoom = zoom as f32 / 64.0;
-        let mut vertices = self.vertices_array.borrow_mut();
-        let mut indices = self.indices_array.borrow_mut();
-        let index_start = vertices.len();
+        let index_start = self.vertices.len();
         let poly_len = poly.points.len();
-        vertices.extend(poly.points.iter().map(|p| {
+        self.vertices.extend(poly.points.iter().map(|p| {
             VertexShaderInput::new(
                 (pos.0, pos.1),
                 (p.x + offset.0, p.y + offset.1),
@@ -245,34 +241,32 @@ impl PolyRenderer {
             )
         }));
         match draw_type {
-            gl::TRIANGLE_STRIP => indices.extend((0..poly_len / 2).into_iter().flat_map(|i| {
-                [
-                    (index_start + poly_len - (i + 1)) as u16,
-                    (index_start + i) as u16,
-                ]
-                .into_iter()
-            })),
+            gl::TRIANGLE_STRIP => {
+                self.indices
+                    .extend((0..poly_len / 2).into_iter().flat_map(|i| {
+                        [
+                            (index_start + poly_len - (i + 1)) as u16,
+                            (index_start + i) as u16,
+                        ]
+                        .into_iter()
+                    }))
+            }
             gl::LINE_LOOP => {
-                indices.extend((0..poly_len).into_iter().map(|i| (index_start + i) as u16));
+                self.indices
+                    .extend((0..poly_len).into_iter().map(|i| (index_start + i) as u16));
             }
             _ => unreachable!(),
         };
         // Insert a primitive restart to avoid being joined to the next poly.
-        indices.push(u16::MAX);
-
-        drop(indices);
-        drop(vertices);
+        self.indices.push(u16::MAX);
     }
 
     // Send all the pending vertices to the GPU for rendering.
-    pub fn draw(&self) {
-        let mut vertices = self.vertices_array.borrow_mut();
-        let mut indices = self.indices_array.borrow_mut();
-
+    pub fn draw(&mut self) {
         log::debug!(
             "Sending {} indices ({} vertices) to GPU",
-            indices.len(),
-            vertices.len()
+            self.indices.len(),
+            self.vertices.len()
         );
 
         unsafe {
@@ -281,24 +275,24 @@ impl PolyRenderer {
             gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
             gl::BufferData(
                 gl::ARRAY_BUFFER,
-                (vertices.len() * mem::size_of::<VertexShaderInput>()) as GLsizeiptr,
-                vertices.as_ptr() as *const _,
+                (self.vertices.len() * mem::size_of::<VertexShaderInput>()) as GLsizeiptr,
+                self.vertices.as_ptr() as *const _,
                 gl::STREAM_DRAW,
             );
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
 
             gl::DrawElements(
-                self.draw_type.get(),
-                indices.len() as GLsizei,
+                self.draw_type,
+                self.indices.len() as GLsizei,
                 gl::UNSIGNED_SHORT,
-                indices.as_ptr() as *const GLvoid,
+                self.indices.as_ptr() as *const GLvoid,
             );
 
             gl::BindVertexArray(0);
         }
 
-        indices.clear();
-        vertices.clear();
+        self.indices.clear();
+        self.vertices.clear();
     }
 }
 
