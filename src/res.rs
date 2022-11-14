@@ -467,11 +467,11 @@ mod tests {
 
     #[test]
     fn test_load_res() -> io::Result<()> {
-        let mut resman = ResourceManager::new()?;
+        let resman = ResourceManager::new()?;
         assert_ne!(resman.resources.len(), 0);
 
         for i in 1..resman.resources.len() {
-            let expected_size = resman.resources[i].info.size;
+            let expected_size = resman.resources[i].size;
             let resource = resman.load_resource(i)?;
             assert_eq!(expected_size, resource.data.len());
         }
