@@ -127,11 +127,10 @@ impl gfx::Display for Sdl2CanvasGfx {
         };
 
         // Avoid borrowing self in the closure
-        let framebuffer = self.raster.get_buffer(page_id);
         let bytes_per_pixel = self.bytes_per_pixel;
 
         let render_into_texture = |texture: &mut [u8], pitch: usize| {
-            for (src_line, dst_line) in framebuffer
+            for (src_line, dst_line) in self.raster.get_buffer(page_id)
                 .pixels()
                 .chunks_exact(gfx::SCREEN_RESOLUTION[0])
                 .zip(texture.chunks_exact_mut(pitch))
