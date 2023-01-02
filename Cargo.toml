@@ -20,7 +20,7 @@ enumn = "0.1"
 memoffset = "0.6"
 
 # SDL2 dependencies
-sdl2 = { version = "0.35", optional = true, features = ["unsafe_textures"] }
+sdl2 = { version = "0.35", optional = true, features = ["unsafe_textures", "raw-window-handle"] }
 gl = { version = "0.14", optional = true }
 
 [dev-dependencies]
