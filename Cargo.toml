@@ -10,14 +10,15 @@ default = ["sdl2-sys"]
 sdl2-sys = ["sdl2", "gl"]
 
 [dependencies]
-log = "0.4"
-env_logger = "0.9"
 byteorder = "1"
 clap = "3"
 anyhow = "1.0"
 enumn = "0.1"
 # Used with gl
 memoffset = "0.6"
+tracing = "0.1.37"
+tracing-subscriber = {version = "0.3.16", features = ["env-filter", "tracing-log"] }
+tracing-chrome = "0.6.0"
 
 # SDL2 dependencies
 sdl2 = { version = "0.35", optional = true, features = ["unsafe_textures", "raw-window-handle"] }

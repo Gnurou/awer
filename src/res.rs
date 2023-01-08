@@ -8,7 +8,7 @@ use std::{
 
 use byteorder::{ReadBytesExt, BE};
 use enumn::N;
-use log::debug;
+use tracing::debug;
 
 use crate::audio::{MusicModule, SoundSample};
 

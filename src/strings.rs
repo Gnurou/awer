@@ -4,6 +4,8 @@ use std::{
     io::{self, BufRead, BufReader},
 };
 
+use tracing::error;
+
 pub type GameStrings = BTreeMap<usize, String>;
 
 pub fn load_strings() -> io::Result<GameStrings> {
@@ -16,7 +18,7 @@ pub fn load_strings() -> io::Result<GameStrings> {
         let line = match line {
             Ok(line) => line,
             Err(e) => {
-                log::error!("Error parsing string: {}", e);
+                error!("Error parsing string: {}", e);
                 continue;
             }
         };

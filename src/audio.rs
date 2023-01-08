@@ -9,7 +9,7 @@ use std::{
 
 pub use music::*;
 
-use log::{debug, error, warn};
+use tracing::{debug, error, warn};
 
 const NUM_AUDIO_CHANNELS: usize = 4;
 
@@ -127,10 +127,12 @@ impl<M: Mixer + Send> ProtectedMixer<M> {
 }
 
 impl<M: Mixer + Send> Mixer for ProtectedMixer<M> {
+    #[tracing::instrument(skip(self, sample))]
     fn add_sample(&mut self, id: u8, sample: Box<SoundSample>) {
         self.0.lock().unwrap().add_sample(id, sample)
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     fn play(&mut self, sample_id: u8, channel: u8, freq: u16, volume: u8) {
         self.0
             .lock()
@@ -138,10 +140,12 @@ impl<M: Mixer + Send> Mixer for ProtectedMixer<M> {
             .play(sample_id, channel, freq, volume)
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     fn stop(&mut self, channel: u8) {
         self.0.lock().unwrap().stop(channel)
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     fn reset(&mut self) {
         self.0.lock().unwrap().reset()
     }
@@ -186,6 +190,7 @@ impl Default for MixerChannel {
 
 impl ClassicMixer {
     /// Fill `out` with the next chunk of mixed audio from all our active channels.
+    #[tracing::instrument(level = "debug", skip(self, out), fields(size = out.len(), buffer = tracing::field::debug(out.as_ptr())))]
     fn fill_buffer(&mut self, out: &mut [i8]) {
         for (ch_id, channel) in &mut self.channels.iter_mut().enumerate() {
             if let MixerChannel::Active {
@@ -276,16 +281,13 @@ impl ClassicMixer {
 }
 
 impl Mixer for ClassicMixer {
+    #[tracing::instrument(level = "trace", skip(self, sample))]
     fn add_sample(&mut self, id: u8, sample: Box<SoundSample>) {
-        debug!("added sample with resource ID {:02x}", id);
         self.samples.insert(id, sample);
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     fn play(&mut self, sample_id: u8, channel: u8, freq: u16, volume: u8) {
-        debug!(
-            "channel {}: play sample {:02x}, freq {}, volume {}",
-            channel, sample_id, freq, volume,
-        );
         let channel = match self.channels.get_mut(channel as usize) {
             None => {
                 error!("invalid channel index {}", channel);
@@ -302,6 +304,7 @@ impl Mixer for ClassicMixer {
         };
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     fn stop(&mut self, channel: u8) {
         debug!("channel {}: stop", channel);
 
@@ -316,6 +319,7 @@ impl Mixer for ClassicMixer {
         *channel = MixerChannel::Inactive;
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     fn reset(&mut self) {
         self.channels = Default::default();
         self.samples = Default::default();

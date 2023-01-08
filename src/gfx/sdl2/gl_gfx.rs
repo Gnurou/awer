@@ -108,6 +108,7 @@ impl Sdl2GlGfx {
 }
 
 impl Sdl2Gfx for Sdl2GlGfx {
+    #[tracing::instrument(skip(self))]
     fn show_game_framebuffer(&mut self, dst: &Rect) {
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
@@ -132,6 +133,7 @@ impl Sdl2Gfx for Sdl2GlGfx {
         );
     }
 
+    #[tracing::instrument(skip(self))]
     fn present(&mut self) {
         self.window.gl_swap_window();
     }
@@ -140,6 +142,7 @@ impl Sdl2Gfx for Sdl2GlGfx {
         &self.window
     }
 
+    #[tracing::instrument(skip(self))]
     fn handle_event(&mut self, event: &Event) {
         match event {
             Event::Window {
@@ -252,7 +255,7 @@ impl Snapshotable for Sdl2GlGfx {
             self.blitframebuffer(state.current_framebuffer, &state.palette);
             true
         } else {
-            log::error!("Attempting to restore invalid gfx snapshot, ignoring");
+            tracing::error!("Attempting to restore invalid gfx snapshot, ignoring");
             false
         }
     }

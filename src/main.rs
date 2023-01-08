@@ -1,4 +1,5 @@
 use clap::Arg;
+use tracing_subscriber::prelude::*;
 
 mod audio;
 mod font;
@@ -14,8 +15,6 @@ use scenes::SCENES;
 use sys::Sys;
 
 fn main() {
-    env_logger::init();
-
     let matches = clap::Command::new("Another World")
         .version("0.1")
         .arg(
@@ -44,6 +43,13 @@ fn main() {
                 .long("dump-resources")
                 .help("Dump all resources into the \"resources\" folder and exit"),
         )
+        .arg(
+            Arg::new("trace_file")
+                .short('t')
+                .long("chrome-trace")
+                .help("Record a trace in the Chrome format into trace_file instead of printing events on the standard output")
+                .takes_value(true),
+        )
         .get_matches();
 
     let start_scene = matches
@@ -71,6 +77,21 @@ fn main() {
         resman.dump_resources().unwrap();
         must_exit = true;
     }
+
+    let _trace_flush_guard = if let Some(trace_file) = matches.value_of("trace_file") {
+        let (chrome_layer, flush_guard) = tracing_chrome::ChromeLayerBuilder::new()
+            .include_args(true)
+            .include_locations(false)
+            .file(trace_file)
+            .build();
+        tracing_subscriber::registry().with(chrome_layer).init();
+        Some(flush_guard)
+    } else {
+        tracing_subscriber::fmt::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+            .init();
+        None
+    };
 
     if must_exit {
         return;

@@ -146,6 +146,7 @@ impl<'a> DrawCommandRunner<'a> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     pub fn draw_poly(
         &mut self,
         poly: &Polygon,
@@ -165,12 +166,14 @@ impl<'a> DrawCommandRunner<'a> {
         )
     }
 
+    #[tracing::instrument(level = "trace", skip(self, image))]
     pub fn draw_bitmap(&mut self, image: &IndexedImage) {
         self.programs
             .use_bitmap(self.target, self.buffer0)
             .draw_bitmap(image)
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     pub fn draw_char(&mut self, pos: (i16, i16), color: u8, c: u8) {
         self.programs
             .use_font(self.target, self.buffer0)

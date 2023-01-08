@@ -100,6 +100,7 @@ impl IndexedTextureSource for IndexedImage {
 /// An OpenGL texture which format is similar to that of `IndexedImage`, i.e.
 /// 4-bpp indexed colors. It can be rendered into by a shader, or be used as
 /// a shader input.
+#[derive(Debug)]
 pub struct IndexedTexture {
     texture: GLuint,
     width: usize,

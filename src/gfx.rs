@@ -5,12 +5,13 @@ pub mod raster;
 #[cfg(feature = "sdl2-sys")]
 pub mod sdl2;
 
-use log::debug;
 use std::{
     any::Any,
     fmt::{self, Debug, Formatter, Result},
     ops::DerefMut,
 };
+
+use tracing::debug;
 
 use crate::sys::Snapshotable;
 
@@ -172,7 +173,7 @@ impl Palette {
             col.g = (g << 4) | g;
             col.b = (b << 4) | b;
 
-            debug!("set palette[{:x}]: {:x?}", i, col);
+            debug!("palette[{:x}] = {:x?}", i, col);
         }
     }
 

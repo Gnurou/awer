@@ -2,7 +2,6 @@
 
 mod ops;
 
-use log::{debug, info};
 use std::{
     any::Any,
     fmt,
@@ -10,6 +9,8 @@ use std::{
     mem::{transmute, MaybeUninit},
     ops::Deref,
 };
+
+use tracing::info;
 
 use self::ops::*;
 use crate::{
@@ -209,6 +210,7 @@ impl Vm {
         self.state.regs[i as usize] = v;
     }
 
+    #[tracing::instrument(level = "debug", skip(self, gfx, audio))]
     fn process_thread<G: gfx::Gfx + ?Sized, A: audio::Mixer + audio::MusicPlayer + ?Sized>(
         &mut self,
         cur_thread: usize,
@@ -404,45 +406,23 @@ impl Vm {
         }
 
         let nb_threads = actionable_threads.len();
-        debug!("{} threads running this round: ", nb_threads);
-        debug!(
-            "{}",
-            actionable_threads
-                .iter()
-                .map(|x| format!("{:02x}", x.0))
-                .collect::<Vec<String>>()
-                .join(", ")
-        );
 
         for (thread_id, pc) in actionable_threads {
-            debug!("Running thread {:02x}@{:04x}", thread_id, pc);
-            debug!("---------------------");
-
             self.process_thread(thread_id, pc, gfx, audio);
-
-            match self.state.threads[thread_id].state {
-                ThreadState::Inactive => debug!("Thread {:02x} ended", thread_id),
-                ThreadState::Active(_) => debug!("Thread {:02x} yielded", thread_id),
-                ThreadState::Paused(_) => debug!("Thread {:02x} paused", thread_id),
-            };
         }
 
         nb_threads
     }
 
+    #[tracing::instrument(level="debug", skip(self, gfx, audio), fields(round = self.round, nb_threads))]
     pub fn process_round<G: gfx::Gfx + ?Sized, A: audio::Mixer + audio::MusicPlayer + ?Sized>(
         &mut self,
         gfx: &mut G,
         audio: &mut A,
     ) -> bool {
-        debug!("===================");
-        debug!("Starting round {}", self.round);
-        debug!("===================");
         let nb_threads = self.process_step(gfx, audio);
-        debug!(
-            "Ending round {}: {} threads have run",
-            self.round, nb_threads
-        );
+        tracing::Span::current().record("nb_threads", nb_threads);
+
         self.round += 1;
         nb_threads != 0
     }

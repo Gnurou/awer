@@ -2,13 +2,13 @@
 //! not provide any fancy features - just the basic game.
 
 use clap::ArgMatches;
-use log::error;
 use sdl2::{
     event::{Event, WindowEvent},
     keyboard::Keycode,
     rect::Rect,
     Sdl,
 };
+use tracing::error;
 
 use crate::{
     audio::{sdl2::Sdl2Audio, MusicPlayer},

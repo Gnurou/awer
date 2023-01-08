@@ -106,6 +106,7 @@ impl FontRenderer {
         Ok(FontRenderer { vao, vbo, program })
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     pub fn draw_char(&self, pos: (i16, i16), color: u8, c: u8) {
         let char_offset = (c - FONT_FIRST_CHAR) as u16;
         let color = color as u16;

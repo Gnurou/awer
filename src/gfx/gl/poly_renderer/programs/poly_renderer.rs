@@ -24,7 +24,7 @@ impl VertexShaderInput {
 }
 
 /// How to render the polygons - either filled polygons, or outlines only.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum PolyRenderingMode {
     Poly,
     Line,
@@ -57,6 +57,7 @@ impl Drop for PolyRenderer {
 }
 
 impl Program for PolyRenderer {
+    #[tracing::instrument(level = "debug", skip(self))]
     fn activate(&mut self, target_texture: &IndexedTexture, buffer0: &IndexedTexture) {
         let dimensions = target_texture.dimensions();
         unsafe {
@@ -78,6 +79,7 @@ impl Program for PolyRenderer {
         }
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     fn deactivate(&mut self) {
         self.draw();
     }
@@ -178,6 +180,7 @@ impl PolyRenderer {
         })
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     pub fn draw_poly(
         &mut self,
         poly: &Polygon,
@@ -262,13 +265,8 @@ impl PolyRenderer {
     }
 
     // Send all the pending vertices to the GPU for rendering.
+    #[tracing::instrument(level = "debug", skip(self), fields(vertices = self.vertices.len(), indices = self.indices.len()))]
     pub fn draw(&mut self) {
-        log::debug!(
-            "Sending {} indices ({} vertices) to GPU",
-            self.indices.len(),
-            self.vertices.len()
-        );
-
         unsafe {
             // Vertices
             gl::BindVertexArray(self.vao);

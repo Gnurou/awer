@@ -128,16 +128,19 @@ impl GlPolyRenderer {
         })
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     pub fn set_rendering_mode(&mut self, rendering_mode: PolyRenderingMode) {
         self.rendering_mode = rendering_mode;
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     pub fn resize_render_textures(&mut self, width: usize, height: usize) {
         self.render_texture_buffer0 = IndexedTexture::new(width, height);
         self.render_texture_framebuffer = IndexedTexture::new(width, height);
         self.redraw();
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     fn run_command_list(&mut self, commands_index: usize, rendering_mode: PolyRenderingMode) {
         let draw_commands = &self.draw_commands[commands_index];
         let mut draw_runner = self.renderers.start_drawing(
@@ -166,6 +169,7 @@ impl GlPolyRenderer {
         }
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     fn set_render_target(&self, target_texture: &IndexedTexture) {
         unsafe {
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, self.target_fbo);
@@ -181,6 +185,7 @@ impl GlPolyRenderer {
         }
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     pub fn redraw(&mut self) {
         unsafe {
             let dimensions = self.render_texture_framebuffer.dimensions();
@@ -268,7 +273,7 @@ impl gfx::IndexedRenderer for GlPolyRenderer {
         let mut image: IndexedImage = Default::default();
         image
             .set_content(buffer)
-            .unwrap_or_else(|e| log::error!("blit_buffer failed: {}", e));
+            .unwrap_or_else(|e| tracing::error!("blit_buffer failed: {}", e));
 
         self.draw_commands[dst_page_id].clear();
         self.draw_commands[dst_page_id].push(DrawCommand::BlitBuffer(image.into()));
@@ -284,6 +289,7 @@ pub struct GlPolyRendererSnapshot {
 impl Snapshotable for GlPolyRenderer {
     type State = GlPolyRendererSnapshot;
 
+    #[tracing::instrument(level = "debug", skip(self))]
     fn take_snapshot(&self) -> Self::State {
         GlPolyRendererSnapshot {
             draw_commands: self.draw_commands.clone(),
@@ -291,6 +297,7 @@ impl Snapshotable for GlPolyRenderer {
         }
     }
 
+    #[tracing::instrument(level = "debug", skip(self, snapshot))]
     fn restore_snapshot(&mut self, snapshot: &Self::State) -> bool {
         self.draw_commands = snapshot.draw_commands.clone();
         self.framebuffer_index = snapshot.framebuffer_index;
@@ -305,6 +312,7 @@ impl AsRef<IndexedTexture> for GlPolyRenderer {
 }
 
 impl GlRenderer for GlPolyRenderer {
+    #[tracing::instrument(level = "debug", skip(self))]
     fn update_texture(&mut self, page_id: usize) {
         self.framebuffer_index = page_id;
         self.redraw();

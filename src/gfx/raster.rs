@@ -247,12 +247,12 @@ impl IndexedRenderer for RasterRenderer {
 
     fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16) {
         if src_page_id == dst_page_id {
-            log::warn!("cannot copy video page into itself");
+            tracing::warn!("cannot copy video page into itself");
             return;
         }
 
         if !(-199..=199).contains(&vscroll) {
-            log::warn!("out-of-range vscroll for copyvideopage: {}", vscroll);
+            tracing::warn!("out-of-range vscroll for copyvideopage: {}", vscroll);
             return;
         }
 
@@ -277,6 +277,7 @@ impl IndexedRenderer for RasterRenderer {
         dst_slice.copy_from_slice(src_slice);
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     fn fillpolygon(
         &mut self,
         dst_page_id: usize,
@@ -321,7 +322,7 @@ impl IndexedRenderer for RasterRenderer {
 
         // Only direct colors are valid for fonts.
         if color > 0xf {
-            log::error!("Unexpected font color 0x{:x}", color);
+            tracing::error!("Unexpected font color 0x{:x}", color);
             return;
         }
 
@@ -329,7 +330,7 @@ impl IndexedRenderer for RasterRenderer {
         let font_offset = match c {
             FONT_FIRST_CHAR..=FONT_LAST_CHAR => c - FONT_FIRST_CHAR,
             c => {
-                log::error!(
+                tracing::error!(
                     "Character '{}' (0x{:x}) is not covered by font!",
                     c as char,
                     c
@@ -358,7 +359,7 @@ impl IndexedRenderer for RasterRenderer {
         assert_eq!(buffer.len(), 32000);
         let mut dst = self.buffers[dst_page_id].borrow_mut();
         dst.set_content(buffer)
-            .unwrap_or_else(|e| log::error!("blit_buffer failed: {}", e));
+            .unwrap_or_else(|e| tracing::error!("blit_buffer failed: {}", e));
     }
 }
 

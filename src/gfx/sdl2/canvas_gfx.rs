@@ -14,6 +14,7 @@ use sdl2::{
 };
 
 use anyhow::{anyhow, Result};
+use tracing::trace_span;
 
 use crate::{
     gfx::{self, raster::RasterRenderer, sdl2::Sdl2Gfx, Color, Display, Gfx, Palette},
@@ -111,6 +112,7 @@ impl gfx::IndexedRenderer for Sdl2CanvasGfx {
 }
 
 impl gfx::Display for Sdl2CanvasGfx {
+    #[tracing::instrument(level = "trace", skip(self, palette))]
     fn blitframebuffer(&mut self, page_id: usize, palette: &Palette) {
         // Keep information useful for snapshotting...
         self.current_framebuffer = page_id;
@@ -130,7 +132,9 @@ impl gfx::Display for Sdl2CanvasGfx {
         let bytes_per_pixel = self.bytes_per_pixel;
 
         let render_into_texture = |texture: &mut [u8], pitch: usize| {
-            for (src_line, dst_line) in self.raster.get_buffer(page_id)
+            for (src_line, dst_line) in self
+                .raster
+                .get_buffer(page_id)
                 .pixels()
                 .chunks_exact(gfx::SCREEN_RESOLUTION[0])
                 .zip(texture.chunks_exact_mut(pitch))
@@ -145,7 +149,8 @@ impl gfx::Display for Sdl2CanvasGfx {
             }
         };
 
-        self.texture.with_lock(None, render_into_texture).unwrap();
+        trace_span!("render_into_texture")
+            .in_scope(|| self.texture.with_lock(None, render_into_texture).unwrap());
     }
 }
 
@@ -181,6 +186,7 @@ impl Snapshotable for Sdl2CanvasGfx {
 impl Gfx for Sdl2CanvasGfx {}
 
 impl Sdl2Gfx for Sdl2CanvasGfx {
+    #[tracing::instrument(skip(self))]
     fn show_game_framebuffer(&mut self, dst: &Rect) {
         // Clear screen
         self.canvas
@@ -190,6 +196,7 @@ impl Sdl2Gfx for Sdl2CanvasGfx {
         self.canvas.copy(&self.texture, None, Some(*dst)).unwrap();
     }
 
+    #[tracing::instrument(skip(self))]
     fn present(&mut self) {
         self.canvas.present();
     }

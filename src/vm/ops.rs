@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use super::*;
 use crate::res;
 
-use log::{error, warn};
+use tracing::{error, warn};
 
 pub fn op_seti(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let var_id = cursor.read_u8().unwrap();
@@ -14,6 +14,7 @@ pub fn op_seti(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state))]
 fn seti(state: &mut VmState, var_id: u8, value: i16) {
     state.regs[var_id as usize] = value;
 }
@@ -27,6 +28,7 @@ pub fn op_set(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool 
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state))]
 fn set(state: &mut VmState, dst_id: u8, src_id: u8) {
     state.regs[dst_id as usize] = state.regs[src_id as usize];
 }
@@ -40,10 +42,15 @@ pub fn op_add(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool 
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state), fields(dst_val, src_val, res))]
 fn add(state: &mut VmState, dst_id: u8, src_id: u8) {
     let src_val = state.regs[src_id as usize];
     let dst_val = &mut state.regs[dst_id as usize];
+    tracing::span::Span::current().record("dst_val", *dst_val);
+    tracing::span::Span::current().record("src_val", src_val);
+
     *dst_val = dst_val.wrapping_add(src_val);
+    tracing::span::Span::current().record("res", *dst_val);
 }
 
 pub fn op_addi(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
@@ -55,10 +62,13 @@ pub fn op_addi(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state), fields(dst_val, res))]
 fn addi(state: &mut VmState, dst_id: u8, value: i16) {
     let dst_val = &mut state.regs[dst_id as usize];
+    tracing::span::Span::current().record("dst_val", *dst_val);
 
     *dst_val = dst_val.wrapping_add(value);
+    tracing::span::Span::current().record("res", *dst_val);
 }
 
 pub fn op_jsr(thread: &mut Thread, cursor: &mut Cursor<&[u8]>) -> bool {
@@ -70,6 +80,7 @@ pub fn op_jsr(thread: &mut Thread, cursor: &mut Cursor<&[u8]>) -> bool {
     false
 }
 
+#[tracing::instrument(level = "trace", skip(thread, cursor))]
 fn jsr(thread: &mut Thread, cursor: &mut Cursor<&[u8]>, pc: u64, target: u16) {
     thread.call_stack.push(pc);
     cursor.set_position(target as u64);
@@ -83,6 +94,7 @@ pub fn op_return(thread: &mut Thread, cursor: &mut Cursor<&[u8]>) -> bool {
     false
 }
 
+#[tracing::instrument(level = "trace", skip(cursor))]
 fn r#return(cursor: &mut Cursor<&[u8]>, target: u64) {
     cursor.set_position(target);
 }
@@ -95,6 +107,7 @@ pub fn op_break(thread: &mut Thread, cursor: &mut Cursor<&[u8]>) -> bool {
     true
 }
 
+#[tracing::instrument(level = "trace", skip(thread))]
 fn r#break(thread: &mut Thread, pc: u64) {
     thread.state = ThreadState::Active(pc);
     // Kind of a hack. We may have met a resetthread op that has set this
@@ -114,6 +127,7 @@ pub fn op_jmp(_op: u8, cursor: &mut Cursor<&[u8]>, _state: &mut VmState) -> bool
     false
 }
 
+#[tracing::instrument(level = "trace", skip(cursor))]
 fn jmp(cursor: &mut Cursor<&[u8]>, target: u16) {
     cursor.seek(SeekFrom::Start(target as u64)).unwrap();
 }
@@ -127,6 +141,7 @@ pub fn op_setvec(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bo
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state))]
 fn setvec(state: &mut VmState, thread_id: u8, target: u16) {
     state.threads[thread_id as usize].requested_state = Some(ThreadState::Active(target as u64));
 }
@@ -141,6 +156,7 @@ pub fn op_jnz(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool 
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state, cursor))]
 fn jnz(state: &mut VmState, cursor: &mut Cursor<&[u8]>, var_id: u8, target: u16) {
     let var_id = var_id as usize;
 
@@ -173,6 +189,7 @@ enum CondJmpA {
     Value(i16),
 }
 
+#[tracing::instrument(level = "trace", skip(state, cursor, op), fields(cmp_op, b, a, res))]
 fn condjmp(
     state: &mut VmState,
     cursor: &mut Cursor<&[u8]>,
@@ -182,10 +199,12 @@ fn condjmp(
     target: u16,
 ) {
     let b = state.regs[b_id as usize];
+    tracing::Span::current().record("b", b);
     let a = match a_id {
         CondJmpA::Register(r) => state.regs[r as usize],
         CondJmpA::Value(v) => v,
     };
+    tracing::Span::current().record("a", a);
 
     let (cmp_op, res) = match op & 0x7 {
         0 => ("==", b == a),
@@ -196,6 +215,8 @@ fn condjmp(
         5 => ("<=", b <= a),
         _ => panic!("undefined condjmp!"),
     };
+    tracing::Span::current().record("cmp_op", cmp_op);
+    tracing::Span::current().record("res", res);
 
     if res {
         cursor.seek(SeekFrom::Start(target as u64)).unwrap();
@@ -227,6 +248,7 @@ pub fn op_resetthread(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) 
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state))]
 fn resetthread(state: &mut VmState, first_thread: u8, last_thread: u8, op: ResetThreadOp) {
     let first_thread = first_thread as usize;
     let last_thread = last_thread as usize;
@@ -268,10 +290,12 @@ pub fn op_and(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool 
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state), fields(res))]
 fn and(state: &mut VmState, var_id: u8, val: i16) {
     let dst_val = &mut state.regs[var_id as usize];
 
     *dst_val &= val;
+    tracing::span::Span::current().record("res", *dst_val);
 }
 
 pub fn op_or(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
@@ -283,10 +307,12 @@ pub fn op_or(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state), fields(res))]
 fn or(state: &mut VmState, var_id: u8, val: i16) {
     let dst_val = &mut state.regs[var_id as usize];
 
     *dst_val |= val;
+    tracing::span::Span::current().record("res", *dst_val);
 }
 
 pub fn op_shl(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
@@ -298,10 +324,12 @@ pub fn op_shl(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool 
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state), fields(res))]
 fn shl(state: &mut VmState, var_id: u8, val: u16) {
     let dst_val = &mut state.regs[var_id as usize];
 
     *dst_val <<= val;
+    tracing::span::Span::current().record("res", *dst_val);
 }
 
 pub fn op_shr(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
@@ -313,10 +341,12 @@ pub fn op_shr(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool 
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state), fields(res))]
 fn shr(state: &mut VmState, var_id: u8, val: u16) {
     let dst_val = &mut state.regs[var_id as usize];
 
     *dst_val >>= val;
+    tracing::span::Span::current().record("res", *dst_val);
 }
 
 pub fn op_killthread(thread: &mut Thread, _cursor: &mut Cursor<&[u8]>) -> bool {
@@ -325,6 +355,7 @@ pub fn op_killthread(thread: &mut Thread, _cursor: &mut Cursor<&[u8]>) -> bool {
     true
 }
 
+#[tracing::instrument(level = "trace", skip(thread))]
 fn killthread(thread: &mut Thread) {
     thread.state = ThreadState::Inactive;
 }
@@ -338,10 +369,15 @@ pub fn op_sub(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool 
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state), fields(dst_val, src_val, res))]
 fn sub(state: &mut VmState, dst_id: u8, src_id: u8) {
     let src_val = state.regs[src_id as usize];
     let dst_val = &mut state.regs[dst_id as usize];
+    tracing::span::Span::current().record("dst_val", *dst_val);
+    tracing::span::Span::current().record("src_val", src_val);
+
     *dst_val = dst_val.wrapping_sub(src_val);
+    tracing::span::Span::current().record("res", *dst_val);
 }
 
 pub fn op_setpalette<G: gfx::Gfx + ?Sized>(
@@ -362,6 +398,7 @@ pub fn op_setpalette<G: gfx::Gfx + ?Sized>(
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state, sys))]
 fn setpalette(state: &mut VmState, sys: &VmSys, palette_id: u8) {
     let palette_id = palette_id as usize;
     let palette_data = &sys.palette[palette_id * 32..(palette_id + 1) * 32];
@@ -403,8 +440,10 @@ pub fn op_selectvideopage<G: gfx::Gfx + ?Sized>(
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state), fields(resolved_page_id))]
 fn selectvideopage(state: &mut VmState, page_id: u8) {
     let resolved_page_id = lookup_buffer(state, page_id);
+    tracing::Span::current().record("resolved_page_id", resolved_page_id);
 
     state.render_buffer = resolved_page_id;
 }
@@ -424,8 +463,10 @@ pub fn op_fillvideopage<G: gfx::Gfx + ?Sized>(
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state, gfx), fields(resolved_page_id))]
 fn fillvideopage<G: gfx::Gfx + ?Sized>(state: &mut VmState, gfx: &mut G, page_id: u8, color: u8) {
     let resolved_page_id = lookup_buffer(state, page_id);
+    tracing::Span::current().record("resolved_page_id", resolved_page_id);
 
     gfx.fillvideopage(resolved_page_id, color);
 }
@@ -453,6 +494,11 @@ pub fn op_copyvideopage<G: gfx::Gfx + ?Sized>(
     false
 }
 
+#[tracing::instrument(
+    level = "trace",
+    skip(state, gfx),
+    fields(resolved_src_page_id, resolved_dst_page_id)
+)]
 fn copyvideopage<G: gfx::Gfx + ?Sized>(
     state: &mut VmState,
     gfx: &mut G,
@@ -461,7 +507,10 @@ fn copyvideopage<G: gfx::Gfx + ?Sized>(
     vscroll: i16,
 ) {
     let resolved_src_page_id = lookup_buffer(state, src_page_id);
+    tracing::Span::current().record("resolved_src_page_id", resolved_src_page_id);
     let resolved_dst_page_id = lookup_buffer(state, dst_page_id);
+    tracing::Span::current().record("resolved_dst_page_id", resolved_dst_page_id);
+
     gfx.copyvideopage(
         resolved_src_page_id as usize,
         resolved_dst_page_id as usize,
@@ -487,9 +536,11 @@ pub fn op_blitframebuffer<G: gfx::Gfx + ?Sized>(
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state, gfx), fields(resolved_page_id))]
 fn blitframebuffer<G: gfx::Gfx + ?Sized>(state: &mut VmState, gfx: &mut G, page_id: u8) {
     // Whatever we want to display is the new front buffer
     let resolved_page_id = lookup_buffer(state, page_id);
+    tracing::Span::current().record("resolved_page_id", resolved_page_id);
 
     // If we passed 0xff, the front and back buffers are swapped.
     // `resolved_page_id` will already contain the index of the back buffer, so we just need
@@ -532,6 +583,7 @@ pub fn op_drawstring<G: gfx::Gfx + ?Sized>(
     false
 }
 
+#[tracing::instrument(level = "trace", skip(gfx))]
 fn drawstring<G: gfx::Gfx + ?Sized>(
     pos: (i16, i16),
     string: &str,
@@ -634,6 +686,7 @@ pub fn op_sprl<G: gfx::Gfx + ?Sized>(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[tracing::instrument(level = "trace", skip(segment, gfx))]
 fn draw_polygon<G: gfx::Gfx + ?Sized>(
     render_buffer: usize,
     pos: (i16, i16),
@@ -693,6 +746,7 @@ fn draw_polygon<G: gfx::Gfx + ?Sized>(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[tracing::instrument(level = "trace", skip(cursor, segment, gfx))]
 fn draw_polygon_hierarchy<G: gfx::Gfx + ?Sized>(
     render_buffer: usize,
     pos: (i16, i16),
@@ -756,6 +810,7 @@ pub fn op_playsound<A: audio::Mixer + ?Sized>(
     false
 }
 
+#[tracing::instrument(level = "trace", skip(audio))]
 fn playsound<A: audio::Mixer + ?Sized>(
     audio: &mut A,
     res_id: u8,
@@ -789,6 +844,7 @@ pub fn op_playmusic<A: audio::Mixer + audio::MusicPlayer + ?Sized>(
     false
 }
 
+#[tracing::instrument(level = "trace", skip(sys, audio))]
 fn playmusic<A: audio::Mixer + audio::MusicPlayer + ?Sized>(
     res_id: u16,
     delay: u16,
@@ -857,6 +913,7 @@ pub fn op_loadresource<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
     false
 }
 
+#[tracing::instrument(level = "trace", skip(state, sys, gfx, audio))]
 fn loadresource<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
     res_id: u16,
     state: &mut VmState,

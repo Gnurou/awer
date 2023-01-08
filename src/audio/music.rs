@@ -6,10 +6,11 @@
 //! corresponding sample is sent to the [`Mixer`](crate::audio::Mixer) to be played at the frequency
 //! corresponding to the note.
 
+use std::fmt::Debug;
 use std::mem::size_of;
 use std::num::NonZeroU16;
 
-use log::debug;
+use tracing::debug;
 
 use crate::audio::Mixer;
 
@@ -177,6 +178,25 @@ pub enum ClassicMusicPlayer {
     },
 }
 
+impl Debug for ClassicMusicPlayer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Stopped => write!(f, "Stopped"),
+            Self::Playing {
+                current_order,
+                current_line,
+                value_of_0xf4,
+                ..
+            } => f
+                .debug_struct("Playing")
+                .field("current_order", current_order)
+                .field("current_line", current_line)
+                .field("value_of_0xf4", value_of_0xf4)
+                .finish(),
+        }
+    }
+}
+
 impl Default for ClassicMusicPlayer {
     fn default() -> Self {
         ClassicMusicPlayer::Stopped
@@ -195,6 +215,7 @@ impl ClassicMusicPlayer {
     }
 
     /// Process the next line in the pattern, doing playback on `mixer`.
+    #[tracing::instrument(level = "trace", skip(mixer), fields(value_of_0xf4))]
     pub fn process<M: Mixer>(&mut self, mixer: &mut M) {
         match self {
             ClassicMusicPlayer::Stopped => (),
@@ -238,14 +259,12 @@ impl ClassicMusicPlayer {
                             volume = std::cmp::min(volume, 0x3F);
                             volume = std::cmp::max(volume, 0x0);
 
-                            debug!(
-                                "play sample {:02x} on channel {} freq {} volume {}",
-                                sample, chan, freq, volume
-                            );
                             mixer.play(sample, chan, freq.into(), volume as u8);
                         }
                     }
                 }
+
+                tracing::Span::current().record("value_of_0xf4", value_of_0xf4);
 
                 *current_line += 1;
                 if *current_line >= LINES_PER_PATTERN {

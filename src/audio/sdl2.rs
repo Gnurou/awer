@@ -168,10 +168,12 @@ impl Sdl2Audio {
 }
 
 impl Mixer for Sdl2Audio {
+    #[tracing::instrument(level = "trace", skip(self, sample))]
     fn add_sample(&mut self, id: u8, sample: Box<SoundSample>) {
         self.mixer.lock().unwrap().add_sample(id, sample)
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     fn play(&mut self, sample_id: u8, channel: u8, freq: u16, volume: u8) {
         self.mixer
             .lock()
@@ -179,10 +181,12 @@ impl Mixer for Sdl2Audio {
             .play(sample_id, channel, freq, volume)
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     fn stop(&mut self, channel: u8) {
         self.mixer.lock().unwrap().stop(channel)
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     fn reset(&mut self) {
         self.mixer.lock().unwrap().reset()
     }
