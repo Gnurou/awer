@@ -511,11 +511,7 @@ fn copyvideopage<G: gfx::Gfx + ?Sized>(
     let resolved_dst_page_id = lookup_buffer(state, dst_page_id);
     tracing::Span::current().record("resolved_dst_page_id", resolved_dst_page_id);
 
-    gfx.copyvideopage(
-        resolved_src_page_id as usize,
-        resolved_dst_page_id as usize,
-        vscroll,
-    );
+    gfx.copyvideopage(resolved_src_page_id, resolved_dst_page_id, vscroll);
 
     // If we have a display list in the source buffer, we need to copy its
     // content to the dst, not just reference it.

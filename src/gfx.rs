@@ -162,9 +162,9 @@ impl Palette {
             let c1 = palette[i * 2];
             let c2 = palette[i * 2 + 1];
 
-            let b = (c2 & 0x0f) as u8;
-            let g = ((c2 & 0xf0) >> 4) as u8;
-            let r = (c1 & 0x0f) as u8;
+            let b = c2 & 0x0f;
+            let g = (c2 & 0xf0) >> 4;
+            let r = c1 & 0x0f;
 
             let col = &mut self.0[i];
             // We only have 4 bits worth of intensity per color. Copy them to

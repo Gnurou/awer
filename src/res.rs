@@ -219,7 +219,7 @@ impl MemEntry {
         file.read_exact(&mut data[..self.packed_size])?;
 
         if self.size > self.packed_size {
-            let unpack_ctx = UnpackContext::new(&mut data[..], self.packed_size as usize);
+            let unpack_ctx = UnpackContext::new(&mut data[..], self.packed_size);
             unpack_ctx.unpack()?;
         }
 
@@ -360,8 +360,8 @@ impl ResourceManager {
         for res in self.resources.iter() {
             let stat = &mut stats[res.res_type as usize];
             stat.nb_resources += 1;
-            stat.packed_size += res.packed_size as usize;
-            stat.size += res.size as usize;
+            stat.packed_size += res.packed_size;
+            stat.size += res.size;
         }
 
         self.show_stats_for(ResType::Sound);

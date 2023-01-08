@@ -224,9 +224,7 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
             }
 
             // Decrease keypress cooldown if we just gained focus.
-            if keypress_cooldown > 0 {
-                keypress_cooldown -= 1;
-            }
+            keypress_cooldown = keypress_cooldown.saturating_sub(1);
 
             // Wait until the time slice for the current game tick is elapsed.
             let now = Instant::now();
