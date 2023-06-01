@@ -244,19 +244,16 @@ impl PolyRenderer {
             )
         }));
         match draw_type {
-            gl::TRIANGLE_STRIP => {
-                self.indices
-                    .extend((0..poly_len / 2).into_iter().flat_map(|i| {
-                        [
-                            (index_start + poly_len - (i + 1)) as u16,
-                            (index_start + i) as u16,
-                        ]
-                        .into_iter()
-                    }))
-            }
+            gl::TRIANGLE_STRIP => self.indices.extend((0..poly_len / 2).flat_map(|i| {
+                [
+                    (index_start + poly_len - (i + 1)) as u16,
+                    (index_start + i) as u16,
+                ]
+                .into_iter()
+            })),
             gl::LINE_LOOP => {
                 self.indices
-                    .extend((0..poly_len).into_iter().map(|i| (index_start + i) as u16));
+                    .extend((0..poly_len).map(|i| (index_start + i) as u16));
             }
             _ => unreachable!(),
         };

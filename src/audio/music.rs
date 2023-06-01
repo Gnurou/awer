@@ -165,7 +165,9 @@ impl MusicModule {
 }
 
 /// A music player for music modules found in the original game.
+#[derive(Default)]
 pub enum ClassicMusicPlayer {
+    #[default]
     Stopped,
     Playing {
         music: Box<MusicModule>,
@@ -194,12 +196,6 @@ impl Debug for ClassicMusicPlayer {
                 .field("value_of_0xf4", value_of_0xf4)
                 .finish(),
         }
-    }
-}
-
-impl Default for ClassicMusicPlayer {
-    fn default() -> Self {
-        ClassicMusicPlayer::Stopped
     }
 }
 
