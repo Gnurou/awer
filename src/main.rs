@@ -19,7 +19,7 @@ fn main() {
         .version("0.1")
         .arg(
             Arg::new("scene")
-                .short('S')
+                .short('s')
                 .long("scene")
                 .help("The scene to start from (0..9)")
                 .takes_value(true),
