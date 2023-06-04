@@ -16,27 +16,27 @@ use crate::audio::{MusicModule, SoundSample};
 pub enum ResType {
     // Audio samples.
     // All entries of this type are loaded by the loadresource opcode.
-    Sound,
+    Sound = 0,
     // Music.
     // All entries of this type are loaded by the loadresource opcode.
-    Music,
+    Music = 1,
     // Full-screen bitmaps used for the title screen as well as backgrounds for
     // some scenes. Apparently the game was on a rush to be finished and these
     // static backgrounds got added instead of being generated from polygons.
     // Loaded by the loadresource opcode.
-    Bitmap,
+    Bitmap = 2,
     // Groups of 64 palettes of 16 colors each (2 bytes per color, encoding
     // still a bit obscure).
     // All entries of this type are referenced from the scenes list.
-    Palette,
+    Palette = 3,
     // Bytecode for the virtual machine.
     // All entries of this type are referenced from the scenes list.
-    Bytecode,
+    Bytecode = 4,
     // Polygons for cinematic scenes.
     // All entries of this type are referenced from the scenes list.
-    Cinematic,
+    Cinematic = 5,
     // Polygons for in-game animations.
-    Poly,
+    Poly = 6,
 }
 
 impl fmt::Display for ResType {
