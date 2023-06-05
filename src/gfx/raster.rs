@@ -29,6 +29,31 @@ fn slope_step(p1: &Point<i32>, p2: &Point<i32>) -> i32 {
     }
 }
 
+/// Iterator over all the lines of a trapezoid defined by its four points.
+///
+/// The returned item is ((left_x, right_x), y).
+fn trapezoid_line_iterator(
+    p1: Point<i32>,
+    p2: Point<i32>,
+    next_p1: Point<i32>,
+    next_p2: Point<i32>,
+) -> impl Iterator<Item = ((i16, i16), i16)> {
+    // Vertical range of the quad.
+    let v_range = max(p1.y, p2.y) as i16..min(next_p1.y, next_p2.y) as i16;
+    let slope1 = slope_step(&p1, &next_p1);
+    let slope2 = slope_step(&p2, &next_p2);
+
+    v_range.scan((p1.x, p2.x), move |(x1, x2), y| {
+        // Center the leftmost pixel and scale back.
+        let start_x = ((min(*x1, *x2) + 0x8000) >> 16) as i16;
+        // Include the rightmost pixel in the line, center it, and scale back.
+        let end_x = ((max(*x1, *x2) + 0x18000) >> 16) as i16;
+        *x1 += slope1;
+        *x2 += slope2;
+        Some(((start_x, end_x), y))
+    })
+}
+
 #[derive(Clone)]
 pub struct IndexedImage([u8; SCREEN_RESOLUTION[0] * SCREEN_RESOLUTION[1]]);
 
@@ -163,26 +188,10 @@ impl IndexedImage {
         let mut next_p1 = points.next().unwrap();
         let mut next_p2 = points.next_back().unwrap();
 
-        // Loop over all the points of the polygon.
+        // Loop over all the lines of the polygon.
         loop {
-            // Vertical range of the quad.
-            let v_range = max(p1.y, p2.y)..min(next_p1.y, next_p2.y);
-            let slope1 = slope_step(&p1, &next_p1);
-            let slope2 = slope_step(&p2, &next_p2);
-
-            // For each vertical line, add the slope factor to x.
-            for (x1, x2, y) in v_range.scan((p1.x, p2.x), |state, y| {
-                let ret = (state.0, state.1, y);
-                state.0 += slope1;
-                state.1 += slope2;
-                Some(ret)
-            }) {
-                // Center the leftmost pixel and scale back.
-                let x_start = ((min(x1, x2) + 0x7fff) >> 16) as i16;
-                // Include the rightmost pixel in the line, center it, and scale back.
-                let x_end = ((max(x1, x2) + 0x18000) >> 16) as i16;
-
-                self.draw_hline(y as i16, x_start, x_end, &draw_func);
+            for ((x_start, x_end), y) in trapezoid_line_iterator(p1, p2, next_p1, next_p2) {
+                self.draw_hline(y, x_start, x_end, &draw_func);
             }
 
             // On to the next quad.
