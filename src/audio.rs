@@ -56,7 +56,7 @@ impl SoundSample {
         std::mem::forget(data);
 
         let header = ptr as *mut SoundSampleHeader;
-        let mut header = &mut *header;
+        let header = &mut *header;
         // Endianness fixup.
         header.len = u16::from_be(header.len);
         header.loop_len = u16::from_be(header.loop_len);
