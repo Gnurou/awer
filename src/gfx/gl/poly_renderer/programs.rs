@@ -4,9 +4,12 @@ mod poly_renderer;
 
 pub use bitmap_renderer::BitmapRenderer;
 pub use font_renderer::FontRenderer;
-pub use poly_renderer::{PolyRenderer, PolyRenderingMode};
+pub use poly_renderer::PolyRenderer;
+pub use poly_renderer::PolyRenderingMode;
 
-use crate::gfx::{gl::IndexedTexture, polygon::Polygon, raster::IndexedImage};
+use crate::gfx::gl::IndexedTexture;
+use crate::gfx::polygon::Polygon;
+use crate::gfx::raster::IndexedImage;
 
 /// Trait for a GL program that can draw a certain class of object from the game (e.g. polygons or
 /// font).

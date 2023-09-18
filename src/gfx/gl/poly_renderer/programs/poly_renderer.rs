@@ -1,4 +1,6 @@
-use crate::gfx::{gl::*, polygon::Polygon, SCREEN_RESOLUTION};
+use crate::gfx::gl::*;
+use crate::gfx::polygon::Polygon;
+use crate::gfx::SCREEN_RESOLUTION;
 
 use super::Program;
 

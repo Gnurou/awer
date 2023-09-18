@@ -3,12 +3,14 @@ pub mod indexed_frame_renderer;
 pub mod poly_renderer;
 pub mod raster_renderer;
 
-use std::{ffi::CString, mem};
+use std::ffi::CString;
+use std::mem;
 
 use anyhow::Result;
 use gl::types::*;
 
-use crate::gfx::{self, raster::IndexedImage};
+use crate::gfx::raster::IndexedImage;
+use crate::gfx::{self};
 
 fn get_uniform_location(program: GLuint, name: &str) -> GLint {
     let cstr = CString::new(name).unwrap();

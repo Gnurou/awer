@@ -1,13 +1,17 @@
-use std::{
-    sync::{Arc, Mutex},
-    time::{Duration, Instant},
-};
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::Duration;
+use std::time::Instant;
 
-use crate::audio::{ClassicMusicPlayer, MusicPlayer, ProtectedMixer, SoundSample};
+use crate::audio::ClassicMusicPlayer;
+use crate::audio::MusicPlayer;
+use crate::audio::ProtectedMixer;
+use crate::audio::SoundSample;
 
 use anyhow::anyhow;
 
-use super::{ClassicMixer, Mixer};
+use super::ClassicMixer;
+use super::Mixer;
 
 impl sdl2::audio::AudioCallback for ProtectedMixer<ClassicMixer> {
     type Channel = i8;

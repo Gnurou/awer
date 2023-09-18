@@ -1,16 +1,19 @@
 extern crate byteorder;
 
-use std::{
-    fmt,
-    fs::File,
-    io::{self, Read, Seek, SeekFrom},
-};
+use std::fmt;
+use std::fs::File;
+use std::io;
+use std::io::Read;
+use std::io::Seek;
+use std::io::SeekFrom;
 
-use byteorder::{ReadBytesExt, BE};
+use byteorder::ReadBytesExt;
+use byteorder::BE;
 use enumn::N;
 use tracing::debug;
 
-use crate::audio::{MusicModule, SoundSample};
+use crate::audio::MusicModule;
+use crate::audio::SoundSample;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, N)]
 pub enum ResType {

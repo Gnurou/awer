@@ -5,11 +5,12 @@ pub mod raster;
 #[cfg(feature = "sdl2-sys")]
 pub mod sdl2;
 
-use std::{
-    any::Any,
-    fmt::{self, Debug, Formatter, Result},
-    ops::DerefMut,
-};
+use std::any::Any;
+use std::fmt;
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::fmt::Result;
+use std::ops::DerefMut;
 
 use tracing::debug;
 

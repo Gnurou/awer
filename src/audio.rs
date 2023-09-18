@@ -1,15 +1,16 @@
 mod music;
 pub mod sdl2;
 
-use std::{
-    collections::BTreeMap,
-    mem::size_of,
-    sync::{Arc, Mutex},
-};
+use std::collections::BTreeMap;
+use std::mem::size_of;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 pub use music::*;
 
-use tracing::{debug, error, warn};
+use tracing::debug;
+use tracing::error;
+use tracing::warn;
 
 const NUM_AUDIO_CHANNELS: usize = 4;
 

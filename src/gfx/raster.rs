@@ -1,14 +1,15 @@
-use std::{
-    cell::{Ref, RefCell},
-    cmp::{max, min},
-};
+use std::cell::Ref;
+use std::cell::RefCell;
+use std::cmp::max;
+use std::cmp::min;
 
-use anyhow::{anyhow, Result};
+use anyhow::anyhow;
+use anyhow::Result;
 
-use crate::{
-    gfx::{IndexedRenderer, Point, SCREEN_RESOLUTION},
-    sys::Snapshotable,
-};
+use crate::gfx::IndexedRenderer;
+use crate::gfx::Point;
+use crate::gfx::SCREEN_RESOLUTION;
+use crate::sys::Snapshotable;
 
 /// Apply the zoom function on a point's coordinate `p`: multiply it by `zoom`,
 /// then divide by 64.

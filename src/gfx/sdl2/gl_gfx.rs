@@ -1,30 +1,31 @@
 use std::any::Any;
 
-use sdl2::{
-    event::{Event, WindowEvent},
-    keyboard::Keycode,
-    rect::Rect,
-    video::{GLContext, GLProfile, Window},
-    Sdl,
-};
+use sdl2::event::Event;
+use sdl2::event::WindowEvent;
+use sdl2::keyboard::Keycode;
+use sdl2::rect::Rect;
+use sdl2::video::GLContext;
+use sdl2::video::GLProfile;
+use sdl2::video::Window;
+use sdl2::Sdl;
 
-use anyhow::{anyhow, Result};
+use anyhow::anyhow;
+use anyhow::Result;
 
-use crate::{
-    gfx::{
-        self,
-        gl::{
-            indexed_frame_renderer::IndexedFrameRenderer,
-            poly_renderer::{GlPolyRenderer, PolyRenderingMode},
-            raster_renderer::GlRasterRenderer,
-            GlRenderer, Viewport,
-        },
-        raster::RasterRenderer,
-        sdl2::{Sdl2Gfx, WINDOW_RESOLUTION},
-        Display, Palette, Point,
-    },
-    sys::Snapshotable,
-};
+use crate::gfx;
+use crate::gfx::gl::indexed_frame_renderer::IndexedFrameRenderer;
+use crate::gfx::gl::poly_renderer::GlPolyRenderer;
+use crate::gfx::gl::poly_renderer::PolyRenderingMode;
+use crate::gfx::gl::raster_renderer::GlRasterRenderer;
+use crate::gfx::gl::GlRenderer;
+use crate::gfx::gl::Viewport;
+use crate::gfx::raster::RasterRenderer;
+use crate::gfx::sdl2::Sdl2Gfx;
+use crate::gfx::sdl2::WINDOW_RESOLUTION;
+use crate::gfx::Display;
+use crate::gfx::Palette;
+use crate::gfx::Point;
+use crate::sys::Snapshotable;
 
 #[derive(Clone, Copy)]
 pub enum RenderingMode {

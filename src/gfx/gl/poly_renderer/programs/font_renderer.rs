@@ -1,9 +1,12 @@
 use std::mem;
 
-use crate::{font::*, gfx::gl::*};
+use crate::font::*;
+use crate::gfx::gl::*;
 
 use anyhow::Result;
-use gl::types::{GLshort, GLsizei, GLsizeiptr};
+use gl::types::GLshort;
+use gl::types::GLsizei;
+use gl::types::GLsizeiptr;
 
 use super::Program;
 

@@ -2,34 +2,32 @@
 //! not provide any fancy features - just the basic game.
 
 use clap::ArgMatches;
-use sdl2::{
-    event::{Event, WindowEvent},
-    keyboard::Keycode,
-    rect::Rect,
-    Sdl,
-};
+use sdl2::event::Event;
+use sdl2::event::WindowEvent;
+use sdl2::keyboard::Keycode;
+use sdl2::rect::Rect;
+use sdl2::Sdl;
 use tracing::error;
 
-use crate::{
-    audio::{sdl2::Sdl2Audio, MusicPlayer},
-    gfx::{
-        self,
-        sdl2::{
-            canvas_gfx::Sdl2CanvasGfx,
-            gl_gfx::{RenderingMode, Sdl2GlGfx},
-            Sdl2Gfx,
-        },
-    },
-    input::{ButtonState, InputState, LeftRightDir, UpDownDir},
-    sys::Sys,
-    vm::{Vm, VmSnapshot},
-};
+use crate::audio::sdl2::Sdl2Audio;
+use crate::audio::MusicPlayer;
+use crate::gfx::sdl2::canvas_gfx::Sdl2CanvasGfx;
+use crate::gfx::sdl2::gl_gfx::RenderingMode;
+use crate::gfx::sdl2::gl_gfx::Sdl2GlGfx;
+use crate::gfx::sdl2::Sdl2Gfx;
+use crate::gfx::{self};
+use crate::input::ButtonState;
+use crate::input::InputState;
+use crate::input::LeftRightDir;
+use crate::input::UpDownDir;
+use crate::sys::Sys;
+use crate::vm::Vm;
+use crate::vm::VmSnapshot;
 
-use std::{
-    collections::VecDeque,
-    thread,
-    time::{Duration, Instant},
-};
+use std::collections::VecDeque;
+use std::thread;
+use std::time::Duration;
+use std::time::Instant;
 
 const TICKS_PER_SECOND: u64 = 50;
 const DURATION_PER_TICK: Duration =

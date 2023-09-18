@@ -3,23 +3,28 @@
 //! This way of doing does not rely on any particular SDL driver, i.e. it does not require OpenGL or
 //! any kind of hardware acceleration.
 
-use std::{any::Any, convert::TryFrom};
+use std::any::Any;
+use std::convert::TryFrom;
 
-use sdl2::{
-    pixels::PixelFormat,
-    rect::Rect,
-    render::{Canvas, Texture},
-    video::Window,
-    Sdl,
-};
+use sdl2::pixels::PixelFormat;
+use sdl2::rect::Rect;
+use sdl2::render::Canvas;
+use sdl2::render::Texture;
+use sdl2::video::Window;
+use sdl2::Sdl;
 
-use anyhow::{anyhow, Result};
+use anyhow::anyhow;
+use anyhow::Result;
 use tracing::trace_span;
 
-use crate::{
-    gfx::{self, raster::RasterRenderer, sdl2::Sdl2Gfx, Color, Display, Gfx, Palette},
-    sys::Snapshotable,
-};
+use crate::gfx;
+use crate::gfx::raster::RasterRenderer;
+use crate::gfx::sdl2::Sdl2Gfx;
+use crate::gfx::Color;
+use crate::gfx::Display;
+use crate::gfx::Gfx;
+use crate::gfx::Palette;
+use crate::sys::Snapshotable;
 
 use super::WINDOW_RESOLUTION;
 

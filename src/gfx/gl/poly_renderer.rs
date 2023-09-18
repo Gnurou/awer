@@ -1,14 +1,17 @@
 mod programs;
 
-use gl::types::{GLint, GLuint};
+use gl::types::GLint;
+use gl::types::GLuint;
 
 // TODO not elegant, but needed for now.
 pub use programs::PolyRenderingMode;
 
-use crate::{
-    gfx::{self, gl::IndexedTexture, polygon::Polygon, raster::IndexedImage, Point},
-    sys::Snapshotable,
-};
+use crate::gfx::gl::IndexedTexture;
+use crate::gfx::polygon::Polygon;
+use crate::gfx::raster::IndexedImage;
+use crate::gfx::Point;
+use crate::gfx::{self};
+use crate::sys::Snapshotable;
 use anyhow::Result;
 
 use self::programs::*;

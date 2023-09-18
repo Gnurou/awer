@@ -3,7 +3,9 @@ pub mod gl_gfx;
 
 use std::ops::DerefMut;
 
-use sdl2::{event::Event, rect::Rect, video::Window};
+use sdl2::event::Event;
+use sdl2::rect::Rect;
+use sdl2::video::Window;
 
 use super::Gfx;
 

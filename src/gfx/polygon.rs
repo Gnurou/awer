@@ -13,15 +13,19 @@
 //! concave polygons: by parsing the list of polygons from both ends, we can
 //! generate intermediate points and quads with horizontal top and botton lines.
 //! These quads are guaranteed to be convex.
-use super::{slope, Point};
+use super::slope;
+use super::Point;
 
-use std::{
-    cmp::Ordering,
-    default::Default,
-    fmt::{Debug, Formatter, Result},
-    ops::{Add, Div, Mul, Sub},
-    slice::Iter,
-};
+use std::cmp::Ordering;
+use std::default::Default;
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::fmt::Result;
+use std::ops::Add;
+use std::ops::Div;
+use std::ops::Mul;
+use std::ops::Sub;
+use std::slice::Iter;
 
 #[derive(Clone)]
 pub struct Polygon {

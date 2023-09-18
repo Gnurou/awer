@@ -1,9 +1,12 @@
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
+use std::ops::DerefMut;
 
 use anyhow::Result;
 use gfx::SCREEN_RESOLUTION;
 
-use crate::gfx::{self, gl::IndexedTexture, raster::RasterRenderer};
+use crate::gfx::gl::IndexedTexture;
+use crate::gfx::raster::RasterRenderer;
+use crate::gfx::{self};
 
 use super::GlRenderer;
 

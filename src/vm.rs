@@ -2,28 +2,31 @@
 
 mod ops;
 
-use std::{
-    any::Any,
-    fmt,
-    io::{Cursor, Result, Seek, SeekFrom},
-    mem::{transmute, MaybeUninit},
-    ops::Deref,
-};
+use std::any::Any;
+use std::fmt;
+use std::io::Cursor;
+use std::io::Result;
+use std::io::Seek;
+use std::io::SeekFrom;
+use std::mem::transmute;
+use std::mem::MaybeUninit;
+use std::ops::Deref;
 
 use tracing::info;
 
 use self::ops::*;
-use crate::{
-    audio,
-    gfx::{self, Palette},
-    input::*,
-    res::ResourceManager,
-    scenes,
-    strings::{self, GameStrings},
-    sys::Snapshotable,
-};
+use crate::audio;
+use crate::gfx;
+use crate::gfx::Palette;
+use crate::input::*;
+use crate::res::ResourceManager;
+use crate::scenes;
+use crate::strings;
+use crate::strings::GameStrings;
+use crate::sys::Snapshotable;
 
-use byteorder::{ReadBytesExt, BE};
+use byteorder::ReadBytesExt;
+use byteorder::BE;
 
 const VM_NUM_THREADS: usize = 64;
 const VM_NUM_VARIABLES: usize = 256;

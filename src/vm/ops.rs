@@ -3,7 +3,8 @@ use std::convert::TryInto;
 use super::*;
 use crate::res;
 
-use tracing::{error, warn};
+use tracing::error;
+use tracing::warn;
 
 pub fn op_seti(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let var_id = cursor.read_u8().unwrap();
@@ -587,7 +588,8 @@ fn drawstring<G: gfx::Gfx + ?Sized>(
     dst_page_id: usize,
     gfx: &mut G,
 ) {
-    use crate::font::{CHAR_HEIGHT, CHAR_WIDTH};
+    use crate::font::CHAR_HEIGHT;
+    use crate::font::CHAR_WIDTH;
     let (mut x, mut y) = pos;
 
     for c in string.chars() {
