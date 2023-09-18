@@ -616,7 +616,7 @@ pub fn op_sprs<G: gfx::Gfx + ?Sized>(
     sys: &VmSys,
     gfx: &mut G,
 ) -> bool {
-    let offset = (((((op & 0x7f) as u16) << 8) | cursor.read_u8().unwrap() as u16) * 2) as usize;
+    let offset = ((((op & 0x7f) as u16) << 8) | cursor.read_u8().unwrap() as u16) * 2;
     let mut x = cursor.read_u8().unwrap() as i16;
     let mut y = cursor.read_u8().unwrap() as i16;
 
@@ -646,7 +646,7 @@ pub fn op_sprl<G: gfx::Gfx + ?Sized>(
     sys: &VmSys,
     gfx: &mut G,
 ) -> bool {
-    let offset = (cursor.read_u16::<BE>().unwrap() * 2) as usize;
+    let offset = cursor.read_u16::<BE>().unwrap() * 2;
     let x = match op & 0x30 {
         0x00 => cursor.read_i16::<BE>().unwrap(),
         0x10 => state.regs[cursor.read_u8().unwrap() as usize],
@@ -692,7 +692,7 @@ fn draw_polygon<G: gfx::Gfx + ?Sized>(
     zoom: u16,
     color: Option<u8>,
     segment: &[u8],
-    start_offset: usize,
+    start_offset: u16,
     gfx: &mut G,
 ) {
     let mut cursor = Cursor::new(segment);
@@ -763,7 +763,7 @@ fn draw_polygon_hierarchy<G: gfx::Gfx + ?Sized>(
 
     for _i in 0..nb_childs {
         let word = cursor.read_u16::<BE>().unwrap();
-        let (read_color, poly_offset) = (word & 0x8000 != 0, word & 0x7fff);
+        let (read_color, poly_offset) = (word & 0x8000 != 0, (word & 0x7fff) * 2);
         let offset = (
             offset.0 + cursor.read_u8().unwrap() as i16,
             offset.1 + cursor.read_u8().unwrap() as i16,
@@ -785,7 +785,7 @@ fn draw_polygon_hierarchy<G: gfx::Gfx + ?Sized>(
             zoom,
             color,
             segment,
-            poly_offset as usize * 2,
+            poly_offset,
             gfx,
         );
     }
