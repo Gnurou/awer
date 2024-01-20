@@ -727,7 +727,7 @@ fn draw_polygon<G: gfx::Gfx + ?Sized>(
             };
             gfx.fillpolygon(render_buffer, pos, offset, color, zoom, bb, points);
         }
-        op if op == 0x02 => {
+        0x02 => {
             draw_polygon_hierarchy(
                 render_buffer,
                 pos,
