@@ -24,7 +24,7 @@ use crate::gfx::sdl2::Sdl2Gfx;
 use crate::gfx::sdl2::WINDOW_RESOLUTION;
 use crate::gfx::Display;
 use crate::gfx::Palette;
-use crate::gfx::Point;
+use crate::scenes::InitForScene;
 use crate::sys::Snapshotable;
 
 #[derive(Clone, Copy)]
@@ -190,22 +190,6 @@ impl gfx::IndexedRenderer for Sdl2GlGfx {
             .copyvideopage(src_page_id, dst_page_id, vscroll);
     }
 
-    fn fillpolygon(
-        &mut self,
-        dst_page_id: usize,
-        pos: (i16, i16),
-        offset: (i16, i16),
-        color_idx: u8,
-        zoom: u16,
-        bb: (u8, u8),
-        points: &[Point<u8>],
-    ) {
-        self.raster_renderer
-            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points);
-        self.poly_renderer
-            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points);
-    }
-
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8) {
         self.raster_renderer
             .draw_char(dst_page_id, pos, color_idx, c);
@@ -215,6 +199,21 @@ impl gfx::IndexedRenderer for Sdl2GlGfx {
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
         self.raster_renderer.blit_buffer(dst_page_id, buffer);
         self.poly_renderer.blit_buffer(dst_page_id, buffer);
+    }
+
+    fn draw_polygons(
+        &mut self,
+        segment: gfx::PolySegment,
+        start_offset: u16,
+        dst_page_id: usize,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        zoom: u16,
+    ) {
+        self.raster_renderer
+            .draw_polygons(segment, start_offset, dst_page_id, pos, offset, zoom);
+        self.poly_renderer
+            .draw_polygons(segment, start_offset, dst_page_id, pos, offset, zoom);
     }
 }
 
@@ -259,6 +258,17 @@ impl Snapshotable for Sdl2GlGfx {
             tracing::error!("Attempting to restore invalid gfx snapshot, ignoring");
             false
         }
+    }
+}
+
+impl InitForScene for Sdl2GlGfx {
+    fn init_from_scene(
+        &mut self,
+        resman: &crate::res::ResourceManager,
+        scene: &crate::scenes::Scene,
+    ) {
+        self.raster_renderer.init_from_scene(resman, scene);
+        self.poly_renderer.init_from_scene(resman, scene);
     }
 }
 

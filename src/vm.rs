@@ -10,7 +10,6 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::mem::transmute;
 use std::mem::MaybeUninit;
-use std::ops::Deref;
 
 use tracing::info;
 
@@ -21,6 +20,7 @@ use crate::gfx::Palette;
 use crate::input::*;
 use crate::res::ResourceManager;
 use crate::scenes;
+use crate::scenes::InitForScene;
 use crate::strings;
 use crate::strings::GameStrings;
 use crate::sys::Snapshotable;
@@ -90,13 +90,25 @@ pub struct VmState {
 
 pub struct VmSys {
     palette: Vec<u8>,
-    cinematic: Vec<u8>,
-    video: Vec<u8>,
     strings: GameStrings,
+}
+
+impl InitForScene for VmSys {
+    #[tracing::instrument(skip(self, resman))]
+    fn init_from_scene(&mut self, resman: &ResourceManager, scene: &scenes::Scene) {
+        self.palette = resman.load_resource(scene.palette).unwrap().data;
+    }
 }
 
 struct VmCode {
     code: Vec<u8>,
+}
+
+impl InitForScene for VmCode {
+    #[tracing::instrument(skip(self, resman))]
+    fn init_from_scene(&mut self, resman: &ResourceManager, scene: &scenes::Scene) {
+        self.code = resman.load_resource(scene.code).unwrap().data;
+    }
 }
 
 impl VmCode {
@@ -194,8 +206,6 @@ impl Vm {
             code: VmCode::new(Vec::new()),
             sys: VmSys {
                 palette: Vec::new(),
-                cinematic: Vec::new(),
-                video: Vec::new(),
                 strings: strings::load_strings().unwrap_or_default(),
             },
             resman: ResourceManager::new()?,
@@ -387,8 +397,15 @@ impl Vm {
         // Check if we need to switch to a new part of the game.
         if let Some(requested_scene) = self.state.requested_scene.take() {
             info!("Loading scene {}", requested_scene);
-            self.init_for_scene(&scenes::SCENES[requested_scene]);
+            let scene = &scenes::SCENES[requested_scene];
+            self.code.init_from_scene(&self.resman, scene);
+            self.sys.init_from_scene(&self.resman, scene);
+            gfx.init_from_scene(&self.resman, scene);
             audio.reset();
+
+            // Reset all threads
+            self.state.threads = Vm::init_threads();
+            self.state.threads[0].state = ThreadState::Active(0);
         }
 
         let mut actionable_threads = Vec::<(usize, u64)>::new();
@@ -446,19 +463,11 @@ impl Vm {
         regs[0xc6] = 0x80;
     }
 
-    pub fn init_for_scene(&mut self, scene: &scenes::Scene) {
+    pub fn request_scene(&mut self, scene: usize) {
         // Is this really necessary?
         self.set_reg(0xe4, 0x14);
 
-        self.code.code = self.resman.load_resource(scene.code).unwrap().data;
-        self.sys.palette = self.resman.load_resource(scene.palette).unwrap().data;
-        self.sys.cinematic = self.resman.load_resource(scene.video1).unwrap().data;
-        if scene.video2 != 0 {
-            self.sys.video = self.resman.load_resource(scene.video2).unwrap().data;
-        }
-        // Reset all threads
-        self.state.threads = Vm::init_threads();
-        self.state.threads[0].state = ThreadState::Active(0);
+        self.state.requested_scene = Some(scene);
     }
 
     pub fn get_frames_to_wait(&self) -> usize {

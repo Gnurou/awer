@@ -10,7 +10,9 @@ use crate::gfx::gl::IndexedTexture;
 use crate::gfx::polygon::Polygon;
 use crate::gfx::raster::IndexedImage;
 use crate::gfx::Point;
+use crate::gfx::SimplePolygonRenderer;
 use crate::gfx::{self};
+use crate::scenes::InitForScene;
 use crate::sys::Snapshotable;
 use anyhow::Result;
 
@@ -74,11 +76,44 @@ enum DrawCommand {
     Char(CharDrawCommand),
 }
 
+#[derive(Default, Clone)]
+struct DrawCommands([Vec<DrawCommand>; 4]);
+
+impl gfx::PolygonFiller for DrawCommands {
+    fn fill_polygons(
+        &mut self,
+        dst_page_id: usize,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        color_idx: u8,
+        zoom: u16,
+        bb: (u8, u8),
+        points: &[Point<u8>],
+    ) {
+        let command = &mut self.0[dst_page_id];
+        command.push(DrawCommand::Poly(PolyDrawCommand::new(
+            Polygon::new(
+                (bb.0 as u16, bb.1 as u16),
+                points
+                    .iter()
+                    .map(|p| Point::new(p.x as i16, p.y as i16))
+                    .collect(),
+            ),
+            pos,
+            offset,
+            zoom,
+            color_idx,
+        )));
+    }
+}
+
 /// A renderer that uses the GPU to render the game into a 16 colors indexed bufffer of any size.
 pub struct GlPolyRenderer {
+    renderer: SimplePolygonRenderer,
+
     rendering_mode: PolyRenderingMode,
 
-    draw_commands: [Vec<DrawCommand>; 4],
+    draw_commands: DrawCommands,
     framebuffer_index: usize,
 
     target_fbo: GLuint,
@@ -94,6 +129,17 @@ impl Drop for GlPolyRenderer {
         unsafe {
             gl::DeleteFramebuffers(1, &self.target_fbo);
         }
+    }
+}
+
+impl InitForScene for GlPolyRenderer {
+    #[tracing::instrument(skip(self, resman))]
+    fn init_from_scene(
+        &mut self,
+        resman: &crate::res::ResourceManager,
+        scene: &crate::scenes::Scene,
+    ) {
+        self.renderer.init_from_scene(resman, scene)
     }
 }
 
@@ -113,16 +159,13 @@ impl GlPolyRenderer {
         }
 
         Ok(GlPolyRenderer {
+            renderer: Default::default(),
             rendering_mode,
-
             draw_commands: Default::default(),
             framebuffer_index: 0,
-
             target_fbo,
-
             render_texture_buffer0: IndexedTexture::new(width, height),
             render_texture_framebuffer: IndexedTexture::new(width, height),
-
             renderers: Programs::new(
                 PolyRenderer::new()?,
                 BitmapRenderer::new()?,
@@ -145,7 +188,7 @@ impl GlPolyRenderer {
 
     #[tracing::instrument(level = "debug", skip(self))]
     fn run_command_list(&mut self, commands_index: usize, rendering_mode: PolyRenderingMode) {
-        let draw_commands = &self.draw_commands[commands_index];
+        let draw_commands = &self.draw_commands.0[commands_index];
         let mut draw_runner = self.renderers.start_drawing(
             &self.render_texture_framebuffer,
             &self.render_texture_buffer0,
@@ -214,7 +257,7 @@ impl GlPolyRenderer {
 
 impl gfx::IndexedRenderer for GlPolyRenderer {
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
-        let commands = &mut self.draw_commands[page_id];
+        let commands = &mut self.draw_commands.0[page_id];
         commands.clear();
 
         let w = gfx::SCREEN_RESOLUTION[0] as i16;
@@ -237,38 +280,12 @@ impl gfx::IndexedRenderer for GlPolyRenderer {
     }
 
     fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, _vscroll: i16) {
-        let src_polys = self.draw_commands[src_page_id].clone();
-        self.draw_commands[dst_page_id] = src_polys;
-    }
-
-    fn fillpolygon(
-        &mut self,
-        dst_page_id: usize,
-        pos: (i16, i16),
-        offset: (i16, i16),
-        color_idx: u8,
-        zoom: u16,
-        bb: (u8, u8),
-        points: &[Point<u8>],
-    ) {
-        let command = &mut self.draw_commands[dst_page_id];
-        command.push(DrawCommand::Poly(PolyDrawCommand::new(
-            Polygon::new(
-                (bb.0 as u16, bb.1 as u16),
-                points
-                    .iter()
-                    .map(|p| Point::new(p.x as i16, p.y as i16))
-                    .collect(),
-            ),
-            pos,
-            offset,
-            zoom,
-            color_idx,
-        )));
+        let src_polys = self.draw_commands.0[src_page_id].clone();
+        self.draw_commands.0[dst_page_id] = src_polys;
     }
 
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color: u8, c: u8) {
-        let command_queue = &mut self.draw_commands[dst_page_id];
+        let command_queue = &mut self.draw_commands.0[dst_page_id];
         command_queue.push(DrawCommand::Char(CharDrawCommand::new(pos, color, c)));
     }
 
@@ -278,14 +295,34 @@ impl gfx::IndexedRenderer for GlPolyRenderer {
             .set_content(buffer)
             .unwrap_or_else(|e| tracing::error!("blit_buffer failed: {}", e));
 
-        self.draw_commands[dst_page_id].clear();
-        self.draw_commands[dst_page_id].push(DrawCommand::BlitBuffer(image.into()));
+        self.draw_commands.0[dst_page_id].clear();
+        self.draw_commands.0[dst_page_id].push(DrawCommand::BlitBuffer(image.into()));
+    }
+
+    fn draw_polygons(
+        &mut self,
+        segment: gfx::PolySegment,
+        start_offset: u16,
+        dst_page_id: usize,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        zoom: u16,
+    ) {
+        self.renderer.draw_polygons(
+            segment,
+            start_offset,
+            dst_page_id,
+            pos,
+            offset,
+            zoom,
+            &mut self.draw_commands,
+        )
     }
 }
 
 #[derive(Clone)]
 pub struct GlPolyRendererSnapshot {
-    draw_commands: [Vec<DrawCommand>; 4],
+    draw_commands: DrawCommands,
     framebuffer_index: usize,
 }
 

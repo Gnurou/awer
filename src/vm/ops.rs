@@ -1,12 +1,11 @@
 use std::convert::TryInto;
 
 use super::*;
-use crate::gfx::Point;
+use crate::gfx::PolySegment;
 use crate::res;
 
 use tracing::error;
 use tracing::warn;
-use zerocopy::FromBytes;
 
 pub fn op_seti(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let var_id = cursor.read_u8().unwrap();
@@ -615,7 +614,7 @@ pub fn op_sprs<G: gfx::Gfx + ?Sized>(
     op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
-    sys: &VmSys,
+    _sys: &VmSys,
     gfx: &mut G,
 ) -> bool {
     let offset = ((((op & 0x7f) as u16) << 8) | cursor.read_u8().unwrap() as u16) * 2;
@@ -627,15 +626,13 @@ pub fn op_sprs<G: gfx::Gfx + ?Sized>(
         x += y - 199;
     }
 
-    draw_polygon(
+    gfx.draw_polygons(
+        gfx::PolySegment::Cinematic,
+        offset,
         state.render_buffer,
         (x, y),
         (0, 0),
         DEFAULT_ZOOM,
-        None,
-        &sys.cinematic,
-        offset,
-        gfx,
     );
 
     false
@@ -645,7 +642,7 @@ pub fn op_sprl<G: gfx::Gfx + ?Sized>(
     op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
-    sys: &VmSys,
+    _sys: &VmSys,
     gfx: &mut G,
 ) -> bool {
     let offset = cursor.read_u16::<BE>().unwrap() * 2;
@@ -661,134 +658,19 @@ pub fn op_sprl<G: gfx::Gfx + ?Sized>(
         _ => cursor.read_u8().unwrap() as i16,
     };
     let (zoom, segment) = match op & 0x3 {
-        0x0 => (DEFAULT_ZOOM, sys.cinematic.deref()),
+        0x0 => (DEFAULT_ZOOM, PolySegment::Cinematic),
         0x1 => (
             state.regs[cursor.read_u8().unwrap() as usize] as u16,
-            sys.cinematic.deref(),
+            PolySegment::Cinematic,
         ),
-        0x2 => (cursor.read_u8().unwrap() as u16, sys.cinematic.deref()),
-        0x3 => (DEFAULT_ZOOM, sys.video.deref()),
+        0x2 => (cursor.read_u8().unwrap() as u16, PolySegment::Cinematic),
+        0x3 => (DEFAULT_ZOOM, PolySegment::Video),
         _ => panic!("invalid zoom factor!"),
     };
 
-    draw_polygon(
-        state.render_buffer,
-        (x, y),
-        (0, 0),
-        zoom,
-        None,
-        segment,
-        offset,
-        gfx,
-    );
+    gfx.draw_polygons(segment, offset, state.render_buffer, (x, y), (0, 0), zoom);
 
     false
-}
-
-#[allow(clippy::too_many_arguments)]
-#[tracing::instrument(level = "trace", skip(segment, gfx))]
-fn draw_polygon<G: gfx::Gfx + ?Sized>(
-    render_buffer: usize,
-    pos: (i16, i16),
-    offset: (i16, i16),
-    zoom: u16,
-    color: Option<u8>,
-    segment: &[u8],
-    start_offset: u16,
-    gfx: &mut G,
-) {
-    let mut cursor = Cursor::new(segment);
-    match cursor.seek(SeekFrom::Start(start_offset as u64)) {
-        Ok(_) => (),
-        Err(e) => {
-            error!("error while seeking to draw polygon: {}", e);
-            return;
-        }
-    }
-
-    let op = cursor.read_u8().unwrap();
-    match op {
-        op if op & 0xc0 == 0xc0 => {
-            // TODO match other properties of the color (e.g. blend) from op
-            let color = match color {
-                // If we already have a color set, use it.
-                Some(color) => color,
-                // Otherwise take the color from the op.
-                None => op & 0x3f,
-            };
-
-            let bb = (cursor.read_u8().unwrap(), cursor.read_u8().unwrap());
-            let nb_points = cursor.read_u8().unwrap() as usize;
-            let points_start = cursor.position() as usize;
-            let points =
-                // Guaranteed to succeed since the length of the slice is a multiple of the size of
-                // `Point<u8>` and points in the gfx segments are aligned by the same.
-                Point::<u8>::slice_from(&segment[points_start..points_start + (nb_points * std::mem::size_of::<Point<u8>>())])
-                    .unwrap();
-            gfx.fillpolygon(render_buffer, pos, offset, color, zoom, bb, points);
-        }
-        0x02 => {
-            draw_polygon_hierarchy(
-                render_buffer,
-                pos,
-                offset,
-                zoom,
-                color,
-                cursor,
-                segment,
-                gfx,
-            );
-        }
-        _ => panic!("invalid draw_polygon op 0x{:x}", op),
-    };
-}
-
-#[allow(clippy::too_many_arguments)]
-#[tracing::instrument(level = "trace", skip(cursor, segment, gfx))]
-fn draw_polygon_hierarchy<G: gfx::Gfx + ?Sized>(
-    render_buffer: usize,
-    pos: (i16, i16),
-    offset: (i16, i16),
-    zoom: u16,
-    color: Option<u8>,
-    mut cursor: Cursor<&[u8]>,
-    segment: &[u8],
-    gfx: &mut G,
-) {
-    let offset = (
-        offset.0 - cursor.read_u8().unwrap() as i16,
-        offset.1 - cursor.read_u8().unwrap() as i16,
-    );
-    let nb_childs = cursor.read_u8().unwrap() + 1;
-
-    for _i in 0..nb_childs {
-        let word = cursor.read_u16::<BE>().unwrap();
-        let (read_color, poly_offset) = (word & 0x8000 != 0, (word & 0x7fff) * 2);
-        let offset = (
-            offset.0 + cursor.read_u8().unwrap() as i16,
-            offset.1 + cursor.read_u8().unwrap() as i16,
-        );
-
-        let color = if read_color {
-            let color = Some(cursor.read_u8().unwrap() & 0x7f);
-            // This is a "mask number" apparently?
-            cursor.read_u8().unwrap();
-            color
-        } else {
-            color
-        };
-
-        draw_polygon(
-            render_buffer,
-            pos,
-            offset,
-            zoom,
-            color,
-            segment,
-            poly_offset,
-            gfx,
-        );
-    }
 }
 
 pub fn op_playsound<A: audio::Mixer + ?Sized>(

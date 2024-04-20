@@ -10,32 +10,41 @@ use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Result;
+use std::io::Cursor;
+use std::io::Seek;
+use std::io::SeekFrom;
 use std::ops::DerefMut;
 
+use byteorder::ReadBytesExt;
+use byteorder::BE;
 use tracing::debug;
+use tracing::error;
 use zerocopy::FromBytes;
 use zerocopy::FromZeroes;
 
+use crate::res::ResourceManager;
+use crate::scenes::InitForScene;
+use crate::scenes::Scene;
 use crate::sys::Snapshotable;
 
 /// Native screen resolution of the game.
 pub const SCREEN_RESOLUTION: [usize; 2] = [320, 200];
 
-/// Trait for rendering the game using four 16-color indexed buffers.
-pub trait IndexedRenderer {
-    /// Fill video page `page_id` entirely with color `color_idx`.
-    fn fillvideopage(&mut self, page_id: usize, color_idx: u8);
-    /// Copy video page `src_page_id` into `dst_page_id`. `vscroll` is a vertical offset
-    /// for the copy.
-    fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16);
-    /// Draw `polygon` with color index `color_idx` on page `dst_page_id`. `x` and `y` are the
-    /// coordinates of the center of the polygon on the page. `zoom` is a zoom factor by which
-    /// every point of the polygon must be multiplied by, and then divided by 64.
-    ///
-    /// This has too many arguments, but we are going to fix this later as we switch to a
-    /// higher-level method for polygon filling.
+/// The two polygon segments containing polygon data.
+#[derive(Debug, Copy, Clone)]
+pub enum PolySegment {
+    /// Used for non-playable animations.
+    Cinematic,
+    /// Used for interactive scenes.
+    Video,
+}
+
+pub trait PolygonFiller {
+    /// Fill the polygons defined by `points` with color index `color_idx` on page `dst_page_id`.
+    /// `pos` is the coordinates of the center of the polygon on the page. `zoom` is a zoom factor
+    /// by which every point of the polygon must be multiplied by, and then divided by 64.
     #[allow(clippy::too_many_arguments)]
-    fn fillpolygon(
+    fn fill_polygons(
         &mut self,
         dst_page_id: usize,
         pos: (i16, i16),
@@ -44,6 +53,192 @@ pub trait IndexedRenderer {
         zoom: u16,
         bb: (u8, u8),
         points: &[Point<u8>],
+    );
+}
+
+/// Structure that stores the polygonal data as-is and parses it as needed to render it.
+///
+/// This is the original behavior of the game, and is suitable for most simple renderers.
+#[derive(Default, Clone)]
+pub struct SimplePolygonRenderer {
+    /// Cinematic segment.
+    cinematic: Vec<u8>,
+    /// Video segment.
+    video: Vec<u8>,
+}
+
+impl InitForScene for SimplePolygonRenderer {
+    #[tracing::instrument(skip(self, resman))]
+    fn init_from_scene(&mut self, resman: &ResourceManager, scene: &Scene) {
+        self.cinematic = resman.load_resource(scene.video1).unwrap().data;
+        self.video = if scene.video2 != 0 {
+            resman.load_resource(scene.video2).unwrap().data
+        } else {
+            Default::default()
+        }
+    }
+}
+
+impl SimplePolygonRenderer {
+    #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip(segment, filler))]
+    fn draw_polygon<F: PolygonFiller>(
+        segment: &[u8],
+        start_offset: u16,
+        render_buffer: usize,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        zoom: u16,
+        color: Option<u8>,
+        filler: &mut F,
+    ) {
+        let mut cursor = Cursor::new(segment);
+        match cursor.seek(SeekFrom::Start(start_offset as u64)) {
+            Ok(_) => (),
+            Err(e) => {
+                error!("error while seeking to draw polygon: {}", e);
+                return;
+            }
+        }
+
+        let op = cursor.read_u8().unwrap();
+        match op {
+            op if op & 0xc0 == 0xc0 => {
+                // TODO match other properties of the color (e.g. blend) from op
+                let color = match color {
+                    // If we already have a color set, use it.
+                    Some(color) => color,
+                    // Otherwise take the color from the op.
+                    None => op & 0x3f,
+                };
+
+                let bb = (cursor.read_u8().unwrap(), cursor.read_u8().unwrap());
+                let nb_points = cursor.read_u8().unwrap() as usize;
+                let points_start = cursor.position() as usize;
+                let points =
+                // Guaranteed to succeed since `Point<u8>` has an aligment of `1`.
+                Point::<u8>::slice_from(&segment[points_start..points_start + (nb_points * std::mem::size_of::<Point<u8>>())])
+                    .unwrap();
+                filler.fill_polygons(render_buffer, pos, offset, color, zoom, bb, points);
+            }
+            0x02 => {
+                Self::draw_polygon_hierarchy(
+                    segment,
+                    render_buffer,
+                    pos,
+                    offset,
+                    zoom,
+                    color,
+                    cursor,
+                    filler,
+                );
+            }
+            _ => tracing::warn!("invalid draw_polygon op 0x{:x}", op),
+        };
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip(segment, cursor, filler))]
+    fn draw_polygon_hierarchy<F: PolygonFiller>(
+        segment: &[u8],
+        render_buffer: usize,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        zoom: u16,
+        color: Option<u8>,
+        mut cursor: Cursor<&[u8]>,
+        filler: &mut F,
+    ) {
+        let offset = (
+            offset.0 - cursor.read_u8().unwrap() as i16,
+            offset.1 - cursor.read_u8().unwrap() as i16,
+        );
+        let nb_childs = cursor.read_u8().unwrap() + 1;
+
+        for _i in 0..nb_childs {
+            let word = cursor.read_u16::<BE>().unwrap();
+            let (read_color, poly_offset) = (word & 0x8000 != 0, (word & 0x7fff) * 2);
+            let offset = (
+                offset.0 + cursor.read_u8().unwrap() as i16,
+                offset.1 + cursor.read_u8().unwrap() as i16,
+            );
+
+            let color = if read_color {
+                let color = Some(cursor.read_u8().unwrap() & 0x7f);
+                // This is a "mask number" apparently?
+                cursor.read_u8().unwrap();
+                color
+            } else {
+                color
+            };
+
+            Self::draw_polygon(
+                segment,
+                poly_offset,
+                render_buffer,
+                pos,
+                offset,
+                zoom,
+                color,
+                filler,
+            );
+        }
+    }
+
+    #[tracing::instrument(level = "trace", skip(self, segment, filler))]
+    #[allow(clippy::too_many_arguments)]
+    fn draw_polygons<F: PolygonFiller>(
+        &mut self,
+        segment: PolySegment,
+        start_offset: u16,
+        dst_page_id: usize,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        zoom: u16,
+        filler: &mut F,
+    ) {
+        let segment = match segment {
+            PolySegment::Cinematic => &self.cinematic,
+            PolySegment::Video => &self.video,
+        }
+        .as_ref();
+
+        Self::draw_polygon(
+            segment,
+            start_offset,
+            dst_page_id,
+            pos,
+            offset,
+            zoom,
+            None,
+            filler,
+        );
+    }
+}
+
+/// Trait for rendering parsed VM graphics ops.
+///
+/// Implementors will receive the graphics segments for each scene through the `init_scene` method.
+/// `fill_polygon` will then to provided with a segment to use and offset in that segment for the
+/// polygon to render.
+pub trait IndexedRenderer {
+    /// Fill video page `page_id` entirely with color `color_idx`.
+    fn fillvideopage(&mut self, page_id: usize, color_idx: u8);
+    /// Copy video page `src_page_id` into `dst_page_id`. `vscroll` is a vertical offset
+    /// for the copy.
+    fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16);
+    /// Draw the polygons which data starts at `offset` of `segment`.
+    ///
+    /// `pos` is the coordinates of the center of the polygon on the page. `zoom` is a zoom factor
+    /// by which every point of the polygon must be multiplied by, and then divided by 64.
+    fn draw_polygons(
+        &mut self,
+        segment: PolySegment,
+        start_offset: u16,
+        dst_page_id: usize,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        zoom: u16,
     );
     /// Draw character `c` at position `pos` of page `dst_page_id` with color `color_idx`.
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8);
@@ -64,18 +259,17 @@ impl<R: IndexedRenderer + ?Sized, C: DerefMut<Target = R>> IndexedRenderer for C
             .copyvideopage(src_page_id, dst_page_id, vscroll)
     }
 
-    fn fillpolygon(
+    fn draw_polygons(
         &mut self,
+        segment: PolySegment,
+        start_offset: u16,
         dst_page_id: usize,
         pos: (i16, i16),
         offset: (i16, i16),
-        color_idx: u8,
         zoom: u16,
-        bb: (u8, u8),
-        points: &[Point<u8>],
     ) {
         self.deref_mut()
-            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points)
+            .draw_polygons(segment, start_offset, dst_page_id, pos, offset, zoom)
     }
 
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8) {
@@ -101,12 +295,19 @@ impl<D: Display + ?Sized, C: DerefMut<Target = D>> Display for C {
 }
 
 /// Trait providing the methods necessary for the VM to render the game.
-pub trait Gfx: IndexedRenderer + Display + Snapshotable<State = Box<dyn Any>> {}
+pub trait Gfx:
+    InitForScene + IndexedRenderer + Display + Snapshotable<State = Box<dyn Any>>
+{
+}
 
 /// Proxy implementation for containers of `Gfx`.
 impl<
         G: Gfx + ?Sized,
-        C: DerefMut<Target = G> + IndexedRenderer + Display + Snapshotable<State = Box<dyn Any>>,
+        C: DerefMut<Target = G>
+            + InitForScene
+            + IndexedRenderer
+            + Display
+            + Snapshotable<State = Box<dyn Any>>,
     > Gfx for C
 {
 }

@@ -1,8 +1,27 @@
+use std::ops::DerefMut;
+
+use crate::res::ResourceManager;
+
+#[derive(Debug)]
 pub struct Scene {
     pub palette: usize,
     pub code: usize,
     pub video1: usize,
     pub video2: usize,
+}
+
+/// Trait for types that need to be initialized every time a scene is loaded.
+pub trait InitForScene {
+    /// Reinitialize the object to be able to process `scene` using `resman`. This usually means
+    /// loaded the required resources.
+    fn init_from_scene(&mut self, resman: &ResourceManager, scene: &Scene);
+}
+
+/// Proxy implementation for containers of `InitForScene`.
+impl<I: InitForScene + ?Sized, C: DerefMut<Target = I>> InitForScene for C {
+    fn init_from_scene(&mut self, resman: &ResourceManager, scene: &Scene) {
+        self.deref_mut().init_from_scene(resman, scene)
+    }
 }
 
 // Static data for the game. Defines scenes

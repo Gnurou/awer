@@ -24,6 +24,7 @@ use crate::gfx::Color;
 use crate::gfx::Display;
 use crate::gfx::Gfx;
 use crate::gfx::Palette;
+use crate::scenes::InitForScene;
 use crate::sys::Snapshotable;
 
 use super::WINDOW_RESOLUTION;
@@ -93,26 +94,25 @@ impl gfx::IndexedRenderer for Sdl2CanvasGfx {
         self.raster.copyvideopage(src_page_id, dst_page_id, vscroll)
     }
 
-    fn fillpolygon(
-        &mut self,
-        dst_page_id: usize,
-        pos: (i16, i16),
-        offset: (i16, i16),
-        color_idx: u8,
-        zoom: u16,
-        bb: (u8, u8),
-        points: &[gfx::Point<u8>],
-    ) {
-        self.raster
-            .fillpolygon(dst_page_id, pos, offset, color_idx, zoom, bb, points)
-    }
-
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color_idx: u8, c: u8) {
         self.raster.draw_char(dst_page_id, pos, color_idx, c)
     }
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
         self.raster.blit_buffer(dst_page_id, buffer)
+    }
+
+    fn draw_polygons(
+        &mut self,
+        segment: gfx::PolySegment,
+        start_offset: u16,
+        dst_page_id: usize,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        zoom: u16,
+    ) {
+        self.raster
+            .draw_polygons(segment, start_offset, dst_page_id, pos, offset, zoom)
     }
 }
 
@@ -185,6 +185,17 @@ impl Snapshotable for Sdl2CanvasGfx {
         } else {
             false
         }
+    }
+}
+
+impl InitForScene for Sdl2CanvasGfx {
+    #[tracing::instrument(skip(self, resman))]
+    fn init_from_scene(
+        &mut self,
+        resman: &crate::res::ResourceManager,
+        scene: &crate::scenes::Scene,
+    ) {
+        self.raster.init_from_scene(resman, scene)
     }
 }
 

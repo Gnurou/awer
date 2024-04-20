@@ -9,7 +9,11 @@ use anyhow::Result;
 use crate::gfx::IndexedRenderer;
 use crate::gfx::Point;
 use crate::gfx::SCREEN_RESOLUTION;
+use crate::scenes::InitForScene;
 use crate::sys::Snapshotable;
+
+use super::PolygonFiller;
+use super::SimplePolygonRenderer;
 
 /// Apply the zoom function on a point's coordinate `p`: multiply it by `zoom`,
 /// then divide by 64.
@@ -222,73 +226,11 @@ impl IndexedImage {
 }
 
 #[derive(Clone)]
-pub struct RasterRenderer {
-    /// We Box the buffers to make sure they end up in the heap. Without this objects embedding
-    /// this renderer may end up being build on the stack, which may not appreciate having 256KB
-    /// requested from it.
-    buffers: Box<[RefCell<IndexedImage>; 4]>,
-}
+pub struct RasterRendererBuffers(Box<[RefCell<IndexedImage>; 4]>);
 
-impl RasterRenderer {
-    pub fn new() -> RasterRenderer {
-        RasterRenderer {
-            buffers: Box::new([
-                RefCell::new(Default::default()),
-                RefCell::new(Default::default()),
-                RefCell::new(Default::default()),
-                RefCell::new(Default::default()),
-            ]),
-        }
-    }
-
-    pub fn get_buffer(&self, page_id: usize) -> Ref<'_, IndexedImage> {
-        self.buffers[page_id].borrow()
-    }
-}
-
-impl IndexedRenderer for RasterRenderer {
-    fn fillvideopage(&mut self, dst_page_id: usize, color_idx: u8) {
-        let mut dst = self.buffers[dst_page_id].borrow_mut();
-
-        for pixel in dst.0.iter_mut() {
-            *pixel = color_idx;
-        }
-    }
-
-    fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16) {
-        if src_page_id == dst_page_id {
-            tracing::warn!("cannot copy video page into itself");
-            return;
-        }
-
-        if !(-199..=199).contains(&vscroll) {
-            tracing::warn!("out-of-range vscroll for copyvideopage: {}", vscroll);
-            return;
-        }
-
-        let src = &self.buffers[src_page_id].borrow_mut();
-        let src_len = src.0.len();
-        let dst = &mut self.buffers[dst_page_id].borrow_mut();
-        let dst_len = dst.0.len();
-
-        let src_start = if vscroll < 0 {
-            vscroll.unsigned_abs() as usize * SCREEN_RESOLUTION[0]
-        } else {
-            0
-        };
-        let dst_start = if vscroll > 0 {
-            vscroll.unsigned_abs() as usize * SCREEN_RESOLUTION[0]
-        } else {
-            0
-        };
-        let src_slice = &src.0[src_start..src_len - dst_start];
-        let dst_slice = &mut dst.0[dst_start..dst_len - src_start];
-
-        dst_slice.copy_from_slice(src_slice);
-    }
-
+impl PolygonFiller for RasterRendererBuffers {
     #[tracing::instrument(level = "trace", skip(self))]
-    fn fillpolygon(
+    fn fill_polygons(
         &mut self,
         dst_page_id: usize,
         pos: (i16, i16),
@@ -298,7 +240,7 @@ impl IndexedRenderer for RasterRenderer {
         bb: (u8, u8),
         points: &[Point<u8>],
     ) {
-        let mut dst = self.buffers[dst_page_id].borrow_mut();
+        let mut dst = self.0[dst_page_id].borrow_mut();
 
         match color {
             // Direct indexed color - fill the buffer with that color.
@@ -317,7 +259,7 @@ impl IndexedRenderer for RasterRenderer {
                 // Do not try to copy page 0 into itself - not only the page won't change,
                 // but this will actually panic as we try to double-borrow the page.
                 if dst_page_id != 0 {
-                    let src = self.buffers[0].borrow();
+                    let src = self.0[0].borrow();
                     dst.fill_polygon(pos, offset, zoom, bb, points, |line, off| {
                         line.copy_from_slice(&src.0[off..off + line.len()]);
                     });
@@ -325,6 +267,85 @@ impl IndexedRenderer for RasterRenderer {
             }
             color => panic!("Unexpected color 0x{:x}", color),
         };
+    }
+}
+
+#[derive(Clone)]
+pub struct RasterRenderer {
+    renderer: SimplePolygonRenderer,
+    buffers: RasterRendererBuffers,
+}
+
+impl RasterRenderer {
+    pub fn new() -> RasterRenderer {
+        RasterRenderer {
+            renderer: Default::default(),
+            buffers: RasterRendererBuffers(Box::new([
+                RefCell::new(Default::default()),
+                RefCell::new(Default::default()),
+                RefCell::new(Default::default()),
+                RefCell::new(Default::default()),
+            ])),
+        }
+    }
+
+    pub fn get_buffer(&self, page_id: usize) -> Ref<'_, IndexedImage> {
+        self.buffers.0[page_id].borrow()
+    }
+}
+
+impl InitForScene for RasterRenderer {
+    #[tracing::instrument(skip(self, resman))]
+    fn init_from_scene(
+        &mut self,
+        resman: &crate::res::ResourceManager,
+        scene: &crate::scenes::Scene,
+    ) {
+        self.renderer.init_from_scene(resman, scene)
+    }
+}
+
+// The poly operation is the only one depending on the renderer AND the buffers. All the others
+// only need the buffers.
+impl IndexedRenderer for RasterRenderer {
+    fn fillvideopage(&mut self, dst_page_id: usize, color_idx: u8) {
+        let mut dst = self.buffers.0[dst_page_id].borrow_mut();
+
+        for pixel in dst.0.iter_mut() {
+            *pixel = color_idx;
+        }
+    }
+
+    fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, vscroll: i16) {
+        if src_page_id == dst_page_id {
+            tracing::warn!("cannot copy video page into itself");
+            return;
+        }
+
+        if !(-199..=199).contains(&vscroll) {
+            tracing::warn!("out-of-range vscroll for copyvideopage: {}", vscroll);
+            return;
+        }
+
+        let src = &self.buffers.0[src_page_id].borrow_mut();
+        let src_len = src.0.len();
+        let dst = &mut self.buffers.0[dst_page_id].borrow_mut();
+        let dst_len = dst.0.len();
+
+        let src_start = if vscroll < 0 {
+            vscroll.unsigned_abs() as usize * SCREEN_RESOLUTION[0]
+        } else {
+            0
+        };
+        let dst_start = if vscroll > 0 {
+            vscroll.unsigned_abs() as usize * SCREEN_RESOLUTION[0]
+        } else {
+            0
+        };
+        let src_slice = &src.0[src_start..src_len - dst_start];
+        let dst_slice = &mut dst.0[dst_start..dst_len - src_start];
+
+        dst_slice.copy_from_slice(src_slice);
     }
 
     fn draw_char(&mut self, dst_page_id: usize, pos: (i16, i16), color: u8, c: u8) {
@@ -353,7 +374,7 @@ impl IndexedRenderer for RasterRenderer {
         // Each character is encoded with 8 bytes, 1 byte per line.
         let char_bitmap = &FONT[font_offset..font_offset + CHAR_HEIGHT];
 
-        let mut dst = self.buffers[dst_page_id].borrow_mut();
+        let mut dst = self.buffers.0[dst_page_id].borrow_mut();
         for (i, char_line) in char_bitmap.iter().map(|b| b.reverse_bits()).enumerate() {
             dst.draw_hline(pos.1 + i as i16, pos.0, pos.0 + 8, |slice, off| {
                 for (i, pixel) in slice.iter_mut().enumerate() {
@@ -367,9 +388,29 @@ impl IndexedRenderer for RasterRenderer {
 
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]) {
         assert_eq!(buffer.len(), 32000);
-        let mut dst = self.buffers[dst_page_id].borrow_mut();
+        let mut dst = self.buffers.0[dst_page_id].borrow_mut();
         dst.set_content(buffer)
             .unwrap_or_else(|e| tracing::error!("blit_buffer failed: {}", e));
+    }
+
+    fn draw_polygons(
+        &mut self,
+        segment: super::PolySegment,
+        start_offset: u16,
+        dst_page_id: usize,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        zoom: u16,
+    ) {
+        self.renderer.draw_polygons(
+            segment,
+            start_offset,
+            dst_page_id,
+            pos,
+            offset,
+            zoom,
+            &mut self.buffers,
+        )
     }
 }
 
