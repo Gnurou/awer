@@ -795,7 +795,7 @@ pub fn op_playsound<A: audio::Mixer + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     _state: &mut VmState,
-    _sys: &VmSys,
+    _resman: &ResourceManager,
     audio: &mut A,
 ) -> bool {
     let res_id = cursor.read_u16::<BE>().unwrap() as u8;
@@ -830,24 +830,24 @@ pub fn op_playmusic<A: audio::Mixer + audio::MusicPlayer + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     _state: &mut VmState,
-    sys: &VmSys,
+    resman: &ResourceManager,
     audio: &mut A,
 ) -> bool {
     let res_id = cursor.read_u16::<BE>().unwrap();
     let delay = cursor.read_u16::<BE>().unwrap();
     let pos = cursor.read_u8().unwrap();
 
-    playmusic(res_id, delay, pos, sys, audio);
+    playmusic(res_id, delay, pos, resman, audio);
 
     false
 }
 
-#[tracing::instrument(level = "trace", skip(sys, audio))]
+#[tracing::instrument(level = "trace", skip(resman, audio))]
 fn playmusic<A: audio::Mixer + audio::MusicPlayer + ?Sized>(
     res_id: u16,
     delay: u16,
     pos: u8,
-    sys: &VmSys,
+    resman: &ResourceManager,
     audio: &mut A,
 ) {
     match (res_id, delay) {
@@ -859,8 +859,7 @@ fn playmusic<A: audio::Mixer + audio::MusicPlayer + ?Sized>(
             audio.update_tempo(new_tempo);
         }
         // Load new music module and start playback.
-        (res_id, delay) => match sys
-            .resman
+        (res_id, delay) => match resman
             // TODO mmm we are probably preloading the music, right? In that case this should just
             // retrieve it, or probably a Rc to it...
             .load_resource(res_id as usize)
@@ -900,22 +899,22 @@ pub fn op_loadresource<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
     _op: u8,
     cursor: &mut Cursor<&[u8]>,
     state: &mut VmState,
-    sys: &mut VmSys,
+    resman: &ResourceManager,
     gfx: &mut G,
     audio: &mut A,
 ) -> bool {
     let res_id = cursor.read_u16::<BE>().unwrap();
 
-    loadresource(res_id, state, sys, gfx, audio);
+    loadresource(res_id, state, resman, gfx, audio);
 
     false
 }
 
-#[tracing::instrument(level = "trace", skip(state, sys, gfx, audio))]
+#[tracing::instrument(level = "trace", skip(state, resman, gfx, audio))]
 fn loadresource<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
     res_id: u16,
     state: &mut VmState,
-    sys: &mut VmSys,
+    resman: &ResourceManager,
     gfx: &mut G,
     audio: &mut A,
 ) {
@@ -940,7 +939,7 @@ fn loadresource<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
     }
 
     // Just load a resource.
-    let res = match sys.resman.load_resource(res_id) {
+    let res = match resman.load_resource(res_id) {
         Ok(res) => res,
         Err(e) => {
             error!("error while loading resource: {:#}", e);

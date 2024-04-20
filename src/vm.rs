@@ -89,7 +89,6 @@ pub struct VmState {
 }
 
 pub struct VmSys {
-    resman: ResourceManager,
     palette: Vec<u8>,
     cinematic: Vec<u8>,
     video: Vec<u8>,
@@ -123,6 +122,7 @@ pub struct Vm {
     state: VmState,
     code: VmCode,
     sys: VmSys,
+    resman: ResourceManager,
     round: u64,
 }
 
@@ -178,8 +178,6 @@ impl Vm {
     }
 
     pub fn new() -> Result<Vm> {
-        let resman = ResourceManager::new()?;
-
         let mut regs = [0; VM_NUM_VARIABLES];
         Self::set_regs_initial_values(&mut regs);
 
@@ -195,12 +193,12 @@ impl Vm {
             },
             code: VmCode::new(Vec::new()),
             sys: VmSys {
-                resman,
                 palette: Vec::new(),
                 cinematic: Vec::new(),
                 video: Vec::new(),
                 strings: strings::load_strings().unwrap_or_default(),
             },
+            resman: ResourceManager::new()?,
             round: 0,
         })
     }
@@ -292,14 +290,15 @@ impl Vm {
             }
 
             // Audio op - play sound or music.
-            type AudioOp<A> = fn(u8, &mut Cursor<&[u8]>, &mut VmState, &VmSys, &mut A) -> bool;
+            type AudioOp<A> =
+                fn(u8, &mut Cursor<&[u8]>, &mut VmState, &ResourceManager, &mut A) -> bool;
             let op: Option<AudioOp<A>> = match opcode {
                 0x18 => Some(op_playsound),
                 0x1a => Some(op_playmusic),
                 _ => None,
             };
             if let Some(op) = op {
-                if op(opcode, &mut cursor, &mut self.state, &self.sys, audio) {
+                if op(opcode, &mut cursor, &mut self.state, &self.resman, audio) {
                     break;
                 } else {
                     continue;
@@ -312,7 +311,7 @@ impl Vm {
                     opcode,
                     &mut cursor,
                     &mut self.state,
-                    &mut self.sys,
+                    &self.resman,
                     gfx,
                     audio,
                 ) {
@@ -451,11 +450,11 @@ impl Vm {
         // Is this really necessary?
         self.set_reg(0xe4, 0x14);
 
-        self.code.code = self.sys.resman.load_resource(scene.code).unwrap().data;
-        self.sys.palette = self.sys.resman.load_resource(scene.palette).unwrap().data;
-        self.sys.cinematic = self.sys.resman.load_resource(scene.video1).unwrap().data;
+        self.code.code = self.resman.load_resource(scene.code).unwrap().data;
+        self.sys.palette = self.resman.load_resource(scene.palette).unwrap().data;
+        self.sys.cinematic = self.resman.load_resource(scene.video1).unwrap().data;
         if scene.video2 != 0 {
-            self.sys.video = self.sys.resman.load_resource(scene.video2).unwrap().data;
+            self.sys.video = self.resman.load_resource(scene.video2).unwrap().data;
         }
         // Reset all threads
         self.state.threads = Vm::init_threads();
