@@ -13,6 +13,8 @@ use std::fmt::Result;
 use std::ops::DerefMut;
 
 use tracing::debug;
+use zerocopy::FromBytes;
+use zerocopy::FromZeroes;
 
 use crate::sys::Snapshotable;
 
@@ -111,7 +113,7 @@ impl<
 
 /// A point as described in the game's resources for polygons.
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, FromZeroes, FromBytes)]
 pub struct Point<T> {
     pub x: T,
     pub y: T,

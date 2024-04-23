@@ -1,10 +1,12 @@
 use std::convert::TryInto;
 
 use super::*;
+use crate::gfx::Point;
 use crate::res;
 
 use tracing::error;
 use tracing::warn;
+use zerocopy::FromBytes;
 
 pub fn op_seti(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let var_id = cursor.read_u8().unwrap();
@@ -718,13 +720,11 @@ fn draw_polygon<G: gfx::Gfx + ?Sized>(
             let bb = (cursor.read_u8().unwrap(), cursor.read_u8().unwrap());
             let nb_points = cursor.read_u8().unwrap() as usize;
             let points_start = cursor.position() as usize;
-            let points = unsafe {
-                std::slice::from_raw_parts(
-                    segment[points_start..points_start + (nb_points * 2)].as_ptr()
-                        as *const gfx::Point<u8>,
-                    nb_points,
-                )
-            };
+            let points =
+                // Guaranteed to succeed since the length of the slice is a multiple of the size of
+                // `Point<u8>` and points in the gfx segments are aligned by the same.
+                Point::<u8>::slice_from(&segment[points_start..points_start + (nb_points * std::mem::size_of::<Point<u8>>())])
+                    .unwrap();
             gfx.fillpolygon(render_buffer, pos, offset, color, zoom, bb, points);
         }
         0x02 => {
