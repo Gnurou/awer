@@ -108,75 +108,6 @@ impl Sdl2GlGfx {
     }
 }
 
-impl Sdl2Gfx for Sdl2GlGfx {
-    #[tracing::instrument(skip(self))]
-    fn show_game_framebuffer(&mut self, dst: &Rect) {
-        unsafe {
-            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
-        }
-
-        let framebuffer_texture = match self.rendering_mode {
-            RenderingMode::Raster => self.raster_renderer.as_ref(),
-            RenderingMode::Poly | RenderingMode::Line => self.poly_renderer.as_ref(),
-        };
-
-        self.framebuffer_renderer.render(
-            framebuffer_texture,
-            &self.palette,
-            0,
-            &Viewport {
-                x: dst.x(),
-                y: dst.y(),
-                width: dst.width() as i32,
-                height: dst.height() as i32,
-            },
-        );
-    }
-
-    #[tracing::instrument(skip(self))]
-    fn present(&mut self) {
-        self.window.gl_swap_window();
-    }
-
-    fn window(&self) -> &Window {
-        &self.window
-    }
-
-    #[tracing::instrument(skip(self))]
-    fn handle_event(&mut self, event: &Event) {
-        match event {
-            Event::Window {
-                win_event: WindowEvent::Resized(w, h),
-                ..
-            } => self
-                .poly_renderer
-                .resize_render_textures(*w as usize, *h as usize),
-            Event::KeyDown {
-                keycode: Some(key),
-                repeat: false,
-                ..
-            } => match key {
-                Keycode::F1 => self.rendering_mode = RenderingMode::Raster,
-                Keycode::F2 => {
-                    self.rendering_mode = RenderingMode::Poly;
-                    self.poly_renderer
-                        .set_rendering_mode(PolyRenderingMode::Poly);
-                    self.poly_renderer.redraw();
-                }
-                Keycode::F3 => {
-                    self.rendering_mode = RenderingMode::Line;
-                    self.poly_renderer
-                        .set_rendering_mode(PolyRenderingMode::Line);
-                    self.poly_renderer.redraw();
-                }
-                _ => {}
-            },
-            _ => {}
-        }
-    }
-}
-
 impl gfx::IndexedRenderer for Sdl2GlGfx {
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         self.raster_renderer.fillvideopage(page_id, color_idx);
@@ -273,3 +204,72 @@ impl InitForScene for Sdl2GlGfx {
 }
 
 impl gfx::Gfx for Sdl2GlGfx {}
+
+impl Sdl2Gfx for Sdl2GlGfx {
+    #[tracing::instrument(skip(self))]
+    fn show_game_framebuffer(&mut self, dst: &Rect) {
+        unsafe {
+            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+        }
+
+        let framebuffer_texture = match self.rendering_mode {
+            RenderingMode::Raster => self.raster_renderer.as_ref(),
+            RenderingMode::Poly | RenderingMode::Line => self.poly_renderer.as_ref(),
+        };
+
+        self.framebuffer_renderer.render(
+            framebuffer_texture,
+            &self.palette,
+            0,
+            &Viewport {
+                x: dst.x(),
+                y: dst.y(),
+                width: dst.width() as i32,
+                height: dst.height() as i32,
+            },
+        );
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn present(&mut self) {
+        self.window.gl_swap_window();
+    }
+
+    fn window(&self) -> &Window {
+        &self.window
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn handle_event(&mut self, event: &Event) {
+        match event {
+            Event::Window {
+                win_event: WindowEvent::Resized(w, h),
+                ..
+            } => self
+                .poly_renderer
+                .resize_render_textures(*w as usize, *h as usize),
+            Event::KeyDown {
+                keycode: Some(key),
+                repeat: false,
+                ..
+            } => match key {
+                Keycode::F1 => self.rendering_mode = RenderingMode::Raster,
+                Keycode::F2 => {
+                    self.rendering_mode = RenderingMode::Poly;
+                    self.poly_renderer
+                        .set_rendering_mode(PolyRenderingMode::Poly);
+                    self.poly_renderer.redraw();
+                }
+                Keycode::F3 => {
+                    self.rendering_mode = RenderingMode::Line;
+                    self.poly_renderer
+                        .set_rendering_mode(PolyRenderingMode::Line);
+                    self.poly_renderer.redraw();
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+}
