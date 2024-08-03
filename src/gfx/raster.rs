@@ -230,15 +230,15 @@ pub struct RasterRendererBuffers(Box<[RefCell<IndexedImage>; 4]>);
 
 impl PolygonFiller for RasterRendererBuffers {
     #[tracing::instrument(level = "trace", skip(self))]
-    fn fill_polygons(
+    fn fill_polygon(
         &mut self,
+        points: &[Point<u8>],
+        color: u8,
+        bb: (u8, u8),
         dst_page_id: usize,
         pos: (i16, i16),
         offset: (i16, i16),
-        color: u8,
         zoom: u16,
-        bb: (u8, u8),
-        points: &[Point<u8>],
     ) {
         let mut dst = self.0[dst_page_id].borrow_mut();
 

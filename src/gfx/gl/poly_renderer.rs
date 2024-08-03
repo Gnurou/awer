@@ -80,15 +80,15 @@ enum DrawCommand {
 struct DrawCommands([Vec<DrawCommand>; 4]);
 
 impl gfx::PolygonFiller for DrawCommands {
-    fn fill_polygons(
+    fn fill_polygon(
         &mut self,
+        points: &[Point<u8>],
+        color_idx: u8,
+        bb: (u8, u8),
         dst_page_id: usize,
         pos: (i16, i16),
         offset: (i16, i16),
-        color_idx: u8,
         zoom: u16,
-        bb: (u8, u8),
-        points: &[Point<u8>],
     ) {
         let command = &mut self.0[dst_page_id];
         command.push(DrawCommand::Poly(PolyDrawCommand::new(

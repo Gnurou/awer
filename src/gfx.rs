@@ -39,20 +39,21 @@ pub enum PolySegment {
     Video,
 }
 
+/// Trait for filling a single polygon defined by a slice of points.
 pub trait PolygonFiller {
-    /// Fill the polygons defined by `points` with color index `color_idx` on page `dst_page_id`.
+    /// Fill the polygon defined by `points` with color index `color_idx` on page `dst_page_id`.
     /// `pos` is the coordinates of the center of the polygon on the page. `zoom` is a zoom factor
     /// by which every point of the polygon must be multiplied by, and then divided by 64.
     #[allow(clippy::too_many_arguments)]
-    fn fill_polygons(
+    fn fill_polygon(
         &mut self,
+        points: &[Point<u8>],
+        color_idx: u8,
+        bb: (u8, u8),
         dst_page_id: usize,
         pos: (i16, i16),
         offset: (i16, i16),
-        color_idx: u8,
         zoom: u16,
-        bb: (u8, u8),
-        points: &[Point<u8>],
     );
 }
 
@@ -119,7 +120,7 @@ impl SimplePolygonRenderer {
                 // Guaranteed to succeed since `Point<u8>` has an aligment of `1`.
                 Point::<u8>::slice_from(&segment[points_start..points_start + (nb_points * std::mem::size_of::<Point<u8>>())])
                     .unwrap();
-                filler.fill_polygons(render_buffer, pos, offset, color, zoom, bb, points);
+                filler.fill_polygon(points, color, bb, render_buffer, pos, offset, zoom);
             }
             0x02 => {
                 Self::draw_polygon_hierarchy(
