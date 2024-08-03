@@ -25,7 +25,7 @@ tracing-chrome = "0.7.0"
 zerocopy = { version = "0.7.0", features = ["derive"] }
 
 # SDL2 dependencies
-sdl2 = { version = "0.36", optional = true, features = [
+sdl2 = { version = "0.37", optional = true, features = [
   "unsafe_textures",
   "raw-window-handle",
 ] }

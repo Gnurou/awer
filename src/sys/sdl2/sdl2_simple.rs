@@ -211,7 +211,7 @@ impl<D: Sdl2Gfx> Sys for Sdl2Sys<D> {
             vm.update_input(&input);
 
             // Now update the state of all the released keys.
-            for key in &released_keys {
+            for &key in &released_keys {
                 match key {
                     Keycode::Left | Keycode::Right => input.horizontal = LeftRightDir::Neutral,
                     Keycode::Up | Keycode::Down => input.vertical = UpDownDir::Neutral,

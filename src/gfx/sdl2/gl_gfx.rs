@@ -253,7 +253,7 @@ impl Sdl2Gfx for Sdl2GlGfx {
                 keycode: Some(key),
                 repeat: false,
                 ..
-            } => match key {
+            } => match *key {
                 Keycode::F1 => self.rendering_mode = RenderingMode::Raster,
                 Keycode::F2 => {
                     self.rendering_mode = RenderingMode::Poly;
