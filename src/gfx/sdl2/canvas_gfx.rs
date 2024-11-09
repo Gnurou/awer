@@ -29,8 +29,9 @@ use crate::sys::Snapshotable;
 
 use super::WINDOW_RESOLUTION;
 
-/// Pure software renderer and display for SDL2. `IndexedRenderer` is just implemented by proxying
-/// `raster`, and the other members are used to display the current game buffer on the screen.
+/// Pure software renderer and display for SDL2. [`gfx::IndexedRenderer`] is just implemented by
+/// proxying `raster`, and the other members are used to display the current game buffer on the
+/// screen.
 pub struct Sdl2CanvasGfx {
     /// Software rasterizer from which we will get the game buffers to display.
     raster: RasterRenderer,

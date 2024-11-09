@@ -57,7 +57,8 @@ pub trait PolygonFiller {
     );
 }
 
-/// Structure that stores the polygonal data as-is and parses it as needed to render it.
+/// Structure that stores the polygonal data as-is and parses it as needed to render it using a
+/// [`PolygonFiller`].
 ///
 /// This is the original behavior of the game, and is suitable for most simple renderers.
 #[derive(Default, Clone)]
@@ -217,11 +218,11 @@ impl SimplePolygonRenderer {
     }
 }
 
-/// Trait for rendering parsed VM graphics ops.
+/// Trait for rendering VM graphics operations.
 ///
-/// Implementors will receive the graphics segments for each scene through the `init_scene` method.
-/// `fill_polygon` will then to provided with a segment to use and offset in that segment for the
-/// polygon to render.
+/// This receives the VM commands as-is. Implementors are also expected to implement
+/// [`InitForScene`] in order to receive the graphics segments at the beginning of each scene and
+/// understand how to interpret the parameters of these methods.
 pub trait IndexedRenderer {
     /// Fill video page `page_id` entirely with color `color_idx`.
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8);
