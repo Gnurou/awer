@@ -20,6 +20,18 @@ use self::programs::*;
 
 use super::GlRenderer;
 
+/// Command for filling the entire screen.
+#[derive(Clone)]
+struct FillScreenCommand {
+    color: u8,
+}
+
+impl FillScreenCommand {
+    pub fn new(color: u8) -> Self {
+        Self { color }
+    }
+}
+
 /// Draw command for a polygon, requesting it to be drawn at coordinates (`x`,
 /// `y`) and with color `color`.
 #[derive(Clone)]
@@ -71,6 +83,7 @@ impl CharDrawCommand {
 
 #[derive(Clone)]
 enum DrawCommand {
+    Fill(FillScreenCommand),
     Poly(PolyDrawCommand),
     BlitBuffer(BlitBufferCommand),
     Char(CharDrawCommand),
@@ -167,6 +180,7 @@ impl GlPolyRenderer {
             render_texture_buffer0: IndexedTexture::new(width, height),
             render_texture_framebuffer: IndexedTexture::new(width, height),
             renderers: Programs::new(
+                FillRenderer::new(),
                 PolyRenderer::new()?,
                 BitmapRenderer::new()?,
                 FontRenderer::new()?,
@@ -195,6 +209,9 @@ impl GlPolyRenderer {
         );
         for command in draw_commands {
             match command {
+                DrawCommand::Fill(fill) => {
+                    draw_runner.fill(fill.color);
+                }
                 DrawCommand::Poly(poly) => {
                     draw_runner.draw_poly(
                         &poly.poly,
@@ -260,23 +277,7 @@ impl gfx::IndexedRenderer for GlPolyRenderer {
         let commands = &mut self.draw_commands.0[page_id];
         commands.clear();
 
-        let w = gfx::SCREEN_RESOLUTION[0] as i16;
-        let h = gfx::SCREEN_RESOLUTION[1] as i16;
-        commands.push(DrawCommand::Poly(PolyDrawCommand::new(
-            Polygon::new(
-                (w as u16, h as u16),
-                vec![
-                    Point { x: 0, y: 0 },
-                    Point { x: w, y: 0 },
-                    Point { x: w, y: h },
-                    Point { x: 0, y: h },
-                ],
-            ),
-            (w / 2, h / 2),
-            (0, 0),
-            64,
-            color_idx,
-        )));
+        commands.push(DrawCommand::Fill(FillScreenCommand::new(color_idx)));
     }
 
     fn copyvideopage(&mut self, src_page_id: usize, dst_page_id: usize, _vscroll: i16) {

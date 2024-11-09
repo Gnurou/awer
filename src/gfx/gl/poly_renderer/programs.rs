@@ -1,8 +1,10 @@
 mod bitmap_renderer;
+mod fill_renderer;
 mod font_renderer;
 mod poly_renderer;
 
 pub use bitmap_renderer::BitmapRenderer;
+pub use fill_renderer::FillRenderer;
 pub use font_renderer::FontRenderer;
 pub use poly_renderer::PolyRenderer;
 pub use poly_renderer::PolyRenderingMode;
@@ -25,6 +27,7 @@ pub trait Program {
 /// Keep track of which program is current.
 enum CurrentProgram {
     None,
+    Fill,
     Poly,
     Bitmap,
     Font,
@@ -34,6 +37,7 @@ enum CurrentProgram {
 /// it through a `DrawCommandRunner`.
 pub struct Programs {
     current: CurrentProgram,
+    fill: FillRenderer,
     poly: PolyRenderer,
     bitmap: BitmapRenderer,
     font: FontRenderer,
@@ -46,9 +50,15 @@ impl Drop for Programs {
 }
 
 impl Programs {
-    pub fn new(poly: PolyRenderer, bitmap: BitmapRenderer, font: FontRenderer) -> Self {
+    pub fn new(
+        fill: FillRenderer,
+        poly: PolyRenderer,
+        bitmap: BitmapRenderer,
+        font: FontRenderer,
+    ) -> Self {
         Self {
             current: CurrentProgram::None,
+            fill,
             poly,
             bitmap,
             font,
@@ -66,11 +76,28 @@ impl Programs {
     fn deactivate(&mut self) {
         match self.current {
             CurrentProgram::None => (),
+            CurrentProgram::Fill => self.fill.deactivate(),
             CurrentProgram::Poly => self.poly.deactivate(),
             CurrentProgram::Bitmap => self.bitmap.deactivate(),
             CurrentProgram::Font => self.font.deactivate(),
         }
         self.current = CurrentProgram::None;
+    }
+
+    fn use_fill(
+        &mut self,
+        target_texture: &IndexedTexture,
+        buffer0: &IndexedTexture,
+    ) -> &mut FillRenderer {
+        match self.current {
+            CurrentProgram::Fill => (),
+            _ => {
+                self.deactivate();
+                self.fill.activate(target_texture, buffer0);
+                self.current = CurrentProgram::Fill;
+            }
+        }
+        &mut self.fill
     }
 
     fn use_poly(
@@ -147,6 +174,13 @@ impl<'a> DrawCommandRunner<'a> {
             target,
             buffer0,
         }
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub fn fill(&mut self, color: u8) {
+        self.programs
+            .use_fill(self.target, self.buffer0)
+            .fill(color);
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
