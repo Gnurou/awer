@@ -1,6 +1,5 @@
 use crate::gfx::gl::*;
 use crate::gfx::polygon::Polygon;
-use crate::gfx::SCREEN_RESOLUTION;
 
 use super::Program;
 
@@ -202,21 +201,9 @@ impl PolyRenderer {
             }
         }
 
-        let draw_type = /*if poly.bbw == 0 || poly.bbh == 0 {
-            gl::LINE_LOOP
-        } else */{
-            match rendering_mode {
-                PolyRenderingMode::Poly => gl::TRIANGLE_STRIP,
-                PolyRenderingMode::Line => {
-                    if poly.bbw == SCREEN_RESOLUTION[0] as u16
-                        && poly.bbh == SCREEN_RESOLUTION[1] as u16
-                    {
-                        gl::TRIANGLE_STRIP
-                    } else {
-                        gl::LINE_LOOP
-                    }
-                }
-            }
+        let draw_type = match rendering_mode {
+            PolyRenderingMode::Poly => gl::TRIANGLE_STRIP,
+            PolyRenderingMode::Line => gl::LINE_LOOP,
         };
 
         if draw_type != self.draw_type {
