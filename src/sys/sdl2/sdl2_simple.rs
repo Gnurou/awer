@@ -1,7 +1,6 @@
 //! A simple sys that is able to run any SDL2-based graphics system, accelerated or not. It does
 //! not provide any fancy features - just the basic game.
 
-use clap::ArgMatches;
 use sdl2::event::Event;
 use sdl2::event::WindowEvent;
 use sdl2::keyboard::Keycode;
@@ -40,8 +39,8 @@ pub struct Sdl2Sys<D: Sdl2Gfx> {
     audio_device: Sdl2Audio,
 }
 
-/// Creates a dynamic SDL Sys instance from the command-line arguments.
-pub fn new_from_args(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
+/// Creates a dynamic SDL Sys instance with a given renderer.
+pub fn new_with_renderer(renderer: &Option<String>) -> Option<Box<dyn Sys>> {
     let sdl_context = sdl2::init()
         .map_err(|e| {
             error!("Failed to initialize SDL: {}", e);
@@ -54,7 +53,7 @@ pub fn new_from_args(matches: &ArgMatches) -> Option<Box<dyn Sys>> {
         })
         .ok()?;
 
-    let backend = matches.value_of("render").unwrap_or("raster");
+    let backend = renderer.as_ref().map(String::as_str).unwrap_or("raster");
     match backend {
         "raster" => Some(Box::new(Sdl2Sys {
             display: Sdl2CanvasGfx::new(&sdl_context).ok()?,
