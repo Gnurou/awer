@@ -303,16 +303,7 @@ pub trait Gfx:
 }
 
 /// Proxy implementation for containers of `Gfx`.
-impl<
-        G: Gfx + ?Sized,
-        C: DerefMut<Target = G>
-            + InitForScene
-            + IndexedRenderer
-            + Display
-            + Snapshotable<State = Box<dyn Any>>,
-    > Gfx for C
-{
-}
+impl<G: Gfx + ?Sized, C: DerefMut<Target = G>> Gfx for C {}
 
 /// A point as described in the game's resources for polygons.
 #[repr(C)]
