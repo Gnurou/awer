@@ -20,7 +20,7 @@ use byteorder::BE;
 use tracing::debug;
 use tracing::error;
 use zerocopy::FromBytes;
-use zerocopy::FromZeroes;
+use zerocopy::Immutable;
 
 use crate::res::ResourceManager;
 use crate::scenes::InitForScene;
@@ -119,7 +119,7 @@ impl SimplePolygonRenderer {
                 let points_start = cursor.position() as usize;
                 let points =
                 // Guaranteed to succeed since `Point<u8>` has an aligment of `1`.
-                Point::<u8>::slice_from(&segment[points_start..points_start + (nb_points * std::mem::size_of::<Point<u8>>())])
+                <[Point::<u8>]>::ref_from_bytes(&segment[points_start..points_start + (nb_points * std::mem::size_of::<Point<u8>>())])
                     .unwrap();
                 filler.fill_polygon(points, color, bb, render_buffer, pos, offset, zoom);
             }
@@ -316,7 +316,7 @@ impl<
 
 /// A point as described in the game's resources for polygons.
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq, FromZeroes, FromBytes)]
+#[derive(Clone, Copy, PartialEq, Eq, Immutable, FromBytes)]
 pub struct Point<T> {
     pub x: T,
     pub y: T,
