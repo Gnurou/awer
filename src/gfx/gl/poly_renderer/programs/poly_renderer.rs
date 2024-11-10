@@ -7,13 +7,13 @@ use super::Program;
 struct VertexShaderInput {
     pos: (i16, i16),
     vertex: (i16, i16),
-    bb: (u16, u16),
+    bb: (u8, u8),
     zoom: f32,
     color: u8,
 }
 
 impl VertexShaderInput {
-    fn new(pos: (i16, i16), vertex: (i16, i16), bb: (u16, u16), zoom: f32, color: u8) -> Self {
+    fn new(pos: (i16, i16), vertex: (i16, i16), bb: (u8, u8), zoom: f32, color: u8) -> Self {
         VertexShaderInput {
             pos,
             vertex,
@@ -135,7 +135,7 @@ impl PolyRenderer {
             gl::VertexAttribPointer(
                 2,
                 2,
-                gl::UNSIGNED_SHORT,
+                gl::UNSIGNED_BYTE,
                 gl::FALSE,
                 mem::size_of::<VertexShaderInput>() as GLsizei,
                 memoffset::offset_of!(VertexShaderInput, bb) as *const _,

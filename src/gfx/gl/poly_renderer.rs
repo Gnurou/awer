@@ -106,7 +106,7 @@ impl gfx::PolygonFiller for DrawCommands {
         let command = &mut self.0[dst_page_id];
         command.push(DrawCommand::Poly(PolyDrawCommand::new(
             Polygon::new(
-                (bb.0 as u16, bb.1 as u16),
+                bb,
                 points
                     .iter()
                     .map(|p| Point::new(p.x as i16, p.y as i16))

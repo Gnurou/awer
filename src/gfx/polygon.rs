@@ -29,8 +29,8 @@ use std::slice::Iter;
 
 #[derive(Clone)]
 pub struct Polygon {
-    pub bbw: u16,
-    pub bbh: u16,
+    pub bbw: u8,
+    pub bbh: u8,
     pub points: Vec<Point<i16>>,
 }
 
@@ -41,7 +41,7 @@ impl Debug for Polygon {
 }
 
 impl Polygon {
-    pub fn new(bb: (u16, u16), points: Vec<Point<i16>>) -> Polygon {
+    pub fn new(bb: (u8, u8), points: Vec<Point<i16>>) -> Polygon {
         Polygon {
             bbw: bb.0,
             bbh: bb.1,
