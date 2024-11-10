@@ -92,7 +92,9 @@ impl MusicTimer {
             // Safe because we are keeping `timer_sys` alive for as long as `timer` is, and there
             // is no direct reference between the two - only a lifetime requirement.
             // Also the callback steals all the data it uses and has no external reference.
-            _timer: unsafe { std::mem::transmute(timer) },
+            _timer: unsafe {
+                std::mem::transmute::<sdl2::timer::Timer<'_, '_>, sdl2::timer::Timer<'_, '_>>(timer)
+            },
             delay,
             current_interval,
         };
