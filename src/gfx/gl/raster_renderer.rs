@@ -23,7 +23,6 @@ impl GlRasterRenderer {
     pub fn new() -> Result<GlRasterRenderer> {
         Ok(GlRasterRenderer {
             raster: RasterRenderer::new(),
-
             framebuffer_texture: IndexedTexture::new(SCREEN_RESOLUTION[0], SCREEN_RESOLUTION[1]),
         })
     }
