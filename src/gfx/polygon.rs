@@ -31,7 +31,7 @@ use std::slice::Iter;
 pub struct Polygon {
     pub bbw: u8,
     pub bbh: u8,
-    pub points: Vec<Point<i16>>,
+    pub points: Vec<Point<u8>>,
 }
 
 impl Debug for Polygon {
@@ -41,7 +41,7 @@ impl Debug for Polygon {
 }
 
 impl Polygon {
-    pub fn new(bb: (u8, u8), points: Vec<Point<i16>>) -> Polygon {
+    pub fn new(bb: (u8, u8), points: Vec<Point<u8>>) -> Polygon {
         Polygon {
             bbw: bb.0,
             bbh: bb.1,
@@ -50,11 +50,11 @@ impl Polygon {
     }
 
     #[allow(dead_code)]
-    pub fn line_iter<T>(&self) -> PolygonIter<i16, T>
+    pub fn line_iter<T>(&self) -> PolygonIter<u8, T>
     where
         T: Copy + Default + PartialEq + PartialOrd,
         T: Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T> + Div<T, Output = T>,
-        Point<T>: From<Point<i16>>,
+        Point<T>: From<Point<u8>>,
     {
         PolygonIter::<_, T>::new(self.points.iter())
     }

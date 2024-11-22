@@ -226,7 +226,7 @@ impl PolyRenderer {
         self.vertices.extend(poly.points.iter().map(|p| {
             VertexShaderInput::new(
                 (pos.0, pos.1),
-                (p.x + offset.0, p.y + offset.1),
+                (p.x as i16 + offset.0, p.y as i16 + offset.1),
                 (poly.bbw, poly.bbh),
                 zoom,
                 color,

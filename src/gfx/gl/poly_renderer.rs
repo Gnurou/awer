@@ -105,13 +105,7 @@ impl gfx::PolygonFiller for DrawCommands {
     ) {
         let command = &mut self.0[dst_page_id];
         command.push(DrawCommand::Poly(PolyDrawCommand::new(
-            Polygon::new(
-                bb,
-                points
-                    .iter()
-                    .map(|p| Point::new(p.x as i16, p.y as i16))
-                    .collect(),
-            ),
+            Polygon::new(bb, points.to_vec()),
             pos,
             offset,
             zoom,

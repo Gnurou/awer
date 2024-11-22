@@ -319,8 +319,8 @@ impl<T: fmt::Display> Debug for Point<T> {
     }
 }
 
-impl From<Point<i16>> for Point<f64> {
-    fn from(p: Point<i16>) -> Self {
+impl From<Point<u8>> for Point<f64> {
+    fn from(p: Point<u8>) -> Self {
         Point {
             x: p.x.into(),
             y: p.y.into(),
