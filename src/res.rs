@@ -66,26 +66,26 @@ impl<'a> UnpackContext<'a> {
     // Create a new unpacking context. The data buffer is large enough to
     // contain the whole uncompressed data, but is only filled with compressed
     // data up to packed_len. The data will then be uncompressed in-place.
-    fn new(data: &'a mut [u8], packed_len: usize) -> UnpackContext {
+    fn new(data: &'a mut [u8], packed_len: usize) -> io::Result<UnpackContext> {
         assert!(data.len() >= packed_len);
         let mut i_buf = packed_len;
         assert_eq!(i_buf % 4, 0);
         i_buf -= 4;
-        let data_size = (&data[i_buf..i_buf + 4]).read_u32::<BE>().unwrap() as usize;
+        let data_size = (&data[i_buf..i_buf + 4]).read_u32::<BE>()? as usize;
         assert_eq!(data_size, data.len());
         i_buf -= 4;
-        let crc = (&data[i_buf..i_buf + 4]).read_u32::<BE>().unwrap();
+        let crc = (&data[i_buf..i_buf + 4]).read_u32::<BE>()?;
         i_buf -= 4;
-        let chk = (&data[i_buf..i_buf + 4]).read_u32::<BE>().unwrap();
+        let chk = (&data[i_buf..i_buf + 4]).read_u32::<BE>()?;
         let crc = crc ^ chk;
 
-        UnpackContext {
+        Ok(UnpackContext {
             data,
             crc,
             chk,
             i_buf,
             o_buf: data_size,
-        }
+        })
     }
 
     fn rcr(&mut self) -> bool {
@@ -104,9 +104,7 @@ impl<'a> UnpackContext<'a> {
         // We need to read new data from the packed buffer
         assert_ne!(self.i_buf, 0);
         self.i_buf -= 4;
-        self.chk = (&self.data[self.i_buf..self.i_buf + 4])
-            .read_u32::<BE>()
-            .unwrap();
+        self.chk = u32::from_be_bytes(self.data[self.i_buf..self.i_buf + 4].try_into().unwrap());
         self.crc ^= self.chk;
         // Get the first bit of our 32-bit word, and insert a 1 in the MSB to
         // mark the end of the word (self.chk will be == 0 after reading that
@@ -222,7 +220,7 @@ impl MemEntry {
         file.read_exact(&mut data[..self.packed_size])?;
 
         if self.size > self.packed_size {
-            let unpack_ctx = UnpackContext::new(&mut data[..], self.packed_size);
+            let unpack_ctx = UnpackContext::new(&mut data[..], self.packed_size)?;
             unpack_ctx.unpack()?;
         }
 
@@ -423,38 +421,32 @@ impl ResourceManager {
                 }
                 ResType::Bytecode => {
                     let mut file =
-                        File::create(format!("{}/code_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
-                            .unwrap();
+                        File::create(format!("{}/code_{:02x}.dat", DUMPED_RESOURCES_DIR, i))?;
                     file.write_all(&data)?;
                 }
                 ResType::Cinematic => {
                     let mut file =
-                        File::create(format!("{}/cine_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
-                            .unwrap();
+                        File::create(format!("{}/cine_{:02x}.dat", DUMPED_RESOURCES_DIR, i))?;
                     file.write_all(&data)?;
                 }
                 ResType::Sound => {
                     let mut file =
-                        File::create(format!("{}/sound_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
-                            .unwrap();
+                        File::create(format!("{}/sound_{:02x}.dat", DUMPED_RESOURCES_DIR, i))?;
                     file.write_all(&data)?;
                 }
                 ResType::Music => {
                     let mut file =
-                        File::create(format!("{}/music_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
-                            .unwrap();
+                        File::create(format!("{}/music_{:02x}.dat", DUMPED_RESOURCES_DIR, i))?;
                     file.write_all(&data)?;
                 }
                 ResType::Palette => {
                     let mut file =
-                        File::create(format!("{}/palette_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
-                            .unwrap();
+                        File::create(format!("{}/palette_{:02x}.dat", DUMPED_RESOURCES_DIR, i))?;
                     file.write_all(&data)?;
                 }
                 ResType::Poly => {
                     let mut file =
-                        File::create(format!("{}/poly_{:02x}.dat", DUMPED_RESOURCES_DIR, i))
-                            .unwrap();
+                        File::create(format!("{}/poly_{:02x}.dat", DUMPED_RESOURCES_DIR, i))?;
                     file.write_all(&data)?;
                 }
             };
