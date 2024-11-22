@@ -9,7 +9,7 @@ pub use programs::PolyRenderingMode;
 use crate::gfx::gl::IndexedTexture;
 use crate::gfx::polygon::Polygon;
 use crate::gfx::raster::IndexedImage;
-use crate::gfx::Point;
+use crate::gfx::PolygonData;
 use crate::gfx::SimplePolygonRenderer;
 use crate::gfx::{self};
 use crate::scenes::InitForScene;
@@ -95,9 +95,8 @@ struct DrawCommands([Vec<DrawCommand>; 4]);
 impl gfx::PolygonFiller for DrawCommands {
     fn fill_polygon(
         &mut self,
-        points: &[Point<u8>],
+        poly: &PolygonData,
         color_idx: u8,
-        bb: (u8, u8),
         dst_page_id: usize,
         pos: (i16, i16),
         offset: (i16, i16),
@@ -105,7 +104,7 @@ impl gfx::PolygonFiller for DrawCommands {
     ) {
         let command = &mut self.0[dst_page_id];
         command.push(DrawCommand::Poly(PolyDrawCommand::new(
-            Polygon::new(bb, points.to_vec()),
+            Polygon::new((poly.bb[0], poly.bb[1]), poly.points.to_vec()),
             pos,
             offset,
             zoom,

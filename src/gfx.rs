@@ -43,7 +43,7 @@ pub enum PolySegment {
 /// Data describing a polygon in the graphics segment.
 #[repr(C, packed)]
 #[derive(FromBytes, KnownLayout, Immutable)]
-struct PolygonData {
+pub struct PolygonData {
     /// Bounding box of the polygon, including all of its points. This allows us to quickly compute
     /// the center of the polygon.
     bb: [u8; 2],
@@ -53,17 +53,27 @@ struct PolygonData {
     points: [Point<u8>],
 }
 
+impl Debug for PolygonData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let points_slice = &self.points;
+        f.debug_struct("PolygonData")
+            .field("bb", &self.bb)
+            .field("nb_points", &self.nb_points)
+            .field("points", &points_slice)
+            .finish()
+    }
+}
+
 /// Trait for filling a single polygon defined by a slice of points.
 pub trait PolygonFiller {
-    /// Fill the polygon defined by `points` with color index `color_idx` on page `dst_page_id`.
+    /// Fill the polygon defined by `polu` with color index `color_idx` on page `dst_page_id`.
     /// `pos` is the coordinates of the center of the polygon on the page. `zoom` is a zoom factor
     /// by which every point of the polygon must be multiplied by, and then divided by 64.
     #[allow(clippy::too_many_arguments)]
     fn fill_polygon(
         &mut self,
-        points: &[Point<u8>],
+        poly: &PolygonData,
         color_idx: u8,
-        bb: (u8, u8),
         dst_page_id: usize,
         pos: (i16, i16),
         offset: (i16, i16),
@@ -129,8 +139,7 @@ impl SimplePolygonRenderer {
                     return;
                 };
 
-                let bb = (poly.bb[0], poly.bb[1]);
-                filler.fill_polygon(&poly.points, color, bb, render_buffer, pos, offset, zoom);
+                filler.fill_polygon(poly, color, render_buffer, pos, offset, zoom);
             }
             0x02 => {
                 Self::draw_polygon_hierarchy(

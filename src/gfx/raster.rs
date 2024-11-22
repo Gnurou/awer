@@ -12,6 +12,7 @@ use crate::gfx::SCREEN_RESOLUTION;
 use crate::scenes::InitForScene;
 use crate::sys::Snapshotable;
 
+use super::PolygonData;
 use super::PolygonFiller;
 use super::SimplePolygonRenderer;
 
@@ -232,24 +233,24 @@ impl PolygonFiller for RasterRendererBuffers {
     #[tracing::instrument(level = "trace", skip(self))]
     fn fill_polygon(
         &mut self,
-        points: &[Point<u8>],
+        poly: &PolygonData,
         color: u8,
-        bb: (u8, u8),
         dst_page_id: usize,
         pos: (i16, i16),
         offset: (i16, i16),
         zoom: u16,
     ) {
         let mut dst = self.0[dst_page_id].borrow_mut();
+        let bb = (poly.bb[0], poly.bb[1]);
 
         match color {
             // Direct indexed color - fill the buffer with that color.
-            0x0..=0xf => {
-                dst.fill_polygon(pos, offset, zoom, bb, points, |line, _off| line.fill(color))
-            }
+            0x0..=0xf => dst.fill_polygon(pos, offset, zoom, bb, &poly.points, |line, _off| {
+                line.fill(color)
+            }),
             // 0x10 special color - set the MSB of the current color to create
             // transparency effect.
-            0x10 => dst.fill_polygon(pos, offset, zoom, bb, points, |line, _off| {
+            0x10 => dst.fill_polygon(pos, offset, zoom, bb, &poly.points, |line, _off| {
                 for pixel in line {
                     *pixel |= 0x8
                 }
@@ -260,7 +261,7 @@ impl PolygonFiller for RasterRendererBuffers {
                 // but this will actually panic as we try to double-borrow the page.
                 if dst_page_id != 0 {
                     let src = self.0[0].borrow();
-                    dst.fill_polygon(pos, offset, zoom, bb, points, |line, off| {
+                    dst.fill_polygon(pos, offset, zoom, bb, &poly.points, |line, off| {
                         line.copy_from_slice(&src.0[off..off + line.len()]);
                     });
                 }
