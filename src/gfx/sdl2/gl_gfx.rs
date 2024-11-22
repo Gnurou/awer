@@ -208,6 +208,9 @@ impl gfx::Gfx for Sdl2GlGfx {}
 impl Sdl2Gfx for Sdl2GlGfx {
     #[tracing::instrument(skip(self))]
     fn show_game_framebuffer(&mut self, dst: &Rect) {
+        // We do a full-screen rendering of the active buffer, but we may end up with rendering
+        // artefacts if the buffer's ratio does not match the current screen resolution. Clearing
+        // the screen prevents that from happening.
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
