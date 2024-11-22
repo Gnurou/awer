@@ -21,6 +21,7 @@ use tracing::debug;
 use tracing::error;
 use zerocopy::FromBytes;
 use zerocopy::Immutable;
+use zerocopy::KnownLayout;
 
 use crate::res::ResourceManager;
 use crate::scenes::InitForScene;
@@ -37,6 +38,19 @@ pub enum PolySegment {
     Cinematic,
     /// Used for interactive scenes.
     Video,
+}
+
+/// Data describing a polygon in the graphics segment.
+#[repr(C, packed)]
+#[derive(FromBytes, KnownLayout, Immutable)]
+struct PolygonData {
+    /// Bounding box of the polygon, including all of its points. This allows us to quickly compute
+    /// the center of the polygon.
+    bb: [u8; 2],
+    /// Number of [`Point`]s in the `point` member below.
+    nb_points: u8,
+    /// Array of the points making this polygon.
+    points: [Point<u8>],
 }
 
 /// Trait for filling a single polygon defined by a slice of points.
@@ -94,19 +108,10 @@ impl SimplePolygonRenderer {
         color: Option<u8>,
         filler: &mut F,
     ) {
-        let mut cursor = Cursor::new(segment);
-        match cursor.seek(SeekFrom::Start(start_offset as u64)) {
-            Ok(_) => (),
-            Err(e) => {
-                error!("error while seeking to draw polygon: {}", e);
-                return;
-            }
-        }
-
-        let op = cursor.read_u8().unwrap();
+        let op = segment[start_offset as usize];
         match op {
             op if op & 0xc0 == 0xc0 => {
-                // TODO match other properties of the color (e.g. blend) from op
+                // TODO: match other properties of the color (e.g. blend) from op
                 let color = match color {
                     // If we already have a color set, use it.
                     Some(color) => color,
@@ -114,14 +119,18 @@ impl SimplePolygonRenderer {
                     None => op & 0x3f,
                 };
 
-                let bb = (cursor.read_u8().unwrap(), cursor.read_u8().unwrap());
-                let nb_points = cursor.read_u8().unwrap() as usize;
-                let points_start = cursor.position() as usize;
-                let points =
-                // Guaranteed to succeed since `Point<u8>` has an aligment of `1`.
-                <[Point::<u8>]>::ref_from_bytes(&segment[points_start..points_start + (nb_points * std::mem::size_of::<Point<u8>>())])
-                    .unwrap();
-                filler.fill_polygon(points, color, bb, render_buffer, pos, offset, zoom);
+                let poly_start = start_offset as usize + 1;
+                let nb_points = segment[poly_start + 2] as usize;
+                let Ok(poly) = PolygonData::ref_from_bytes(
+                    &segment
+                        [poly_start..poly_start + 3 + nb_points * std::mem::size_of::<Point<u8>>()],
+                ) else {
+                    tracing::error!("poly data out of range of segment");
+                    return;
+                };
+
+                let bb = (poly.bb[0], poly.bb[1]);
+                filler.fill_polygon(&poly.points, color, bb, render_buffer, pos, offset, zoom);
             }
             0x02 => {
                 Self::draw_polygon_hierarchy(
@@ -131,7 +140,7 @@ impl SimplePolygonRenderer {
                     offset,
                     zoom,
                     color,
-                    cursor,
+                    start_offset + 1,
                     filler,
                 );
             }
@@ -140,7 +149,7 @@ impl SimplePolygonRenderer {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(level = "trace", skip(segment, cursor, filler))]
+    #[tracing::instrument(level = "trace", skip(segment, start_offset, filler))]
     fn draw_polygon_hierarchy<F: PolygonFiller>(
         segment: &[u8],
         render_buffer: usize,
@@ -148,9 +157,18 @@ impl SimplePolygonRenderer {
         offset: (i16, i16),
         zoom: u16,
         color: Option<u8>,
-        mut cursor: Cursor<&[u8]>,
+        start_offset: u16,
         filler: &mut F,
     ) {
+        let mut cursor = Cursor::new(segment);
+        match cursor.seek(SeekFrom::Start(start_offset as u64)) {
+            Ok(_) => (),
+            Err(e) => {
+                error!("error while seeking to draw polygon: {}", e);
+                return;
+            }
+        }
+
         let offset = (
             offset.0 - cursor.read_u8().unwrap() as i16,
             offset.1 - cursor.read_u8().unwrap() as i16,
@@ -189,7 +207,7 @@ impl SimplePolygonRenderer {
 
     #[tracing::instrument(level = "trace", skip(self, segment, filler))]
     #[allow(clippy::too_many_arguments)]
-    fn draw_polygons<F: PolygonFiller>(
+    pub fn draw_polygons<F: PolygonFiller>(
         &mut self,
         segment: PolySegment,
         start_offset: u16,
