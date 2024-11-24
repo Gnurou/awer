@@ -263,7 +263,7 @@ fn resetthread(state: &mut VmState, first_thread: u8, last_thread: u8, op: Reset
         let pc = match thread.state {
             // Do not activate already active threads or the PC will be invalid.
             ThreadState::Active(pc) if op != ResetThreadOp::Activate => pc,
-            // TODO BUG: if a thread is active but has not run yet, and we pause
+            // BUG: if a thread is active but has not run yet, and we pause
             // it here, wouldn't the PC be the one pre-run?
             ThreadState::Paused(pc) => pc,
             _ => {
@@ -480,7 +480,7 @@ pub fn op_copyvideopage<G: gfx::Gfx + ?Sized>(
     _sys: &VmSys,
     gfx: &mut G,
 ) -> bool {
-    // TODO source buffer sometimes have bit 0x40 set. Why?
+    // TODO: source buffer sometimes have bit 0x40 set. Why?
     let src_page_id = cursor.read_u8().unwrap();
     let dst_page_id = cursor.read_u8().unwrap();
     // Bit 0x80 indicates that we are interested in vscroll, only if we are
@@ -550,7 +550,7 @@ fn blitframebuffer<G: gfx::Gfx + ?Sized>(state: &mut VmState, gfx: &mut G, page_
 
     gfx.blitframebuffer(state.front_buffer, &state.palette);
 
-    // TODO this doesn't seem to ever be used?
+    // TODO: this doesn't seem to ever be used?
     state.regs[VM_VARIABLE_SLICES_USED as usize] = 1;
 }
 
@@ -742,7 +742,7 @@ fn playmusic<A: audio::Mixer + audio::MusicPlayer + ?Sized>(
         }
         // Load new music module and start playback.
         (res_id, delay) => match resman
-            // TODO mmm we are probably preloading the music, right? In that case this should just
+            // TODO: mmm we are probably preloading the music, right? In that case this should just
             // retrieve it, or probably a Rc to it...
             .load_resource(res_id as usize)
             .ok()
@@ -808,7 +808,7 @@ fn loadresource<G: gfx::Gfx + ?Sized, A: audio::Mixer + ?Sized>(
     // to manage memory ourselves, we don't need to do that - just stopping
     // any activity is enough.
     if res_id == 0 {
-        // TODO just stop sound and music?
+        // TODO: just stop sound and music?
         warn!("op_loadresource(0) - not yet implemented!");
         return;
     }

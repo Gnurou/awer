@@ -261,7 +261,8 @@ pub struct ResourceManager {
 }
 
 impl ResourceManager {
-    // TODO change constructor to take a path to data, and return an error if the memlist cannot be built
+    // TODO: change constructor to take a path to data, and return an error if the memlist cannot
+    // be built
     pub fn new() -> io::Result<ResourceManager> {
         let mut ret = ResourceManager {
             resources: Vec::new(),

@@ -3,7 +3,7 @@ mod programs;
 use gl::types::GLint;
 use gl::types::GLuint;
 
-// TODO not elegant, but needed for now.
+// TODO: not elegant, but needed for now.
 pub use programs::PolyRenderingMode;
 
 use crate::gfx::gl::IndexedTexture;
@@ -258,7 +258,7 @@ impl GlPolyRenderer {
         self.set_render_target(&self.render_texture_framebuffer);
         self.run_command_list(self.framebuffer_index, self.rendering_mode);
 
-        // TODO move into proper method?
+        // TODO: move into proper method?
         unsafe {
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
         }

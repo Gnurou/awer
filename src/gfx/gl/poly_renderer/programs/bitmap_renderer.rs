@@ -49,7 +49,7 @@ impl BitmapRenderer {
 
     #[tracing::instrument(level = "trace", skip(self, image))]
     pub fn draw_bitmap(&self, image: &IndexedImage) {
-        // TODO super inefficient as we do this for every frame!
+        // TODO: super inefficient as we do this for every frame!
         // The texture should rather be in the command, and be refcounted?
         self.source_texture.borrow_mut().set_data(image, 0, 0);
 

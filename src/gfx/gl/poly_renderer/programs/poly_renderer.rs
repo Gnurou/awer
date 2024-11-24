@@ -73,7 +73,7 @@ impl Program for PolyRenderer {
             gl::Uniform1i(self.buffer0_uniform, 1);
             gl::ActiveTexture(gl::TEXTURE0 + 1);
             gl::BindTexture(gl::TEXTURE_2D, buffer0.as_tex_id());
-            // TODO when can we unbind the textures?
+            // TODO: when can we unbind the textures?
 
             let viewport_uniform = get_uniform_location(self.program, "viewport_size");
             gl::Uniform2f(viewport_uniform, dimensions.0 as f32, dimensions.1 as f32);

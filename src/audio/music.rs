@@ -71,7 +71,7 @@ enum NoteType {
     Stop,
     Set0xF4(i16),
     Play {
-        // TODO This should be a NonZeroU8?
+        // TODO: This should be a NonZeroU8?
         sample: u8,
         freq: NonZeroU16,
         effect: Option<SampleEffect>,

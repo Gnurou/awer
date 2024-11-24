@@ -59,7 +59,7 @@ impl Sdl2GlGfx {
         let sdl_video = sdl_context.video().map_err(|s| anyhow!(s))?;
 
         let gl_attr = sdl_video.gl_attr();
-        // TODO use GLES?
+        // TODO: use GLES?
         gl_attr.set_context_profile(GLProfile::Core);
         gl_attr.set_context_version(3, 3);
 

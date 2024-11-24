@@ -66,12 +66,12 @@ pub struct Thread {
     call_stack: Vec<u64>,
 }
 
-// TODO move into own module?
+// TODO: move into own module?
 // We should be able to replace this state with an earlier state (from the same
 // scene) and have the game catch up painlessly.
 #[derive(Clone)]
 pub struct VmState {
-    // TODO looks like registers should be initialized with random values
+    // TODO: looks like registers should be initialized with random values
     // to give a random seed?
     regs: [i16; VM_NUM_VARIABLES],
     threads: [Thread; VM_NUM_THREADS],
@@ -116,8 +116,8 @@ impl VmCode {
         Self { code }
     }
 
-    // TODO return result, no unwrap
-    // TODO we should update the pc when the cursor is destroyed!
+    // TODO: return result, no unwrap
+    // TODO: we should update the pc when the cursor is destroyed!
     // and grab a mutable reference to the thread so no one else
     // can modify it.
     // Need our own Cursor class built from a Thread for that?
@@ -338,7 +338,7 @@ impl Vm {
     pub fn update_input(&mut self, input: &InputState) {
         let mut mask = 0i16;
 
-        // TODO
+        // TODO:
         // self.state.regs[0xda] = last pressed character.
 
         self.set_reg(
@@ -448,7 +448,7 @@ impl Vm {
 
     fn set_regs_initial_values(regs: &mut [i16; VM_NUM_VARIABLES]) {
         // Random seed
-        // TODO make actually random...
+        // TODO: make actually random...
         regs[VM_VARIABLE_RANDOM_SEED as usize] = 0xbeefu16 as i16;
 
         // Seems to be necessary for scene 2.
@@ -456,7 +456,7 @@ impl Vm {
         regs[0xf2] = 0xfa0;
         regs[0xdc] = 0x21;
 
-        // TODO is this really needed?
+        // TODO: is this really needed?
         regs[0x54] = 0x81;
 
         // Necessary for scene 4 to start properly.
