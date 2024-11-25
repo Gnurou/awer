@@ -22,19 +22,6 @@ fn scale(p: i16, zoom: u16) -> i16 {
     ((p as i32 * zoom as i32) / 64) as i16
 }
 
-/// Compute the slope between `p1` and `p2`, i.e. the amount of sub-pixels one must move
-/// horizontally on each y step in order to draw a connected line between the points.
-fn slope_step(p1: &Point<i32>, p2: &Point<i32>) -> i32 {
-    let dy = p2.y - p1.y;
-    let dx = p2.x - p1.x;
-
-    if dy != 0 {
-        dx / dy
-    } else {
-        0
-    }
-}
-
 /// Iterator over all the lines of a trapezoid defined by its four points.
 ///
 /// The returned item is ((left_x, right_x), y).
@@ -46,14 +33,15 @@ fn trapezoid_line_iterator(
 ) -> impl Iterator<Item = ((i16, i16), i16)> {
     // Vertical range of the quad.
     let v_range = y_top as i16..y_bot as i16;
-    let slope1 = slope_step(
-        &Point::new(x_range_top.start, y_top),
-        &Point::new(x_range_bot.start, y_bot),
-    );
-    let slope2 = slope_step(
-        &Point::new(x_range_top.end, y_top),
-        &Point::new(x_range_bot.end, y_bot),
-    );
+    let dy = y_bot - y_top;
+    let (slope1, slope2) = if dy != 0 {
+        (
+            (x_range_bot.start - x_range_top.start) / dy,
+            (x_range_bot.end - x_range_top.end) / dy,
+        )
+    } else {
+        (0, 0)
+    };
 
     v_range.scan((x_range_top.start, x_range_top.end), move |(x1, x2), y| {
         // Center the leftmost pixel and scale back.
