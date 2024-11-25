@@ -227,7 +227,7 @@ impl PolyRenderer {
             VertexShaderInput::new(
                 (pos.0, pos.1),
                 (p.x as i16 + offset.0, p.y as i16 + offset.1),
-                (poly.bbw, poly.bbh),
+                (poly.bb[0], poly.bb[1]),
                 zoom,
                 color,
             )

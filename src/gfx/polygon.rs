@@ -13,40 +13,70 @@
 //! concave polygons: by parsing the list of polygons from both ends, we can
 //! generate intermediate points and quads with horizontal top and botton lines.
 //! These quads are guaranteed to be convex.
-use super::slope;
-use super::Point;
-
+use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::default::Default;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Result;
 use std::ops::Add;
+use std::ops::Deref;
 use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Sub;
 use std::slice::Iter;
 
-#[derive(Clone)]
+use zerocopy::FromBytes;
+use zerocopy::Immutable;
+use zerocopy::IntoBytes;
+use zerocopy::KnownLayout;
+use zerocopy::Unaligned;
+
+use super::slope;
+use super::Point;
+
+/// Data describing a polygon in the graphics segment.
+///
+/// This since is a dynamically-sized type, it is designed to be used as a direct reference to the
+/// segment, not as an owned version of the data.
+#[repr(C, packed)]
+#[derive(FromBytes, IntoBytes, KnownLayout, Immutable, Unaligned)]
 pub struct Polygon {
-    pub bbw: u8,
-    pub bbh: u8,
-    pub points: Vec<Point<u8>>,
+    /// Bounding box of the polygon, including all of its points. This allows us to quickly compute
+    /// the center of the polygon.
+    pub bb: [u8; 2],
+    /// Number of [`Point`]s in the `point` member below.
+    ///
+    /// This is normally never used and is only here because it is part of the graphics segment
+    /// layout.
+    _nb_points: u8,
+    /// Array of the points making this polygon.
+    pub points: [Point<u8>],
 }
 
 impl Debug for Polygon {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "({},{}) [{:?}]", self.bbw, self.bbh, self.points)
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let points_slice = &self.points;
+        f.debug_struct("Polygon")
+            .field("bb", &self.bb)
+            .field("points", &points_slice)
+            .finish()
+    }
+}
+
+impl ToOwned for Polygon {
+    type Owned = OwnedPolygon;
+
+    fn to_owned(&self) -> Self::Owned {
+        OwnedPolygon {
+            data: self.as_bytes().to_owned(),
+        }
     }
 }
 
 impl Polygon {
-    pub fn new(bb: (u8, u8), points: Vec<Point<u8>>) -> Polygon {
-        Polygon {
-            bbw: bb.0,
-            bbh: bb.1,
-            points,
-        }
+    pub fn bb(&self) -> (u8, u8) {
+        (self.bb[0], self.bb[1])
     }
 
     #[allow(dead_code)]
@@ -59,6 +89,34 @@ impl Polygon {
         PolygonIter::<_, T>::new(self.points.iter())
     }
 }
+
+/// Owned version of [`Polygon`]. Useful for renderers that need to put polygon data aside.
+#[derive(Clone)]
+pub struct OwnedPolygon {
+    data: Vec<u8>,
+}
+
+impl Borrow<Polygon> for OwnedPolygon {
+    fn borrow(&self) -> &Polygon {
+        // SAFETY: guaranteed to succeed because we have been constructed from a valid [`Polygon`].
+        Polygon::ref_from_bytes(&self.data).unwrap()
+    }
+}
+
+impl Deref for OwnedPolygon {
+    type Target = Polygon;
+
+    fn deref(&self) -> &Self::Target {
+        self.borrow()
+    }
+}
+
+impl Debug for OwnedPolygon {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        self.deref().fmt(f)
+    }
+}
+
 
 /// An iterator that returns all the horizontal lines from which we can infer the shape of the
 /// polygon, from top to bottom.
@@ -160,9 +218,17 @@ where
 mod test {
     use super::*;
 
+    impl OwnedPolygon {
+        fn new(bb: (u8, u8), points: Vec<Point<u8>>) -> OwnedPolygon {
+            let mut data = vec![bb.0, bb.1, 0];
+            data.extend(points.as_bytes());
+            OwnedPolygon { data }
+        }
+    }
+
     #[test]
     fn polygon_new() {
-        let poly = Polygon::new(
+        let poly = OwnedPolygon::new(
             (4, 7),
             vec![
                 Point::new(0, 0),
@@ -172,8 +238,8 @@ mod test {
             ],
         );
 
-        assert_eq!(poly.bbw, 4);
-        assert_eq!(poly.bbh, 7);
+        assert_eq!(poly.bb().0, 4);
+        assert_eq!(poly.bb().1, 7);
         assert_eq!(
             poly.points,
             vec![
@@ -187,7 +253,7 @@ mod test {
 
     #[test]
     fn iterator_point() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new(
+        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(2, 3),
@@ -204,7 +270,7 @@ mod test {
 
     #[test]
     fn iterator_hline() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new(
+        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(7, 3),
@@ -221,7 +287,7 @@ mod test {
 
     #[test]
     fn iterator_vline() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new(
+        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(3, 3),
@@ -244,7 +310,7 @@ mod test {
 
     #[test]
     fn iterator_triangle() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new(
+        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(1, 0),
@@ -267,7 +333,7 @@ mod test {
 
     #[test]
     fn iterator_square() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new(
+        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(2, 0),
@@ -290,7 +356,7 @@ mod test {
 
     #[test]
     fn iterator_hexagon() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new(
+        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(2, 0),
@@ -319,7 +385,7 @@ mod test {
 
     #[test]
     fn iterator_unbalanced_poly() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new(
+        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(2, 0),
@@ -346,7 +412,7 @@ mod test {
 
     #[test]
     fn iterator_unbalanced_poly_rev() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new(
+        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(2, 0),
@@ -373,7 +439,7 @@ mod test {
 
     #[test]
     fn iterator_unbalanced_poly_slope() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new(
+        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(2, 0),
@@ -398,7 +464,7 @@ mod test {
 
     #[test]
     fn iterator_unbalanced_poly_slope_rev() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = Polygon::new(
+        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(1, 0),

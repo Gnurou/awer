@@ -12,7 +12,7 @@ use crate::gfx::SCREEN_RESOLUTION;
 use crate::scenes::InitForScene;
 use crate::sys::Snapshotable;
 
-use super::PolygonData;
+use super::Polygon;
 use super::PolygonFiller;
 use super::SimplePolygonRenderer;
 
@@ -143,20 +143,21 @@ impl IndexedImage {
 
     fn fill_polygon<F>(
         &mut self,
+        poly: &Polygon,
         pos: (i16, i16),
         offset: (i16, i16),
         zoom: u16,
-        bb: (u8, u8),
-        points: &[Point<u8>],
         draw_func: F,
     ) where
         F: Fn(&mut [u8], usize),
     {
-        assert!(points.len() >= 4);
-        assert!(points.len() % 2 == 0);
+        assert!(poly.points.len() >= 4);
+        assert!(poly.points.len() % 2 == 0);
+
+        let bb = poly.bb();
 
         // Optimization for single-pixel polygons
-        if bb.0 == 0 && bb.1 == 0 {
+        if bb == (0, 0) {
             if let Ok(offset) = IndexedImage::offset(pos.0, pos.1) {
                 draw_func(&mut self.0[offset..offset + 1], offset);
             }
@@ -171,7 +172,8 @@ impl IndexedImage {
         // The first and last points are always at the top. We will fill
         // the polygon line by line starting from them, and stop when the front
         // and back join at the bottom of the polygon.
-        let mut points = points
+        let mut points = poly
+            .points
             .iter()
             // Add the x and y offsets.
             .map(|p| {
@@ -233,7 +235,7 @@ impl PolygonFiller for RasterRendererBuffers {
     #[tracing::instrument(level = "trace", skip(self))]
     fn fill_polygon(
         &mut self,
-        poly: &PolygonData,
+        poly: &Polygon,
         color: u8,
         dst_page_id: usize,
         pos: (i16, i16),
@@ -241,16 +243,13 @@ impl PolygonFiller for RasterRendererBuffers {
         zoom: u16,
     ) {
         let mut dst = self.0[dst_page_id].borrow_mut();
-        let bb = (poly.bb[0], poly.bb[1]);
 
         match color {
             // Direct indexed color - fill the buffer with that color.
-            0x0..=0xf => dst.fill_polygon(pos, offset, zoom, bb, &poly.points, |line, _off| {
-                line.fill(color)
-            }),
+            0x0..=0xf => dst.fill_polygon(poly, pos, offset, zoom, |line, _off| line.fill(color)),
             // 0x10 special color - set the MSB of the current color to create
             // transparency effect.
-            0x10 => dst.fill_polygon(pos, offset, zoom, bb, &poly.points, |line, _off| {
+            0x10 => dst.fill_polygon(poly, pos, offset, zoom, |line, _off| {
                 for pixel in line {
                     *pixel |= 0x8
                 }
@@ -261,7 +260,7 @@ impl PolygonFiller for RasterRendererBuffers {
                 // but this will actually panic as we try to double-borrow the page.
                 if dst_page_id != 0 {
                     let src = self.0[0].borrow();
-                    dst.fill_polygon(pos, offset, zoom, bb, &poly.points, |line, off| {
+                    dst.fill_polygon(poly, pos, offset, zoom, |line, off| {
                         line.copy_from_slice(&src.0[off..off + line.len()]);
                     });
                 }

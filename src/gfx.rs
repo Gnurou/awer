@@ -21,8 +21,10 @@ use tracing::debug;
 use tracing::error;
 use zerocopy::FromBytes;
 use zerocopy::Immutable;
-use zerocopy::KnownLayout;
+use zerocopy::IntoBytes;
+use zerocopy::Unaligned;
 
+use crate::gfx::polygon::Polygon;
 use crate::res::ResourceManager;
 use crate::scenes::InitForScene;
 use crate::scenes::Scene;
@@ -40,30 +42,6 @@ pub enum PolySegment {
     Video,
 }
 
-/// Data describing a polygon in the graphics segment.
-#[repr(C, packed)]
-#[derive(FromBytes, KnownLayout, Immutable)]
-pub struct PolygonData {
-    /// Bounding box of the polygon, including all of its points. This allows us to quickly compute
-    /// the center of the polygon.
-    bb: [u8; 2],
-    /// Number of [`Point`]s in the `point` member below.
-    nb_points: u8,
-    /// Array of the points making this polygon.
-    points: [Point<u8>],
-}
-
-impl Debug for PolygonData {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let points_slice = &self.points;
-        f.debug_struct("PolygonData")
-            .field("bb", &self.bb)
-            .field("nb_points", &self.nb_points)
-            .field("points", &points_slice)
-            .finish()
-    }
-}
-
 /// Trait for filling a single polygon defined by a slice of points.
 pub trait PolygonFiller {
     /// Fill the polygon defined by `polu` with color index `color_idx` on page `dst_page_id`.
@@ -72,7 +50,7 @@ pub trait PolygonFiller {
     #[allow(clippy::too_many_arguments)]
     fn fill_polygon(
         &mut self,
-        poly: &PolygonData,
+        poly: &Polygon,
         color_idx: u8,
         dst_page_id: usize,
         pos: (i16, i16),
@@ -131,7 +109,7 @@ impl SimplePolygonRenderer {
 
                 let poly_start = start_offset as usize + 1;
                 let nb_points = segment[poly_start + 2] as usize;
-                let Ok(poly) = PolygonData::ref_from_bytes(
+                let Ok(poly) = Polygon::ref_from_bytes(
                     &segment
                         [poly_start..poly_start + 3 + nb_points * std::mem::size_of::<Point<u8>>()],
                 ) else {
@@ -334,7 +312,7 @@ impl<G: Gfx + ?Sized, C: DerefMut<Target = G>> Gfx for C {}
 
 /// A point as described in the game's resources for polygons.
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq, Immutable, FromBytes)]
+#[derive(Clone, Copy, PartialEq, Eq, Immutable, FromBytes, IntoBytes, Unaligned)]
 pub struct Point<T> {
     pub x: T,
     pub y: T,

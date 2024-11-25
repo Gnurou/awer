@@ -7,9 +7,9 @@ use gl::types::GLuint;
 pub use programs::PolyRenderingMode;
 
 use crate::gfx::gl::IndexedTexture;
+use crate::gfx::polygon::OwnedPolygon;
 use crate::gfx::polygon::Polygon;
 use crate::gfx::raster::IndexedImage;
-use crate::gfx::PolygonData;
 use crate::gfx::SimplePolygonRenderer;
 use crate::gfx::{self};
 use crate::scenes::InitForScene;
@@ -36,7 +36,7 @@ impl FillScreenCommand {
 /// `y`) and with color `color`.
 #[derive(Clone)]
 struct PolyDrawCommand {
-    poly: Polygon,
+    poly: OwnedPolygon,
     pos: (i16, i16),
     offset: (i16, i16),
     zoom: u16,
@@ -44,7 +44,13 @@ struct PolyDrawCommand {
 }
 
 impl PolyDrawCommand {
-    pub fn new(poly: Polygon, pos: (i16, i16), offset: (i16, i16), zoom: u16, color: u8) -> Self {
+    pub fn new(
+        poly: OwnedPolygon,
+        pos: (i16, i16),
+        offset: (i16, i16),
+        zoom: u16,
+        color: u8,
+    ) -> Self {
         Self {
             poly,
             pos,
@@ -95,7 +101,7 @@ struct DrawCommands([Vec<DrawCommand>; 4]);
 impl gfx::PolygonFiller for DrawCommands {
     fn fill_polygon(
         &mut self,
-        poly: &PolygonData,
+        poly: &Polygon,
         color_idx: u8,
         dst_page_id: usize,
         pos: (i16, i16),
@@ -104,7 +110,7 @@ impl gfx::PolygonFiller for DrawCommands {
     ) {
         let command = &mut self.0[dst_page_id];
         command.push(DrawCommand::Poly(PolyDrawCommand::new(
-            Polygon::new((poly.bb[0], poly.bb[1]), poly.points.to_vec()),
+            poly.to_owned(),
             pos,
             offset,
             zoom,
