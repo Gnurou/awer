@@ -160,6 +160,7 @@ impl IndexedImage {
 
         // Offset x and y by the polygon center.
         let bbox_offset = (scale(bb.0 as i16, zoom) / 2, scale(bb.1 as i16, zoom) / 2);
+        let offset = (scale(offset.0, zoom), scale(offset.1, zoom));
         let x = pos.0 - bbox_offset.0;
         let y = pos.1 - bbox_offset.1;
 
@@ -172,8 +173,8 @@ impl IndexedImage {
             // Add the x and y offsets.
             .map(|p| {
                 Point::new(
-                    scale(p.x as i16, zoom) + scale(offset.0, zoom) + x,
-                    scale(p.y as i16, zoom) + scale(offset.1, zoom) + y,
+                    scale(p.x as i16, zoom) + offset.0 + x,
+                    scale(p.y as i16, zoom) + offset.1 + y,
                 )
             })
             // Turn the point into i32 and add 16 bits of fixed decimals to x to
