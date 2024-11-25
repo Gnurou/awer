@@ -39,17 +39,23 @@ fn slope_step(p1: &Point<i32>, p2: &Point<i32>) -> i32 {
 ///
 /// The returned item is ((left_x, right_x), y).
 fn trapezoid_line_iterator(
-    p1: Point<i32>,
-    p2: Point<i32>,
-    next_p1: Point<i32>,
-    next_p2: Point<i32>,
+    x_range_top: std::ops::Range<i32>,
+    y_top: i32,
+    x_range_bot: std::ops::Range<i32>,
+    y_bot: i32,
 ) -> impl Iterator<Item = ((i16, i16), i16)> {
     // Vertical range of the quad.
-    let v_range = max(p1.y, p2.y) as i16..min(next_p1.y, next_p2.y) as i16;
-    let slope1 = slope_step(&p1, &next_p1);
-    let slope2 = slope_step(&p2, &next_p2);
+    let v_range = y_top as i16..y_bot as i16;
+    let slope1 = slope_step(
+        &Point::new(x_range_top.start, y_top),
+        &Point::new(x_range_bot.start, y_bot),
+    );
+    let slope2 = slope_step(
+        &Point::new(x_range_top.end, y_top),
+        &Point::new(x_range_bot.end, y_bot),
+    );
 
-    v_range.scan((p1.x, p2.x), move |(x1, x2), y| {
+    v_range.scan((x_range_top.start, x_range_top.end), move |(x1, x2), y| {
         // Center the leftmost pixel and scale back.
         let start_x = ((min(*x1, *x2) + 0x8000) >> 16) as i16;
         // Include the rightmost pixel in the line, center it, and scale back.
@@ -177,11 +183,6 @@ impl IndexedImage {
             .iter()
             // Add the x and y offsets.
             .map(|p| {
-                // It is tempting to simplify this into
-                // "scale(p.x + offset.0, zoom) + x" but this results in some
-                // objects appearing larger than they should. The game does the
-                // scaling separately on these two parameters, so we need to do
-                // the same in order to obtain the same rendering.
                 Point::new(
                     scale(p.x as i16, zoom) + scale(offset.0, zoom) + x,
                     scale(p.y as i16, zoom) + scale(offset.1, zoom) + y,
@@ -191,31 +192,36 @@ impl IndexedImage {
             // add some precision when computing the slope.
             .map(|p| Point::<i32>::new((p.x as i32) << 16, p.y as i32));
         // We have at least 4 points in the polygon, so these unwraps() are safe.
-        let mut p1 = points.next().unwrap();
-        let mut p2 = points.next_back().unwrap();
-        let mut next_p1 = points.next().unwrap();
-        let mut next_p2 = points.next_back().unwrap();
+        let mut top_right = points.next().unwrap();
+        let mut top_left = points.next_back().unwrap();
+        let mut bot_right = points.next().unwrap();
+        let mut bot_left = points.next_back().unwrap();
+
+        assert_eq!(top_right.y, top_left.y);
+        assert_eq!(bot_right.y, bot_left.y);
 
         // Loop over all the lines of the polygon.
         loop {
-            for ((x_start, x_end), y) in trapezoid_line_iterator(p1, p2, next_p1, next_p2) {
+            for ((x_start, x_end), y) in trapezoid_line_iterator(
+                top_left.x..top_right.x,
+                top_right.y,
+                bot_left.x..bot_right.x,
+                bot_right.y,
+            ) {
                 self.draw_hline(y, x_start, x_end, &draw_func);
             }
 
             // On to the next quad.
-            if next_p1.y < next_p2.y {
-                p1 = next_p1;
-                next_p1 = match points.next() {
-                    Some(next) => next,
-                    None => break,
-                }
-            } else {
-                p2 = next_p2;
-                next_p2 = match points.next_back() {
-                    Some(next) => next,
-                    None => break,
-                }
-            }
+            top_right = bot_right;
+            bot_right = match points.next() {
+                Some(next) => next,
+                None => break,
+            };
+            top_left = bot_left;
+            bot_left = match points.next_back() {
+                Some(next) => next,
+                None => break,
+            };
         }
     }
 
