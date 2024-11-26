@@ -1,11 +1,14 @@
 use std::convert::TryInto;
+use std::io::Cursor;
+
+use byteorder::ReadBytesExt;
+use byteorder::BE;
+use tracing::error;
+use tracing::warn;
 
 use super::*;
 use crate::gfx::PolySegment;
 use crate::res;
-
-use tracing::error;
-use tracing::warn;
 
 pub fn op_seti(_op: u8, cursor: &mut Cursor<&[u8]>, state: &mut VmState) -> bool {
     let var_id = cursor.read_u8().unwrap();

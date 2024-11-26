@@ -26,7 +26,6 @@ use crate::strings::GameStrings;
 use crate::sys::Snapshotable;
 
 use byteorder::ReadBytesExt;
-use byteorder::BE;
 
 const VM_NUM_THREADS: usize = 64;
 const VM_NUM_VARIABLES: usize = 256;
