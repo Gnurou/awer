@@ -30,7 +30,7 @@ fn trapezoid_line_iterator(
     y_top: i16,
     x_range_bot: std::ops::Range<i16>,
     y_bot: i16,
-) -> impl Iterator<Item = ((i16, i16), i16)> {
+) -> impl Iterator<Item = (std::ops::Range<i16>, i16)> {
     // Vertical range of the quad.
     let v_range = y_top..y_bot;
     let dy = (y_bot - y_top) as i32;
@@ -54,7 +54,7 @@ fn trapezoid_line_iterator(
         let end_x = ((max(*x1, *x2) + 0x18000) >> 16) as i16;
         *x1 += slope1;
         *x2 += slope2;
-        Some(((start_x, end_x), y))
+        Some((start_x..end_x, y))
     })
 }
 
@@ -119,9 +119,8 @@ impl IndexedImage {
         }
     }
 
-    /// Draw a horizontal line at ordinate y, between x1 (included) and x2 (excluded)
-    /// If x1 >= x2, nothing is drawn.
-    fn draw_hline<F>(&mut self, y: i16, x1: i16, x2: i16, draw_func: F)
+    /// Draw a horizontal line at ordinate `y`, between `x_range`.
+    fn draw_hline<F>(&mut self, x_range: std::ops::Range<i16>, y: i16, draw_func: F)
     where
         F: Fn(&mut [u8], usize),
     {
@@ -132,8 +131,8 @@ impl IndexedImage {
         };
 
         // Limit x_start and x_stop to [0..SCREEN_RESOLUTION[0]].
-        let x_start = min(max(x1, 0) as usize, SCREEN_RESOLUTION[0]);
-        let x_stop = min(max(x2, 0) as usize, SCREEN_RESOLUTION[0]);
+        let x_start = (x_range.start.clamp(0, SCREEN_RESOLUTION[0] as i16)) as usize;
+        let x_stop = (x_range.end.clamp(0, SCREEN_RESOLUTION[0] as i16)) as usize;
 
         let slice = &mut self.0[line_offset + x_start..line_offset + x_stop];
         draw_func(slice, line_offset + x_start);
@@ -192,13 +191,13 @@ impl IndexedImage {
 
         // Loop over all the lines of the polygon.
         loop {
-            for ((x_start, x_end), y) in trapezoid_line_iterator(
+            for (x_range, y) in trapezoid_line_iterator(
                 top_left.x..top_right.x,
                 top_right.y,
                 bot_left.x..bot_right.x,
                 bot_right.y,
             ) {
-                self.draw_hline(y, x_start, x_end, &draw_func);
+                self.draw_hline(x_range, y, &draw_func);
             }
 
             // On to the next quad.
@@ -372,7 +371,7 @@ impl IndexedRenderer for RasterRenderer {
 
         let mut dst = self.buffers.0[dst_page_id].borrow_mut();
         for (i, char_line) in char_bitmap.iter().map(|b| b.reverse_bits()).enumerate() {
-            dst.draw_hline(pos.1 + i as i16, pos.0, pos.0 + 8, |slice, off| {
+            dst.draw_hline(pos.0..(pos.0 + 8), pos.1 + i as i16, |slice, off| {
                 for (i, pixel) in slice.iter_mut().enumerate() {
                     if (char_line >> ((off + i) & 0x7) & 0x1) == 1 {
                         *pixel = color
