@@ -1,5 +1,3 @@
-extern crate byteorder;
-
 use std::fmt;
 use std::fs::File;
 use std::io;
@@ -7,10 +5,11 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 
-use byteorder::ReadBytesExt;
-use byteorder::BE;
 use enumn::N;
 use tracing::debug;
+use zerocopy::big_endian::U16;
+use zerocopy::big_endian::U32;
+use zerocopy::FromBytes;
 
 use crate::audio::MusicModule;
 use crate::audio::SoundSample;
@@ -48,6 +47,14 @@ impl fmt::Display for ResType {
     }
 }
 
+#[derive(FromBytes)]
+#[repr(C, packed)]
+struct UnpackFooter {
+    chk: U32,
+    crc: U32,
+    data_size: U32,
+}
+
 struct UnpackContext<'a> {
     // Data array, of the size of the unpacked data, filled
     // with the packed data up to i_buf
@@ -68,22 +75,18 @@ impl<'a> UnpackContext<'a> {
     // data up to packed_len. The data will then be uncompressed in-place.
     fn new(data: &'a mut [u8], packed_len: usize) -> io::Result<UnpackContext> {
         assert!(data.len() >= packed_len);
-        let mut i_buf = packed_len;
-        assert_eq!(i_buf % 4, 0);
-        i_buf -= 4;
-        let data_size = (&data[i_buf..i_buf + 4]).read_u32::<BE>()? as usize;
+        let footer_start = packed_len - std::mem::size_of::<UnpackFooter>();
+        assert_eq!(footer_start % 4, 0);
+        let footer = UnpackFooter::read_from_bytes(&data[footer_start..packed_len]).unwrap();
+        let data_size = footer.data_size.get() as usize;
         assert_eq!(data_size, data.len());
-        i_buf -= 4;
-        let crc = (&data[i_buf..i_buf + 4]).read_u32::<BE>()?;
-        i_buf -= 4;
-        let chk = (&data[i_buf..i_buf + 4]).read_u32::<BE>()?;
-        let crc = crc ^ chk;
+        let crc = footer.crc.get() ^ footer.chk.get();
 
         Ok(UnpackContext {
             data,
             crc,
-            chk,
-            i_buf,
+            chk: footer.chk.get(),
+            i_buf: footer_start,
             o_buf: data_size,
         })
     }
@@ -173,6 +176,26 @@ impl<'a> UnpackContext<'a> {
     }
 }
 
+/// An entry in the `memlist.bin` file.
+#[derive(FromBytes)]
+#[repr(C, packed)]
+struct MemlistEntry {
+    state: u8,
+    res_type: u8,
+    _unk1: U16,
+    _unk2: U16,
+    rank_num: u8,
+    bank_id: u8,
+    bank_offset: U32,
+    _unk3: U16,
+    psize: U16,
+    _unk4: U16,
+    size: U16,
+}
+
+/// A validated entry of the `memlist.bin` file.
+///
+/// Its `res_type` member has been validated, and unneeded members are removed.
 #[derive(Debug)]
 #[allow(dead_code)]
 struct MemEntry {
@@ -183,6 +206,23 @@ struct MemEntry {
     bank_offset: u32,
     packed_size: usize,
     size: usize,
+}
+
+impl TryFrom<&MemlistEntry> for MemEntry {
+    type Error = std::io::Error;
+
+    fn try_from(entry: &MemlistEntry) -> Result<Self, Self::Error> {
+        Ok(Self {
+            res_type: ResType::n(entry.res_type).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "Invalid resource type!")
+            })?,
+            rank_num: entry.rank_num,
+            bank_id: entry.bank_id,
+            bank_offset: entry.bank_offset.get(),
+            packed_size: entry.psize.get() as usize,
+            size: entry.size.get() as usize,
+        })
+    }
 }
 
 pub struct LoadedResource {
@@ -275,45 +315,24 @@ impl ResourceManager {
         let mut file = File::open("memlist.bin").expect("Cannot open memlist.bin!");
 
         loop {
-            // This file was supposed to be directly read into data structures, hence the "empty"
-            // bits which used to be zero-initialized pointers.
-            let state = file.read_u8()?;
-            let res_type = file.read_u8()?;
-            let _ = file.read_u16::<BE>()?;
-            let _ = file.read_u16::<BE>()?;
-            let rank_num = file.read_u8()?;
-            let bank_id = file.read_u8()?;
-            let bank_offset = file.read_u32::<BE>()?;
-            let _ = file.read_u16::<BE>()?;
-            let psize = file.read_u16::<BE>()?;
-            let _ = file.read_u16::<BE>()?;
-            let size = file.read_u16::<BE>()?;
+            let entry = MemlistEntry::read_from_io(&mut file)?;
 
-            match state {
+            match entry.state {
                 0 => (),
                 0xff => break,
                 _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid state!")),
             };
 
-            let res_type = ResType::n(res_type).ok_or_else(|| {
-                io::Error::new(io::ErrorKind::InvalidData, "Invalid resource type!")
-            })?;
+            let validated_entry = MemEntry::try_from(&entry)?;
 
             debug!(
                 "Resource 0x{:02x} of type {} size {}",
                 self.resources.len(),
-                res_type,
-                size
+                entry.res_type,
+                entry.size
             );
 
-            self.resources.push(MemEntry {
-                res_type,
-                rank_num,
-                bank_id,
-                bank_offset,
-                packed_size: psize as usize,
-                size: size as usize,
-            });
+            self.resources.push(validated_entry);
         }
         Ok(())
     }

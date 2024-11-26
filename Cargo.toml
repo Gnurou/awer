@@ -22,7 +22,7 @@ tracing-subscriber = { version = "0.3.16", features = [
   "tracing-log",
 ] }
 tracing-chrome = "0.7.0"
-zerocopy = { version = "0.8.0", features = ["derive"] }
+zerocopy = { version = "0.8.11", features = ["derive", "std"] }
 
 # SDL2 dependencies
 sdl2 = { version = "0.37", optional = true, features = [
