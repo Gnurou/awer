@@ -26,14 +26,18 @@ fn scale(p: i16, zoom: u16) -> i16 {
 ///
 /// The returned item is ((left_x, right_x), y).
 fn trapezoid_line_iterator(
-    x_range_top: std::ops::Range<i32>,
-    y_top: i32,
-    x_range_bot: std::ops::Range<i32>,
-    y_bot: i32,
+    x_range_top: std::ops::Range<i16>,
+    y_top: i16,
+    x_range_bot: std::ops::Range<i16>,
+    y_bot: i16,
 ) -> impl Iterator<Item = ((i16, i16), i16)> {
     // Vertical range of the quad.
-    let v_range = y_top as i16..y_bot as i16;
-    let dy = y_bot - y_top;
+    let v_range = y_top..y_bot;
+    let dy = (y_bot - y_top) as i32;
+
+    let x_range_top = ((x_range_top.start as i32) << 16)..((x_range_top.end as i32) << 16);
+    let x_range_bot = ((x_range_bot.start as i32) << 16)..((x_range_bot.end as i32) << 16);
+
     let (slope1, slope2) = if dy != 0 {
         (
             (x_range_bot.start - x_range_top.start) / dy,
@@ -176,10 +180,7 @@ impl IndexedImage {
                     scale(p.x as i16, zoom) + offset.0 + x,
                     scale(p.y as i16, zoom) + offset.1 + y,
                 )
-            })
-            // Turn the point into i32 and add 16 bits of fixed decimals to x to
-            // add some precision when computing the slope.
-            .map(|p| Point::<i32>::new((p.x as i32) << 16, p.y as i32));
+            });
         // We have at least 4 points in the polygon, so these unwraps() are safe.
         let mut top_right = points.next().unwrap();
         let mut top_left = points.next_back().unwrap();
