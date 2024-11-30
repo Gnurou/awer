@@ -37,8 +37,8 @@ use super::Point;
 
 /// Data describing a polygon in the graphics segment.
 ///
-/// This since is a dynamically-sized type, it is designed to be used as a direct reference to the
-/// segment, not as an owned version of the data.
+/// Since this is a dynamically-sized type, it is designed to be used as a direct reference to the
+/// segment, not as an owned version of the data, hence the packed C representation.
 #[repr(C, packed)]
 #[derive(FromBytes, IntoBytes, KnownLayout, Immutable, Unaligned)]
 pub struct Polygon {
