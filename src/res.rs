@@ -73,7 +73,7 @@ impl<'a> UnpackContext<'a> {
     // Create a new unpacking context. The data buffer is large enough to
     // contain the whole uncompressed data, but is only filled with compressed
     // data up to packed_len. The data will then be uncompressed in-place.
-    fn new(data: &'a mut [u8], packed_len: usize) -> io::Result<UnpackContext> {
+    fn new(data: &'a mut [u8], packed_len: usize) -> io::Result<UnpackContext<'a>> {
         assert!(data.len() >= packed_len);
         let footer_start = packed_len - std::mem::size_of::<UnpackFooter>();
         assert_eq!(footer_start % 4, 0);

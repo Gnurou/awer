@@ -157,7 +157,7 @@ pub struct DrawCommandRunner<'a> {
     buffer0: &'a IndexedTexture,
 }
 
-impl<'a> Drop for DrawCommandRunner<'a> {
+impl Drop for DrawCommandRunner<'_> {
     fn drop(&mut self) {
         self.programs.deactivate();
     }
