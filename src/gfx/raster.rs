@@ -42,22 +42,18 @@ impl Trapezoid<i16> {
         let x_bot_start = (*self.bot.x_range.start() as i32) << 16;
         let x_bot_end = (*self.bot.x_range.end() as i32) << 16;
 
-        let (slope1, slope2) = if dy != 0 {
-            (
-                (x_bot_start - x_top_start) / dy,
-                (x_bot_end - x_top_end) / dy,
-            )
-        } else {
-            (0, 0)
-        };
+        // How many units we should move on the `x` axis per vertical line on the left and right
+        // side.
+        let slope_left = (x_bot_start - x_top_start).checked_div(dy).unwrap_or(0);
+        let slope_right = (x_bot_end - x_top_end).checked_div(dy).unwrap_or(0);
 
         v_range.scan((x_top_start, x_top_end), move |(left, right), y| {
             // Center the leftmost pixel and scale back.
             let start_x = ((*left + 0x7fff) >> 16) as i16;
             // Center the rightmost pixel and scale back.
             let end_x = ((*right + 0x8000) >> 16) as i16;
-            *left += slope1;
-            *right += slope2;
+            *left += slope_left;
+            *right += slope_right;
             Some(TrapezoidLine {
                 x_range: start_x..=end_x,
                 y,
