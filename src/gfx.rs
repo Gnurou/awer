@@ -68,13 +68,15 @@ pub struct SimplePolygonRenderer {
 
 impl InitForScene for SimplePolygonRenderer {
     #[tracing::instrument(skip(self, resman))]
-    fn init_from_scene(&mut self, resman: &ResourceManager, scene: &Scene) {
-        self.cinematic = resman.load_resource(scene.video1).unwrap().data;
+    fn init_from_scene(&mut self, resman: &ResourceManager, scene: &Scene) -> std::io::Result<()> {
+        self.cinematic = resman.load_resource(scene.video1)?.data;
         self.video = if scene.video2 != 0 {
-            resman.load_resource(scene.video2).unwrap().data
+            resman.load_resource(scene.video2)?.data
         } else {
             Default::default()
-        }
+        };
+
+        Ok(())
     }
 }
 

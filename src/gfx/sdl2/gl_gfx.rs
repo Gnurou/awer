@@ -197,9 +197,9 @@ impl InitForScene for Sdl2GlGfx {
         &mut self,
         resman: &crate::res::ResourceManager,
         scene: &crate::scenes::Scene,
-    ) {
-        self.raster_renderer.init_from_scene(resman, scene);
-        self.poly_renderer.init_from_scene(resman, scene);
+    ) -> std::io::Result<()> {
+        self.raster_renderer.init_from_scene(resman, scene)?;
+        self.poly_renderer.init_from_scene(resman, scene)
     }
 }
 

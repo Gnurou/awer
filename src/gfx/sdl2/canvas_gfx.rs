@@ -195,7 +195,7 @@ impl InitForScene for Sdl2CanvasGfx {
         &mut self,
         resman: &crate::res::ResourceManager,
         scene: &crate::scenes::Scene,
-    ) {
+    ) -> std::io::Result<()> {
         self.raster.init_from_scene(resman, scene)
     }
 }

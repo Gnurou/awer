@@ -94,8 +94,14 @@ pub struct VmSys {
 
 impl InitForScene for VmSys {
     #[tracing::instrument(skip(self, resman))]
-    fn init_from_scene(&mut self, resman: &ResourceManager, scene: &scenes::Scene) {
-        self.palette = resman.load_resource(scene.palette).unwrap().data;
+    fn init_from_scene(
+        &mut self,
+        resman: &ResourceManager,
+        scene: &scenes::Scene,
+    ) -> std::io::Result<()> {
+        self.palette = resman.load_resource(scene.palette)?.data;
+
+        Ok(())
     }
 }
 
@@ -105,8 +111,14 @@ struct VmCode {
 
 impl InitForScene for VmCode {
     #[tracing::instrument(skip(self, resman))]
-    fn init_from_scene(&mut self, resman: &ResourceManager, scene: &scenes::Scene) {
-        self.code = resman.load_resource(scene.code).unwrap().data;
+    fn init_from_scene(
+        &mut self,
+        resman: &ResourceManager,
+        scene: &scenes::Scene,
+    ) -> std::io::Result<()> {
+        self.code = resman.load_resource(scene.code)?.data;
+
+        Ok(())
     }
 }
 
@@ -397,9 +409,9 @@ impl Vm {
         if let Some(requested_scene) = self.state.requested_scene.take() {
             info!("Loading scene {}", requested_scene);
             let scene = &scenes::SCENES[requested_scene];
-            self.code.init_from_scene(&self.resman, scene);
-            self.sys.init_from_scene(&self.resman, scene);
-            gfx.init_from_scene(&self.resman, scene);
+            self.code.init_from_scene(&self.resman, scene).unwrap();
+            self.sys.init_from_scene(&self.resman, scene).unwrap();
+            gfx.init_from_scene(&self.resman, scene).unwrap();
             audio.reset();
 
             // Reset all threads

@@ -14,12 +14,12 @@ pub struct Scene {
 pub trait InitForScene {
     /// Reinitialize the object to be able to process `scene` using `resman`. This usually means
     /// loaded the required resources.
-    fn init_from_scene(&mut self, resman: &ResourceManager, scene: &Scene);
+    fn init_from_scene(&mut self, resman: &ResourceManager, scene: &Scene) -> std::io::Result<()>;
 }
 
 /// Proxy implementation for containers of `InitForScene`.
 impl<I: InitForScene + ?Sized, C: DerefMut<Target = I>> InitForScene for C {
-    fn init_from_scene(&mut self, resman: &ResourceManager, scene: &Scene) {
+    fn init_from_scene(&mut self, resman: &ResourceManager, scene: &Scene) -> std::io::Result<()> {
         self.deref_mut().init_from_scene(resman, scene)
     }
 }

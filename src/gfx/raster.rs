@@ -264,7 +264,7 @@ impl InitForScene for RasterRenderer {
         &mut self,
         resman: &crate::res::ResourceManager,
         scene: &crate::scenes::Scene,
-    ) {
+    ) -> std::io::Result<()> {
         self.renderer.init_from_scene(resman, scene)
     }
 }
