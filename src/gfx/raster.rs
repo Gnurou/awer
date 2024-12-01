@@ -164,8 +164,8 @@ impl IndexedImage {
         // Offset x and y by the polygon center.
         let bbox_offset = (scale(bb.0 as i16, zoom) / 2, scale(bb.1 as i16, zoom) / 2);
         let offset = (scale(offset.0, zoom), scale(offset.1, zoom));
-        let x = pos.0 - bbox_offset.0;
-        let y = pos.1 - bbox_offset.1;
+        let x = pos.0 + offset.0 - bbox_offset.0;
+        let y = pos.1 + offset.1 - bbox_offset.1;
 
         // The first and last points are always at the top. We will fill
         // the polygon line by line starting from them, and stop when the front
@@ -173,13 +173,8 @@ impl IndexedImage {
         let mut points = poly
             .points
             .iter()
-            // Add the x and y offsets.
-            .map(|p| {
-                Point::new(
-                    scale(p.x as i16, zoom) + offset.0 + x,
-                    scale(p.y as i16, zoom) + offset.1 + y,
-                )
-            });
+            // Scale and add the x and y offsets.
+            .map(|p| Point::new(scale(p.x as i16, zoom) + x, scale(p.y as i16, zoom) + y));
         // We have at least 4 points in the polygon, so these unwraps() are safe.
         let mut top_right = points.next().unwrap();
         let mut top_left = points.next_back().unwrap();
