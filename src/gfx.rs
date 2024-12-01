@@ -358,28 +358,3 @@ impl Palette {
         self.0.as_ptr()
     }
 }
-
-/// Returns how many units of x we need to move per unit of y in order to follow
-/// the slope defined by the vector (p1, p2).
-/// Returns None if the line is horizontal (i.e. there is no slope)
-fn slope<T, U>(p1: &Point<T>, p2: &Point<T>) -> Option<U>
-where
-    T: Copy,
-    T: std::cmp::PartialEq,
-    T: std::default::Default,
-    T: std::ops::Sub<Output = T>,
-    T::Output: Into<U>,
-    U: std::ops::Div<Output = U>,
-    U: std::default::Default,
-{
-    let vx = p2.x - p1.x;
-    let vy = p2.y - p1.y;
-
-    if vy == T::default() {
-        None
-    } else if vx == T::default() {
-        Some(U::default())
-    } else {
-        Some(vx.into() / vy.into())
-    }
-}

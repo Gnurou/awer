@@ -1,18 +1,17 @@
 use std::cell::Ref;
 use std::cell::RefCell;
-use std::cmp::max;
-use std::cmp::min;
 
 use anyhow::anyhow;
 use anyhow::Result;
 
+use crate::gfx::polygon::Trapezoid;
 use crate::gfx::IndexedRenderer;
-use crate::gfx::Point;
 use crate::gfx::SCREEN_RESOLUTION;
 use crate::scenes::InitForScene;
 use crate::sys::Snapshotable;
 
-use super::Polygon;
+use super::polygon::Polygon;
+use super::polygon::TrapezoidLine;
 use super::PolygonFiller;
 use super::SimplePolygonRenderer;
 
@@ -22,40 +21,49 @@ fn scale(p: i16, zoom: u16) -> i16 {
     ((p as i32 * zoom as i32) / 64) as i16
 }
 
-/// Iterator over all the lines of a trapezoid defined by its four points.
+/// Rasterizer implementation for a `Trapezoid<i16>`.
 ///
-/// The returned item is ((left_x, right_x), y).
-fn trapezoid_line_iterator(
-    x_range_top: std::ops::Range<i16>,
-    y_top: i16,
-    x_range_bot: std::ops::Range<i16>,
-    y_bot: i16,
-) -> impl Iterator<Item = (std::ops::Range<i16>, i16)> {
-    // Vertical range of the quad.
-    let v_range = y_top..y_bot;
-    let dy = (y_bot - y_top) as i32;
+/// `i16` is a good type for screen coordinates, as it covers any realistic display resolution
+/// while allowing negative coordinates that occur as we translate and scale the points.
+/// Moreover it lets us use 32-bit fixed-point arithmetic to precisely interpolate the start and
+/// end of each line.
+impl Trapezoid<i16> {
+    /// Returns an iterator over all the pixel-lines of this trapezoid.
+    ///
+    /// Filling each returned line with the color of the polygon will result in it being properly
+    /// rendered.
+    pub fn raster_iterator(&self) -> impl Iterator<Item = TrapezoidLine<i16>> {
+        // Interestingly the `y` range does not seem to be inclusive?
+        let v_range = self.top.y..self.bot.y;
+        let dy = v_range.len() as i32;
 
-    let x_range_top = ((x_range_top.start as i32) << 16)..((x_range_top.end as i32) << 16);
-    let x_range_bot = ((x_range_bot.start as i32) << 16)..((x_range_bot.end as i32) << 16);
+        let x_top_start = (*self.top.x_range.start() as i32) << 16;
+        let x_top_end = (*self.top.x_range.end() as i32) << 16;
+        let x_bot_start = (*self.bot.x_range.start() as i32) << 16;
+        let x_bot_end = (*self.bot.x_range.end() as i32) << 16;
 
-    let (slope1, slope2) = if dy != 0 {
-        (
-            (x_range_bot.start - x_range_top.start) / dy,
-            (x_range_bot.end - x_range_top.end) / dy,
-        )
-    } else {
-        (0, 0)
-    };
+        let (slope1, slope2) = if dy != 0 {
+            (
+                (x_bot_start - x_top_start) / dy,
+                (x_bot_end - x_top_end) / dy,
+            )
+        } else {
+            (0, 0)
+        };
 
-    v_range.scan((x_range_top.start, x_range_top.end), move |(x1, x2), y| {
-        // Center the leftmost pixel and scale back.
-        let start_x = ((min(*x1, *x2) + 0x8000) >> 16) as i16;
-        // Include the rightmost pixel in the line, center it, and scale back.
-        let end_x = ((max(*x1, *x2) + 0x18000) >> 16) as i16;
-        *x1 += slope1;
-        *x2 += slope2;
-        Some((start_x..end_x, y))
-    })
+        v_range.scan((x_top_start, x_top_end), move |(left, right), y| {
+            // Center the leftmost pixel and scale back.
+            let start_x = ((*left + 0x7fff) >> 16) as i16;
+            // Center the rightmost pixel and scale back.
+            let end_x = ((*right + 0x8000) >> 16) as i16;
+            *left += slope1;
+            *right += slope2;
+            Some(TrapezoidLine {
+                x_range: start_x..=end_x,
+                y,
+            })
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -120,7 +128,7 @@ impl IndexedImage {
     }
 
     /// Draw a horizontal line at ordinate `y`, between `x_range`.
-    fn draw_hline<F>(&mut self, x_range: std::ops::Range<i16>, y: i16, draw_func: F)
+    fn draw_hline<F>(&mut self, x_range: std::ops::RangeInclusive<i16>, y: i16, draw_func: F)
     where
         F: Fn(&mut [u8], usize),
     {
@@ -131,10 +139,10 @@ impl IndexedImage {
         };
 
         // Limit x_start and x_stop to [0..SCREEN_RESOLUTION[0]].
-        let x_start = (x_range.start.clamp(0, SCREEN_RESOLUTION[0] as i16)) as usize;
-        let x_stop = (x_range.end.clamp(0, SCREEN_RESOLUTION[0] as i16)) as usize;
+        let x_start = ((*x_range.start()).clamp(0, SCREEN_RESOLUTION[0] as i16 - 1)) as usize;
+        let x_stop = ((*x_range.end()).clamp(0, SCREEN_RESOLUTION[0] as i16 - 1)) as usize;
 
-        let slice = &mut self.0[line_offset + x_start..line_offset + x_stop];
+        let slice = &mut self.0[line_offset + x_start..=line_offset + x_stop];
         draw_func(slice, line_offset + x_start);
     }
 
@@ -148,9 +156,6 @@ impl IndexedImage {
     ) where
         F: Fn(&mut [u8], usize),
     {
-        assert!(poly.points.len() >= 4);
-        assert!(poly.points.len() % 2 == 0);
-
         let bb = poly.bb();
 
         // Optimization for single-pixel polygons
@@ -164,48 +169,21 @@ impl IndexedImage {
         // Offset x and y by the polygon center.
         let bbox_offset = (scale(bb.0 as i16, zoom) / 2, scale(bb.1 as i16, zoom) / 2);
         let offset = (scale(offset.0, zoom), scale(offset.1, zoom));
-        let x = pos.0 + offset.0 - bbox_offset.0;
-        let y = pos.1 + offset.1 - bbox_offset.1;
+        let tx = pos.0 + offset.0 - bbox_offset.0;
+        let ty = pos.1 + offset.1 - bbox_offset.1;
 
-        // The first and last points are always at the top. We will fill
-        // the polygon line by line starting from them, and stop when the front
-        // and back join at the bottom of the polygon.
-        let mut points = poly
-            .points
-            .iter()
-            // Scale and add the x and y offsets.
-            .map(|p| Point::new(scale(p.x as i16, zoom) + x, scale(p.y as i16, zoom) + y));
-        // We have at least 4 points in the polygon, so these unwraps() are safe.
-        let mut top_right = points.next().unwrap();
-        let mut top_left = points.next_back().unwrap();
-        let mut bot_right = points.next().unwrap();
-        let mut bot_left = points.next_back().unwrap();
+        let trapezoids = poly
+            .trapezoid_iter()
+            // Use `i16` as the scaling and translate operations might move our points out of the
+            // `u8` range.
+            .map(|t| Trapezoid::<i16>::from(&t))
+            .map(|t| t.scale(zoom))
+            .map(|t| t.translate((tx, ty)));
 
-        assert_eq!(top_right.y, top_left.y);
-        assert_eq!(bot_right.y, bot_left.y);
-
-        // Loop over all the lines of the polygon.
-        loop {
-            for (x_range, y) in trapezoid_line_iterator(
-                top_left.x..top_right.x,
-                top_right.y,
-                bot_left.x..bot_right.x,
-                bot_right.y,
-            ) {
-                self.draw_hline(x_range, y, &draw_func);
+        for trapezoid in trapezoids {
+            for line in trapezoid.raster_iterator() {
+                self.draw_hline(line.x_range, line.y, &draw_func);
             }
-
-            // On to the next quad.
-            top_right = bot_right;
-            bot_right = match points.next() {
-                Some(next) => next,
-                None => break,
-            };
-            top_left = bot_left;
-            bot_left = match points.next_back() {
-                Some(next) => next,
-                None => break,
-            };
         }
     }
 
@@ -366,7 +344,7 @@ impl IndexedRenderer for RasterRenderer {
 
         let mut dst = self.buffers.0[dst_page_id].borrow_mut();
         for (i, char_line) in char_bitmap.iter().map(|b| b.reverse_bits()).enumerate() {
-            dst.draw_hline(pos.0..(pos.0 + 8), pos.1 + i as i16, |slice, off| {
+            dst.draw_hline(pos.0..=(pos.0 + 7), pos.1 + i as i16, |slice, off| {
                 for (i, pixel) in slice.iter_mut().enumerate() {
                     if (char_line >> ((off + i) & 0x7) & 0x1) == 1 {
                         *pixel = color

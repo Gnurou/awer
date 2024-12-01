@@ -14,17 +14,11 @@
 //! generate intermediate points and quads with horizontal top and botton lines.
 //! These quads are guaranteed to be convex.
 use std::borrow::Borrow;
-use std::cmp::Ordering;
-use std::default::Default;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Result;
-use std::ops::Add;
 use std::ops::Deref;
-use std::ops::Div;
-use std::ops::Mul;
-use std::ops::Sub;
-use std::slice::Iter;
+use std::ops::RangeInclusive;
 
 use zerocopy::FromBytes;
 use zerocopy::Immutable;
@@ -32,7 +26,11 @@ use zerocopy::IntoBytes;
 use zerocopy::KnownLayout;
 use zerocopy::Unaligned;
 
-use super::slope;
+/// Apply the zoom function on a point's coordinate `p`: multiply it by `zoom`,
+/// then divide by 64.
+fn coord_scale(p: i16, zoom: u16) -> i16 {
+    ((p as i32 * zoom as i32) / 64) as i16
+}
 
 /// A point as described in the game's resources for polygons.
 ///
@@ -54,16 +52,27 @@ impl From<Point<u8>> for Point<f64> {
     }
 }
 
-impl<T> Point<T> {
-    pub fn new(x: T, y: T) -> Self {
-        Point { x, y }
-    }
-}
-
 /// Data describing a polygon in the graphics segment.
 ///
-/// Since this is a dynamically-sized type, it is designed to be used as a direct reference to the
-/// segment, not as an owned version of the data, hence the packed C representation.
+/// Polygons are defined by a set of [`Point`]s, and a bounding box including them all.
+///
+/// The points define a series of [`Trapezoid`]s, and the following invariants are always true:
+///
+/// - There are at least 4 points per polygon,
+/// - The total number of points is a multiple of 2,
+/// - Points define the shape of the polygon, starting from the top, and going either clockwise or
+///   counter-clockwise.
+/// - Opposite points (e.g. the first and last point, or the second and second-to-last point, etc.)
+///   have the same `y` coordinate.
+///
+/// These invariants make it very easy to rasterize the polygons, as opposite points can be used to
+/// create the top and bottom lines of a trapezoid, which can then easily be filled by filling its
+/// lines one by one. The only difficulty being that since the order of the points can be clockwise
+/// or counter-clockwise, we need to compare them in order to find the left and right one.
+///
+/// This dynamically-sized type is designed to be used as a direct reference to the segment, not as
+/// an owned version of the data, hence the packed C representation. [`OwnedPolygon`] can be used
+/// whenever these is a need to store the polygon data somewhere.
 #[repr(C, packed)]
 #[derive(FromBytes, IntoBytes, KnownLayout, Immutable, Unaligned)]
 pub struct Polygon {
@@ -104,14 +113,25 @@ impl Polygon {
         (self.bb[0], self.bb[1])
     }
 
-    #[allow(dead_code)]
-    pub fn line_iter<T>(&self) -> PolygonIter<u8, T>
-    where
-        T: Copy + Default + PartialEq + PartialOrd,
-        T: Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T> + Div<T, Output = T>,
-        Point<T>: From<Point<u8>>,
-    {
-        PolygonIter::<_, T>::new(self.points.iter())
+    pub fn points_iter(&self) -> impl DoubleEndedIterator<Item = Point<u8>> + '_ {
+        self.points.iter().cloned()
+    }
+
+    pub fn line_iter(&self) -> impl Iterator<Item = TrapezoidLine<u8>> + '_ {
+        TrapezoidLineIterator {
+            iter: self.points_iter(),
+        }
+    }
+
+    pub fn trapezoid_iter(&self) -> impl Iterator<Item = Trapezoid<u8>> + '_ {
+        let mut iter = self.line_iter();
+        TrapezoidIterator {
+            cur_line: iter.next().unwrap_or(TrapezoidLine {
+                x_range: 0..=0,
+                y: 0,
+            }),
+            iter,
+        }
     }
 }
 
@@ -142,100 +162,152 @@ impl Debug for OwnedPolygon {
     }
 }
 
-
-/// An iterator that returns all the horizontal lines from which we can infer the shape of the
-/// polygon, from top to bottom.
+/// A line of a trapezoid.
 ///
-/// These lines can be connected together in order to produce a set of quads that fills the polygon.
-///
-/// `U` is the original type of the points in the polygon, whereas `T` is the type on which we want
-/// to perform the operations. It can be different if e.g. `U` is an integer type, in which case we
-/// will likely want `T` to be some kind of floating point in order to get good precision.
-///
-// TODO: Windows type implements DoubleEndedIterator! We can use that. Maybe
-//       we need to reverse the back iterator to get the correct lines though.
-pub struct PolygonIter<'a, U, T> {
-    iter: Iter<'a, Point<U>>,
-    // Next point when going clockwise.
-    next_cw: Option<&'a Point<U>>,
-    // Next point when going counter-clockwise.
-    next_ccw: Option<&'a Point<U>>,
-    // Line to return on the next call to next().
-    next_line: Option<(Point<T>, Point<T>)>,
+/// [`Polygon`]s are aggregates of trapezoids that can be represented by their top and bottom line.
+/// A line is defined by its range on the X axis and its Y position.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrapezoidLine<T>
+where
+    T: Debug + Eq + Copy + PartialOrd + Ord,
+{
+    pub x_range: RangeInclusive<T>,
+    pub y: T,
 }
 
-impl<'a, U, T> PolygonIter<'a, U, T>
+impl<T, U> From<&TrapezoidLine<T>> for TrapezoidLine<U>
 where
-    T: Copy + Default + PartialEq + PartialOrd,
-    T: Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T> + Div<T, Output = T>,
-    Point<T>: From<Point<U>>,
-    U: Copy,
+    T: Debug + Eq + Copy + PartialOrd + Ord,
+    U: Debug + Eq + Copy + PartialOrd + Ord + From<T>,
 {
-    pub fn new(mut iter: Iter<'a, Point<U>>) -> Self {
-        let next_line = match (iter.next(), iter.next_back()) {
-            (Some(cw), Some(ccw)) => Some((Point::<T>::from(*ccw), Point::<T>::from(*cw))),
-            (Some(cw), None) => Some((Point::<T>::from(*cw), Point::<T>::from(*cw))),
-            _ => None,
-        };
-
-        PolygonIter::<_, T> {
-            next_cw: iter.next(),
-            next_ccw: iter.next_back(),
-            iter,
-            next_line,
+    fn from(t: &TrapezoidLine<T>) -> Self {
+        TrapezoidLine {
+            x_range: U::from(*t.x_range.start())..=U::from(*t.x_range.end()),
+            y: U::from(t.y),
         }
     }
 }
 
-impl<'a, U, T> Iterator for PolygonIter<'a, U, T>
+impl TrapezoidLine<i16> {
+    pub fn scale(&self, zoom: u16) -> Self {
+        Self {
+            x_range: coord_scale(*self.x_range.start(), zoom)
+                ..=coord_scale(*self.x_range.end(), zoom),
+            y: coord_scale(self.y, zoom),
+        }
+    }
+
+    pub fn translate(&self, t: (i16, i16)) -> Self {
+        let start = *self.x_range.start() + t.0;
+        let end = *self.x_range.end() + t.0;
+        Self {
+            x_range: start..=end,
+            y: self.y + t.1,
+        }
+    }
+}
+
+pub struct TrapezoidLineIterator<T, I>
 where
-    T: Copy + Default + PartialEq + PartialOrd,
-    T: Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T> + Div<T, Output = T>,
-    Point<T>: From<Point<U>>,
-    U: Copy,
+    I: DoubleEndedIterator<Item = Point<T>>,
 {
-    type Item = (Point<T>, Point<T>);
+    iter: I,
+}
+
+impl<T, I> Iterator for TrapezoidLineIterator<T, I>
+where
+    I: DoubleEndedIterator<Item = Point<T>>,
+    T: Debug + Eq + Copy + PartialOrd + Ord,
+{
+    type Item = TrapezoidLine<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (cur_line, p1, p2) = match (self.next_ccw, self.next_cw, self.next_line) {
-            (Some(ccw), Some(cw), Some((p1, p2))) => {
-                ((p1, p2), Point::<T>::from(*ccw), Point::<T>::from(*cw))
-            }
-            // We parsed all the points.
-            _ => return self.next_line.take(),
-        };
+        let (p1, p2) = (self.iter.next_back()?, self.iter.next()?);
 
-        self.next_line = match p1.y.partial_cmp(&p2.y) {
-            // Create a new point on the line connecting p2 to its next point.
-            Some(Ordering::Less) => {
-                self.next_ccw = self.iter.next_back();
-                let x =
-                    p2.x - ((p1.y - cur_line.1.y) * slope(&cur_line.1, &p2).unwrap_or_default());
-                Some((p1, Point::new(x, p1.y)))
-            }
-            // Create a new point on the line connecting p1 to its next point.
-            Some(Ordering::Greater) => {
-                self.next_cw = self.iter.next();
-                let x =
-                    p1.x - ((p2.y - cur_line.0.y) * slope(&cur_line.0, &p1).unwrap_or_default());
-                Some((Point::new(x, p2.y), p2))
-            }
-            // Point share same y, return the line connecting them.
-            Some(Ordering::Equal) => {
-                self.next_cw = self.iter.next();
-                self.next_ccw = self.iter.next_back();
-                Some((p1, p2))
-            }
-            // We are in NaN territory, so something must have gone pretty wrong. Let's stop here.
-            None => None,
-        };
+        // Opposite points are supposed to have the same `y` coordinate.
+        assert_eq!(p1.y, p2.y);
+        let y = p1.y;
 
-        // We may return the same line twice in a row in case of a point or horizontal line.
-        if Some(cur_line) == self.next_line {
-            self.next()
+        let (left, right) = if p1.x <= p2.x {
+            (p1.x, p2.x)
         } else {
-            Some(cur_line)
+            (p2.x, p1.x)
+        };
+
+        Some(TrapezoidLine {
+            x_range: left..=right,
+            y,
+        })
+    }
+}
+
+/// A trapezoid representation.
+///
+/// Polygons in Another World are exclusively made of trapezoid, and they are also used to make
+/// rasterization fast and easy. A trapezoid is represented by its top and bottom lines.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Trapezoid<T>
+where
+    T: Debug + Eq + Copy + PartialOrd + Ord,
+{
+    pub top: TrapezoidLine<T>,
+    pub bot: TrapezoidLine<T>,
+}
+
+impl<T, U> From<&Trapezoid<T>> for Trapezoid<U>
+where
+    T: Debug + Eq + Copy + PartialOrd + Ord,
+    U: Debug + Eq + Copy + PartialOrd + Ord + From<T>,
+{
+    fn from(t: &Trapezoid<T>) -> Self {
+        Self {
+            top: TrapezoidLine::<U>::from(&t.top),
+            bot: TrapezoidLine::<U>::from(&t.bot),
         }
+    }
+}
+
+impl Trapezoid<i16> {
+    pub fn scale(&self, zoom: u16) -> Self {
+        Self {
+            top: self.top.scale(zoom),
+            bot: self.bot.scale(zoom),
+        }
+    }
+
+    pub fn translate(&self, t: (i16, i16)) -> Self {
+        Self {
+            top: self.top.translate(t),
+            bot: self.bot.translate(t),
+        }
+    }
+}
+
+pub struct TrapezoidIterator<T, I>
+where
+    I: Iterator<Item = TrapezoidLine<T>>,
+    T: Debug + Eq + Copy + PartialOrd + Ord,
+{
+    cur_line: TrapezoidLine<T>,
+    iter: I,
+}
+
+impl<T, I> Iterator for TrapezoidIterator<T, I>
+where
+    I: Iterator<Item = TrapezoidLine<T>>,
+    T: Debug + Eq + Copy + PartialOrd + Ord,
+{
+    type Item = Trapezoid<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next_line = self.iter.next()?;
+        let top_line = std::mem::replace(&mut self.cur_line, next_line);
+        let ret = Trapezoid {
+            top: top_line,
+            bot: self.cur_line.clone(),
+        };
+
+        Some(ret)
     }
 }
 
@@ -243,27 +315,19 @@ where
 mod test {
     use super::*;
 
-    #[test]
-    fn test_slope() {
-        let p1 = Point::new(0, 0);
-        let p2 = Point::new(1, 2);
-        let res: Option<f64> = slope(&p1, &p2);
-        assert_eq!(res, Some(0.5));
+    impl<T> Point<T> {
+        pub fn new(x: T, y: T) -> Self {
+            Point { x, y }
+        }
+    }
 
-        let p1 = Point::new(0, 0);
-        let p2 = Point::new(-1, 2);
-        let res: Option<f64> = slope(&p1, &p2);
-        assert_eq!(res, Some(-0.5));
-
-        let p1 = Point::new(0, 0);
-        let p2 = Point::new(0, 2);
-        let res: Option<f64> = slope(&p1, &p2);
-        assert_eq!(res, Some(0.0));
-
-        let p1 = Point::new(0, 0);
-        let p2 = Point::new(5, 0);
-        let res: Option<f64> = slope(&p1, &p2);
-        assert_eq!(res, None);
+    impl<T> TrapezoidLine<T>
+    where
+        T: Debug + Eq + Copy + PartialOrd + Ord,
+    {
+        pub fn new(x_range: RangeInclusive<T>, y: T) -> Self {
+            Self { x_range, y }
+        }
     }
 
     impl OwnedPolygon {
@@ -300,8 +364,8 @@ mod test {
     }
 
     #[test]
-    fn iterator_point() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
+    fn polygon_point() {
+        let poly = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(2, 3),
@@ -309,56 +373,77 @@ mod test {
                 Point::new(2, 3),
                 Point::new(2, 3),
             ],
-        )
-        .line_iter()
-        .collect();
-
-        assert_eq!(lines, vec![(Point::new(2.0, 3.0), Point::new(2.0, 3.0))]);
-    }
-
-    #[test]
-    fn iterator_hline() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
-            (0, 0),
-            vec![
-                Point::new(7, 3),
-                Point::new(7, 3),
-                Point::new(2, 3),
-                Point::new(2, 3),
-            ],
-        )
-        .line_iter()
-        .collect();
-
-        assert_eq!(lines, vec![(Point::new(2.0, 3.0), Point::new(7.0, 3.0))]);
-    }
-
-    #[test]
-    fn iterator_vline() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
-            (0, 0),
-            vec![
-                Point::new(3, 3),
-                Point::new(3, 10),
-                Point::new(3, 10),
-                Point::new(3, 3),
-            ],
-        )
-        .line_iter()
-        .collect();
-
-        assert_eq!(
-            lines,
-            vec![
-                (Point::new(3.0, 3.0), Point::new(3.0, 3.0)),
-                (Point::new(3.0, 10.0), Point::new(3.0, 10.0))
-            ]
         );
+        let expected_lines = vec![TrapezoidLine::new(2..=2, 3), TrapezoidLine::new(2..=2, 3)];
+
+        let lines: Vec<_> = poly.line_iter().collect();
+        assert_eq!(lines, expected_lines,);
+
+        let trapezoids: Vec<_> = poly.trapezoid_iter().collect();
+        assert_eq!(
+            trapezoids,
+            vec![Trapezoid {
+                top: expected_lines[0].clone(),
+                bot: expected_lines[1].clone(),
+            }]
+        )
     }
 
     #[test]
-    fn iterator_triangle() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
+    fn polygon_hline() {
+        let poly = OwnedPolygon::new(
+            (0, 0),
+            vec![
+                Point::new(7, 3),
+                Point::new(7, 3),
+                Point::new(2, 3),
+                Point::new(2, 3),
+            ],
+        );
+        let expected_lines = vec![TrapezoidLine::new(2..=7, 3), TrapezoidLine::new(2..=7, 3)];
+
+        let lines: Vec<_> = poly.line_iter().collect();
+        assert_eq!(lines, expected_lines,);
+
+        let trapezoids: Vec<_> = poly.trapezoid_iter().collect();
+        assert_eq!(
+            trapezoids,
+            vec![Trapezoid {
+                top: expected_lines[0].clone(),
+                bot: expected_lines[1].clone(),
+            }]
+        )
+    }
+
+    #[test]
+    fn polygon_vline() {
+        let poly = OwnedPolygon::new(
+            (0, 0),
+            vec![
+                Point::new(3, 3),
+                Point::new(3, 10),
+                Point::new(3, 10),
+                Point::new(3, 3),
+            ],
+        );
+        let expected_lines = vec![TrapezoidLine::new(3..=3, 3), TrapezoidLine::new(3..=3, 10)];
+
+        let lines: Vec<_> = poly.line_iter().collect();
+        assert_eq!(lines, expected_lines,);
+
+        let trapezoids: Vec<_> = poly.trapezoid_iter().collect();
+        assert_eq!(
+            trapezoids,
+            vec![Trapezoid {
+                top: expected_lines[0].clone(),
+                bot: expected_lines[1].clone(),
+            }]
+        )
+    }
+
+    #[test]
+    fn polygon_triangle() {
+        let poly = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(1, 0),
@@ -366,22 +451,51 @@ mod test {
                 Point::new(0, 2),
                 Point::new(1, 0),
             ],
-        )
-        .line_iter()
-        .collect();
-
-        assert_eq!(
-            lines,
-            vec![
-                (Point::new(1.0, 0.0), Point::new(1.0, 0.0)),
-                (Point::new(0.0, 2.0), Point::new(2.0, 2.0)),
-            ]
         );
+        let expected_lines = vec![TrapezoidLine::new(1..=1, 0), TrapezoidLine::new(0..=2, 2)];
+
+        let lines: Vec<_> = poly.line_iter().collect();
+        assert_eq!(lines, expected_lines);
+
+        let trapezoids: Vec<_> = poly.trapezoid_iter().collect();
+        assert_eq!(
+            trapezoids,
+            vec![Trapezoid {
+                top: expected_lines[0].clone(),
+                bot: expected_lines[1].clone(),
+            }]
+        )
     }
 
     #[test]
-    fn iterator_square() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
+    fn polygon_triangle_ccw() {
+        let poly = OwnedPolygon::new(
+            (0, 0),
+            vec![
+                Point::new(1, 0),
+                Point::new(0, 2),
+                Point::new(2, 2),
+                Point::new(1, 0),
+            ],
+        );
+        let expected_lines = vec![TrapezoidLine::new(1..=1, 0), TrapezoidLine::new(0..=2, 2)];
+
+        let lines: Vec<_> = poly.line_iter().collect();
+        assert_eq!(lines, expected_lines);
+
+        let trapezoids: Vec<_> = poly.trapezoid_iter().collect();
+        assert_eq!(
+            trapezoids,
+            vec![Trapezoid {
+                top: expected_lines[0].clone(),
+                bot: expected_lines[1].clone(),
+            }]
+        )
+    }
+
+    #[test]
+    fn polygon_square() {
+        let poly = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(2, 0),
@@ -389,22 +503,25 @@ mod test {
                 Point::new(0, 2),
                 Point::new(0, 0),
             ],
-        )
-        .line_iter()
-        .collect();
-
-        assert_eq!(
-            lines,
-            vec![
-                (Point::new(0.0, 0.0), Point::new(2.0, 0.0)),
-                (Point::new(0.0, 2.0), Point::new(2.0, 2.0)),
-            ]
         );
+        let expected_lines = vec![TrapezoidLine::new(0..=2, 0), TrapezoidLine::new(0..=2, 2)];
+
+        let lines: Vec<_> = poly.line_iter().collect();
+        assert_eq!(lines, expected_lines);
+
+        let trapezoids: Vec<_> = poly.trapezoid_iter().collect();
+        assert_eq!(
+            trapezoids,
+            vec![Trapezoid {
+                top: expected_lines[0].clone(),
+                bot: expected_lines[1].clone(),
+            }]
+        )
     }
 
     #[test]
-    fn iterator_hexagon() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
+    fn polygon_hexagon() {
+        let poly = OwnedPolygon::new(
             (0, 0),
             vec![
                 Point::new(2, 0),
@@ -416,122 +533,34 @@ mod test {
                 Point::new(0, 1),
                 Point::new(1, 0),
             ],
-        )
-        .line_iter()
-        .collect();
-
-        assert_eq!(
-            lines,
-            vec![
-                (Point::new(1.0, 0.0), Point::new(2.0, 0.0)),
-                (Point::new(0.0, 1.0), Point::new(3.0, 1.0)),
-                (Point::new(0.0, 2.0), Point::new(3.0, 2.0)),
-                (Point::new(1.0, 3.0), Point::new(2.0, 3.0)),
-            ]
         );
-    }
+        let expected_lines = vec![
+            TrapezoidLine::new(1..=2, 0),
+            TrapezoidLine::new(0..=3, 1),
+            TrapezoidLine::new(0..=3, 2),
+            TrapezoidLine::new(1..=2, 3),
+        ];
 
-    #[test]
-    fn iterator_unbalanced_poly() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
-            (0, 0),
-            vec![
-                Point::new(2, 0),
-                Point::new(3, 1),
-                Point::new(2, 2),
-                Point::new(3, 3),
-                Point::new(0, 3),
-                Point::new(0, 0),
-            ],
-        )
-        .line_iter()
-        .collect();
+        let lines: Vec<_> = poly.line_iter().collect();
+        assert_eq!(lines, expected_lines);
 
+        let trapezoids: Vec<_> = poly.trapezoid_iter().collect();
         assert_eq!(
-            lines,
+            trapezoids,
             vec![
-                (Point::new(0.0, 0.0), Point::new(2.0, 0.0)),
-                (Point::new(0.0, 1.0), Point::new(3.0, 1.0)),
-                (Point::new(0.0, 2.0), Point::new(2.0, 2.0)),
-                (Point::new(0.0, 3.0), Point::new(3.0, 3.0)),
+                Trapezoid {
+                    top: expected_lines[0].clone(),
+                    bot: expected_lines[1].clone(),
+                },
+                Trapezoid {
+                    top: expected_lines[1].clone(),
+                    bot: expected_lines[2].clone(),
+                },
+                Trapezoid {
+                    top: expected_lines[2].clone(),
+                    bot: expected_lines[3].clone(),
+                },
             ]
-        );
-    }
-
-    #[test]
-    fn iterator_unbalanced_poly_rev() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
-            (0, 0),
-            vec![
-                Point::new(2, 0),
-                Point::new(2, 3),
-                Point::new(0, 3),
-                Point::new(1, 2),
-                Point::new(0, 1),
-                Point::new(0, 0),
-            ],
         )
-        .line_iter()
-        .collect();
-
-        assert_eq!(
-            lines,
-            vec![
-                (Point::new(0.0, 0.0), Point::new(2.0, 0.0)),
-                (Point::new(0.0, 1.0), Point::new(2.0, 1.0)),
-                (Point::new(1.0, 2.0), Point::new(2.0, 2.0)),
-                (Point::new(0.0, 3.0), Point::new(2.0, 3.0)),
-            ]
-        );
-    }
-
-    #[test]
-    fn iterator_unbalanced_poly_slope() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
-            (0, 0),
-            vec![
-                Point::new(2, 0),
-                Point::new(3, 1),
-                Point::new(2, 2),
-                Point::new(0, 2),
-                Point::new(1, 0),
-            ],
-        )
-        .line_iter()
-        .collect();
-
-        assert_eq!(
-            lines,
-            vec![
-                (Point::new(1.0, 0.0), Point::new(2.0, 0.0)),
-                (Point::new(0.5, 1.0), Point::new(3.0, 1.0)),
-                (Point::new(0.0, 2.0), Point::new(2.0, 2.0)),
-            ]
-        );
-    }
-
-    #[test]
-    fn iterator_unbalanced_poly_slope_rev() {
-        let lines: Vec<(Point<f64>, Point<f64>)> = OwnedPolygon::new(
-            (0, 0),
-            vec![
-                Point::new(1, 0),
-                Point::new(2, 2),
-                Point::new(0, 2),
-                Point::new(1, 1),
-                Point::new(0, 0),
-            ],
-        )
-        .line_iter()
-        .collect();
-
-        assert_eq!(
-            lines,
-            vec![
-                (Point::new(0.0, 0.0), Point::new(1.0, 0.0)),
-                (Point::new(1.0, 1.0), Point::new(1.5, 1.0)),
-                (Point::new(0.0, 2.0), Point::new(2.0, 2.0)),
-            ]
-        );
     }
 }
