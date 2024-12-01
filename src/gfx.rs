@@ -6,10 +6,7 @@ pub mod raster;
 pub mod sdl2;
 
 use std::any::Any;
-use std::fmt;
 use std::fmt::Debug;
-use std::fmt::Formatter;
-use std::fmt::Result;
 use std::io::Cursor;
 use std::io::Seek;
 use std::io::SeekFrom;
@@ -17,14 +14,12 @@ use std::ops::DerefMut;
 
 use byteorder::ReadBytesExt;
 use byteorder::BE;
+use polygon::Point;
+use polygon::Polygon;
 use tracing::debug;
 use tracing::error;
 use zerocopy::FromBytes;
-use zerocopy::Immutable;
-use zerocopy::IntoBytes;
-use zerocopy::Unaligned;
 
-use crate::gfx::polygon::Polygon;
 use crate::res::ResourceManager;
 use crate::scenes::InitForScene;
 use crate::scenes::Scene;
@@ -310,35 +305,6 @@ pub trait Gfx:
 /// Proxy implementation for containers of `Gfx`.
 impl<G: Gfx + ?Sized, C: DerefMut<Target = G>> Gfx for C {}
 
-/// A point as described in the game's resources for polygons.
-#[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq, Immutable, FromBytes, IntoBytes, Unaligned)]
-pub struct Point<T> {
-    pub x: T,
-    pub y: T,
-}
-
-impl<T: fmt::Display> Debug for Point<T> {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "({},{})", self.x, self.y)
-    }
-}
-
-impl From<Point<u8>> for Point<f64> {
-    fn from(p: Point<u8>) -> Self {
-        Point {
-            x: p.x.into(),
-            y: p.y.into(),
-        }
-    }
-}
-
-impl<T> Point<T> {
-    pub fn new(x: T, y: T) -> Self {
-        Point { x, y }
-    }
-}
-
 /// A single color from a game's palette which components have been normalized to cover the u8
 /// range.
 ///
@@ -415,33 +381,5 @@ where
         Some(U::default())
     } else {
         Some(vx.into() / vy.into())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_slope() {
-        let p1 = Point::new(0, 0);
-        let p2 = Point::new(1, 2);
-        let res: Option<f64> = slope(&p1, &p2);
-        assert_eq!(res, Some(0.5));
-
-        let p1 = Point::new(0, 0);
-        let p2 = Point::new(-1, 2);
-        let res: Option<f64> = slope(&p1, &p2);
-        assert_eq!(res, Some(-0.5));
-
-        let p1 = Point::new(0, 0);
-        let p2 = Point::new(0, 2);
-        let res: Option<f64> = slope(&p1, &p2);
-        assert_eq!(res, Some(0.0));
-
-        let p1 = Point::new(0, 0);
-        let p2 = Point::new(5, 0);
-        let res: Option<f64> = slope(&p1, &p2);
-        assert_eq!(res, None);
     }
 }

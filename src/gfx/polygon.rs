@@ -33,7 +33,32 @@ use zerocopy::KnownLayout;
 use zerocopy::Unaligned;
 
 use super::slope;
-use super::Point;
+
+/// A point as described in the game's resources for polygons.
+///
+/// When `T` is `u8` this corresponds to the native format of a point in the game's graphics
+/// segment, hence the use of C representation.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Immutable, FromBytes, IntoBytes, Unaligned)]
+pub struct Point<T> {
+    pub x: T,
+    pub y: T,
+}
+
+impl From<Point<u8>> for Point<f64> {
+    fn from(p: Point<u8>) -> Self {
+        Point {
+            x: p.x.into(),
+            y: p.y.into(),
+        }
+    }
+}
+
+impl<T> Point<T> {
+    pub fn new(x: T, y: T) -> Self {
+        Point { x, y }
+    }
+}
 
 /// Data describing a polygon in the graphics segment.
 ///
@@ -217,6 +242,29 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_slope() {
+        let p1 = Point::new(0, 0);
+        let p2 = Point::new(1, 2);
+        let res: Option<f64> = slope(&p1, &p2);
+        assert_eq!(res, Some(0.5));
+
+        let p1 = Point::new(0, 0);
+        let p2 = Point::new(-1, 2);
+        let res: Option<f64> = slope(&p1, &p2);
+        assert_eq!(res, Some(-0.5));
+
+        let p1 = Point::new(0, 0);
+        let p2 = Point::new(0, 2);
+        let res: Option<f64> = slope(&p1, &p2);
+        assert_eq!(res, Some(0.0));
+
+        let p1 = Point::new(0, 0);
+        let p2 = Point::new(5, 0);
+        let res: Option<f64> = slope(&p1, &p2);
+        assert_eq!(res, None);
+    }
 
     impl OwnedPolygon {
         fn new(bb: (u8, u8), points: Vec<Point<u8>>) -> OwnedPolygon {
