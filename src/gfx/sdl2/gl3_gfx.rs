@@ -13,9 +13,9 @@ use anyhow::anyhow;
 use anyhow::Result;
 
 use crate::gfx;
+use crate::gfx::gl3::game_renderer::GlGameRenderer;
+use crate::gfx::gl3::game_renderer::PolyRenderingMode;
 use crate::gfx::gl3::indexed_frame_renderer::IndexedFrameRenderer;
-use crate::gfx::gl3::poly_renderer::GlPolyRenderer;
-use crate::gfx::gl3::poly_renderer::PolyRenderingMode;
 use crate::gfx::gl3::raster_renderer::GlRasterRenderer;
 use crate::gfx::gl3::GlRenderer;
 use crate::gfx::gl3::Viewport;
@@ -47,7 +47,7 @@ pub struct Sdl2GlGfx {
     _opengl_context: GLContext,
 
     raster_renderer: GlRasterRenderer,
-    poly_renderer: GlPolyRenderer,
+    poly_renderer: GlGameRenderer,
 
     framebuffer_renderer: IndexedFrameRenderer,
     current_framebuffer: usize,
@@ -95,7 +95,7 @@ impl Sdl2GlGfx {
                     RenderingMode::Line => PolyRenderingMode::Line,
                 };
 
-                GlPolyRenderer::new(
+                GlGameRenderer::new(
                     rendering_mode,
                     window_size.0 as usize,
                     window_size.1 as usize,
@@ -161,7 +161,7 @@ impl gfx::Display for Sdl2GlGfx {
 
 struct Sdl2GfxSnapshot {
     raster_renderer: <RasterRenderer as Snapshotable>::State,
-    poly_renderer: <GlPolyRenderer as Snapshotable>::State,
+    poly_renderer: <GlGameRenderer as Snapshotable>::State,
     current_framebuffer: usize,
     palette: Palette,
 }

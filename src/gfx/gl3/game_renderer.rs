@@ -120,7 +120,7 @@ impl gfx::PolygonFiller for DrawCommands {
 }
 
 /// A renderer that uses the GPU to render the game into a 16 colors indexed bufffer of any size.
-pub struct GlPolyRenderer {
+pub struct GlGameRenderer {
     renderer: SimplePolygonRenderer,
 
     rendering_mode: PolyRenderingMode,
@@ -136,7 +136,7 @@ pub struct GlPolyRenderer {
     renderers: Programs,
 }
 
-impl Drop for GlPolyRenderer {
+impl Drop for GlGameRenderer {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteFramebuffers(1, &self.target_fbo);
@@ -144,7 +144,7 @@ impl Drop for GlPolyRenderer {
     }
 }
 
-impl InitForScene for GlPolyRenderer {
+impl InitForScene for GlGameRenderer {
     #[tracing::instrument(skip(self, resman))]
     fn init_from_scene(
         &mut self,
@@ -155,12 +155,12 @@ impl InitForScene for GlPolyRenderer {
     }
 }
 
-impl GlPolyRenderer {
+impl GlGameRenderer {
     pub fn new(
         rendering_mode: PolyRenderingMode,
         width: usize,
         height: usize,
-    ) -> Result<GlPolyRenderer> {
+    ) -> Result<GlGameRenderer> {
         let mut target_fbo = 0;
 
         unsafe {
@@ -170,7 +170,7 @@ impl GlPolyRenderer {
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, 0);
         }
 
-        Ok(GlPolyRenderer {
+        Ok(GlGameRenderer {
             renderer: Default::default(),
             rendering_mode,
             draw_commands: Default::default(),
@@ -271,7 +271,7 @@ impl GlPolyRenderer {
     }
 }
 
-impl gfx::IndexedRenderer for GlPolyRenderer {
+impl gfx::IndexedRenderer for GlGameRenderer {
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         let commands = &mut self.draw_commands.0[page_id];
         commands.clear();
@@ -326,7 +326,7 @@ pub struct GlPolyRendererSnapshot {
     framebuffer_index: usize,
 }
 
-impl Snapshotable for GlPolyRenderer {
+impl Snapshotable for GlGameRenderer {
     type State = GlPolyRendererSnapshot;
 
     #[tracing::instrument(level = "debug", skip(self))]
@@ -345,13 +345,13 @@ impl Snapshotable for GlPolyRenderer {
     }
 }
 
-impl AsRef<IndexedTexture> for GlPolyRenderer {
+impl AsRef<IndexedTexture> for GlGameRenderer {
     fn as_ref(&self) -> &IndexedTexture {
         &self.render_texture_framebuffer
     }
 }
 
-impl GlRenderer for GlPolyRenderer {
+impl GlRenderer for GlGameRenderer {
     #[tracing::instrument(level = "debug", skip(self))]
     fn update_texture(&mut self, page_id: usize) {
         self.framebuffer_index = page_id;
