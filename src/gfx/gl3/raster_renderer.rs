@@ -5,7 +5,7 @@ use anyhow::Result;
 use gfx::SCREEN_RESOLUTION;
 
 use crate::gfx::gl3::IndexedTexture;
-use crate::gfx::raster::RasterGameRenderer;
+use crate::gfx::sw::RasterGameRenderer;
 use crate::gfx::{self};
 
 use super::GlRenderer;

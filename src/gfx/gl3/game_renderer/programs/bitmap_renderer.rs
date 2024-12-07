@@ -3,10 +3,11 @@ use std::cell::RefCell;
 use gl::types::GLint;
 use gl::types::GLuint;
 
-use crate::gfx::gl3::game_renderer::programs::Program;
 use crate::gfx::gl3::IndexedTexture;
-use crate::gfx::raster::IndexedImage;
+use crate::gfx::sw::IndexedImage;
 use crate::gfx::SCREEN_RESOLUTION;
+
+use super::Program;
 
 use anyhow::Result;
 

@@ -6,10 +6,11 @@ use gl::types::GLuint;
 // TODO: not elegant, but needed for now.
 pub use programs::PolyRenderingMode;
 
+use crate::gfx::gl3::GlRenderer;
 use crate::gfx::gl3::IndexedTexture;
 use crate::gfx::polygon::OwnedPolygon;
 use crate::gfx::polygon::Polygon;
-use crate::gfx::raster::IndexedImage;
+use crate::gfx::sw::IndexedImage;
 use crate::gfx::SimplePolygonRenderer;
 use crate::gfx::{self};
 use crate::scenes::InitForScene;
@@ -17,8 +18,6 @@ use crate::sys::Snapshotable;
 use anyhow::Result;
 
 use self::programs::*;
-
-use super::GlRenderer;
 
 /// Command for filling the entire screen.
 #[derive(Clone)]

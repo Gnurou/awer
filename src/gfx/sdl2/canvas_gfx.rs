@@ -18,8 +18,8 @@ use anyhow::Result;
 use tracing::trace_span;
 
 use crate::gfx;
-use crate::gfx::raster::RasterGameRenderer;
 use crate::gfx::sdl2::Sdl2Gfx;
+use crate::gfx::sw::RasterGameRenderer;
 use crate::gfx::Color;
 use crate::gfx::Display;
 use crate::gfx::Gfx;

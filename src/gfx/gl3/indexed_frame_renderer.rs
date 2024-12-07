@@ -1,11 +1,10 @@
 use super::*;
 use crate::gfx::Palette;
 
-/// A struct to render an `IndexedImage` or any other source for an indexed
-/// 16-color frame into a true-color GL framebuffer.
+/// Renders an [`IndexedTexture`] into a true-color GL framebuffer.
 ///
 /// It works by mapping the frame data into a GL texture and passing the desired
-/// `Palette` as a uniform so the fragment shader can lookup the actual color
+/// [`Palette`] as a uniform so the fragment shader can lookup the actual color
 /// for each pixel.
 pub struct IndexedFrameRenderer {
     vao: GLuint,
@@ -45,7 +44,7 @@ impl IndexedFrameRenderer {
                 gl::STATIC_DRAW,
             );
 
-            // position attribute
+            // `position` attribute
             gl::EnableVertexAttribArray(0);
             gl::VertexAttribPointer(
                 0,
@@ -56,7 +55,7 @@ impl IndexedFrameRenderer {
                 std::ptr::null(),
             );
 
-            // scene_position attribute
+            // `scene_position` attribute
             gl::EnableVertexAttribArray(1);
             gl::VertexAttribPointer(
                 1,

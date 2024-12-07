@@ -11,7 +11,7 @@ pub use poly_renderer::PolyRenderingMode;
 
 use crate::gfx::gl3::IndexedTexture;
 use crate::gfx::polygon::Polygon;
-use crate::gfx::raster::IndexedImage;
+use crate::gfx::sw::IndexedImage;
 
 /// Trait for a GL program that can draw a certain class of object from the game (e.g. polygons or
 /// font).

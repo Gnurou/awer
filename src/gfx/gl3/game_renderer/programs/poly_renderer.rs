@@ -1,3 +1,12 @@
+use std::mem;
+
+use anyhow::Result;
+use gl::types::GLint;
+use gl::types::GLsizei;
+use gl::types::GLsizeiptr;
+use gl::types::GLuint;
+use gl::types::GLvoid;
+
 use crate::gfx::gl3::*;
 use crate::gfx::polygon::Polygon;
 

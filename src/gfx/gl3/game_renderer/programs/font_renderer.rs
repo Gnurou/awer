@@ -7,8 +7,9 @@ use anyhow::Result;
 use gl::types::GLshort;
 use gl::types::GLsizei;
 use gl::types::GLsizeiptr;
+use gl::types::GLuint;
 
-use super::Program;
+use super::*;
 
 const MAX_PENDING_CHARS: usize = 64;
 
