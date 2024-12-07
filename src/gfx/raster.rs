@@ -5,7 +5,7 @@ use anyhow::anyhow;
 use anyhow::Result;
 
 use crate::gfx::polygon::Trapezoid;
-use crate::gfx::IndexedRenderer;
+use crate::gfx::GameRenderer;
 use crate::gfx::SCREEN_RESOLUTION;
 use crate::scenes::InitForScene;
 use crate::sys::Snapshotable;
@@ -276,7 +276,7 @@ impl InitForScene for RasterGameRenderer {
 
 // The poly operation is the only one depending on the renderer AND the buffers. All the others
 // only need the buffers.
-impl IndexedRenderer for RasterGameRenderer {
+impl GameRenderer for RasterGameRenderer {
     fn fillvideopage(&mut self, dst_page_id: usize, color_idx: u8) {
         let mut dst = self.buffers.0[dst_page_id].borrow_mut();
 

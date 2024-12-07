@@ -221,12 +221,12 @@ impl SimplePolygonRenderer {
     }
 }
 
-/// Trait for rendering VM graphics operations.
+/// Trait for rendering the game from the VM graphics operations.
 ///
-/// This receives the VM commands as-is. Implementors are also expected to implement
-/// [`InitForScene`] in order to receive the graphics segments at the beginning of each scene and
-/// understand how to interpret the parameters of these methods.
-pub trait IndexedRenderer {
+/// Implementors receive the VM rendering commands as-is. They are also expected to implement
+/// [`InitForScene`] in order to receive and process the graphics segments which the rendering
+/// commands depend on.
+pub trait GameRenderer {
     /// Fill video page `page_id` entirely with color `color_idx`.
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8);
     /// Copy video page `src_page_id` into `dst_page_id`. `vscroll` is a vertical offset
@@ -253,8 +253,8 @@ pub trait IndexedRenderer {
     fn blit_buffer(&mut self, dst_page_id: usize, buffer: &[u8]);
 }
 
-/// Proxy implementation for containers of `IndexedRenderer`.
-impl<R: IndexedRenderer + ?Sized, C: DerefMut<Target = R>> IndexedRenderer for C {
+/// Proxy implementation for containers of `GameRenderer`.
+impl<R: GameRenderer + ?Sized, C: DerefMut<Target = R>> GameRenderer for C {
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         self.deref_mut().fillvideopage(page_id, color_idx)
     }
@@ -300,10 +300,7 @@ impl<D: Display + ?Sized, C: DerefMut<Target = D>> Display for C {
 }
 
 /// Trait providing the methods necessary for the VM to render the game.
-pub trait Gfx:
-    InitForScene + IndexedRenderer + Display + Snapshotable<State = Box<dyn Any>>
-{
-}
+pub trait Gfx: InitForScene + GameRenderer + Display + Snapshotable<State = Box<dyn Any>> {}
 
 /// Proxy implementation for containers of `Gfx`.
 impl<G: Gfx + ?Sized, C: DerefMut<Target = G>> Gfx for C {}

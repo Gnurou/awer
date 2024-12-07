@@ -271,7 +271,7 @@ impl GlGameRenderer {
     }
 }
 
-impl gfx::IndexedRenderer for GlGameRenderer {
+impl gfx::GameRenderer for GlGameRenderer {
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         let commands = &mut self.draw_commands.0[page_id];
         commands.clear();

@@ -108,7 +108,7 @@ impl Sdl2GlGfx {
     }
 }
 
-impl gfx::IndexedRenderer for Sdl2GlGfx {
+impl gfx::GameRenderer for Sdl2GlGfx {
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         self.raster_renderer.fillvideopage(page_id, color_idx);
         self.poly_renderer.fillvideopage(page_id, color_idx);

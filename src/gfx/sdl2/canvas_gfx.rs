@@ -29,7 +29,7 @@ use crate::sys::Snapshotable;
 
 use super::WINDOW_RESOLUTION;
 
-/// Pure software renderer and display for SDL2. [`gfx::IndexedRenderer`] is just implemented by
+/// Pure software renderer and display for SDL2. [`gfx::GameRenderer`] is just implemented by
 /// proxying `raster`, and the other members are used to display the current game buffer on the
 /// screen.
 pub struct Sdl2CanvasGfx {
@@ -86,7 +86,7 @@ impl Sdl2CanvasGfx {
     }
 }
 
-impl gfx::IndexedRenderer for Sdl2CanvasGfx {
+impl gfx::GameRenderer for Sdl2CanvasGfx {
     fn fillvideopage(&mut self, page_id: usize, color_idx: u8) {
         self.raster.fillvideopage(page_id, color_idx)
     }
