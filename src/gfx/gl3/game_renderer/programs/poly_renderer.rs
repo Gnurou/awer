@@ -185,16 +185,16 @@ impl PolyRenderer {
     pub fn draw_poly(
         &mut self,
         poly: &Polygon,
+        color_idx: u8,
         pos: (i16, i16),
         offset: (i16, i16),
         zoom: u16,
-        color: u8,
         rendering_mode: PolyRenderingMode,
     ) {
         // If the next polygon is transparent, make sure that all previous
         // commands are completed to ensure our self-referencing texture
         // will have up-to-date data.
-        if color == 0x10 {
+        if color_idx == 0x10 {
             self.draw();
             unsafe {
                 gl::Finish();
@@ -229,7 +229,7 @@ impl PolyRenderer {
                 (p.x as i16 + offset.0, p.y as i16 + offset.1),
                 (poly.bb[0], poly.bb[1]),
                 zoom,
-                color,
+                color_idx,
             )
         }));
         match draw_type {

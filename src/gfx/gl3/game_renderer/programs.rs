@@ -195,10 +195,10 @@ impl<'a> DrawCommandRunner<'a> {
     ) {
         self.programs.use_poly(self.target, self.buffer0).draw_poly(
             poly,
+            color,
             pos,
             offset,
             zoom,
-            color,
             rendering_mode,
         )
     }
