@@ -10,7 +10,6 @@ mod vm;
 
 use clap::Parser;
 use scenes::SCENES;
-use sys::Sys;
 use tracing_subscriber::prelude::*;
 
 #[derive(Parser)]
@@ -76,7 +75,9 @@ fn main() {
         return;
     }
 
-    let mut sys: Box<dyn Sys> = sys::sdl2::sdl2_simple::new_with_renderer(&cli.renderer).unwrap();
+    let Some(mut sys) = sys::sdl2::sdl2_simple::new_with_renderer(&cli.renderer) else {
+        panic!("failed to create system component");
+    };
 
     let mut vm = Box::new(vm::Vm::new().unwrap());
     vm.request_scene(start_scene);
