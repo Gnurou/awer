@@ -6,8 +6,9 @@ license = "GPL-3.0-only"
 authors = ["Alexandre Courbot <gnurou@gmail.com>"]
 
 [features]
-default = ["sdl2-sys"]
-sdl2-sys = ["sdl2", "gl"]
+default = ["sdl2-sys", "gl3"]
+sdl2-sys = ["sdl2"]
+gl3 = ["gl"]
 
 [dependencies]
 byteorder = "1"

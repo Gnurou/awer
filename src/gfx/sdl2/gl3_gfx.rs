@@ -13,12 +13,12 @@ use anyhow::anyhow;
 use anyhow::Result;
 
 use crate::gfx;
-use crate::gfx::gl::indexed_frame_renderer::IndexedFrameRenderer;
-use crate::gfx::gl::poly_renderer::GlPolyRenderer;
-use crate::gfx::gl::poly_renderer::PolyRenderingMode;
-use crate::gfx::gl::raster_renderer::GlRasterRenderer;
-use crate::gfx::gl::GlRenderer;
-use crate::gfx::gl::Viewport;
+use crate::gfx::gl3::indexed_frame_renderer::IndexedFrameRenderer;
+use crate::gfx::gl3::poly_renderer::GlPolyRenderer;
+use crate::gfx::gl3::poly_renderer::PolyRenderingMode;
+use crate::gfx::gl3::raster_renderer::GlRasterRenderer;
+use crate::gfx::gl3::GlRenderer;
+use crate::gfx::gl3::Viewport;
 use crate::gfx::raster::RasterRenderer;
 use crate::gfx::sdl2::Sdl2Gfx;
 use crate::gfx::sdl2::WINDOW_RESOLUTION;

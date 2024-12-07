@@ -9,8 +9,8 @@ use std::mem;
 use anyhow::Result;
 use gl::types::*;
 
+use crate::gfx;
 use crate::gfx::raster::IndexedImage;
-use crate::gfx::{self};
 
 fn get_uniform_location(program: GLuint, name: &str) -> GLint {
     let cstr = CString::new(name).unwrap();

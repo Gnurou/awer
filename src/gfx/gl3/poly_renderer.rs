@@ -6,7 +6,7 @@ use gl::types::GLuint;
 // TODO: not elegant, but needed for now.
 pub use programs::PolyRenderingMode;
 
-use crate::gfx::gl::IndexedTexture;
+use crate::gfx::gl3::IndexedTexture;
 use crate::gfx::polygon::OwnedPolygon;
 use crate::gfx::polygon::Polygon;
 use crate::gfx::raster::IndexedImage;

@@ -1,5 +1,6 @@
 pub mod canvas_gfx;
-pub mod gl_gfx;
+#[cfg(feature = "gl3")]
+pub mod gl3_gfx;
 
 use std::ops::DerefMut;
 

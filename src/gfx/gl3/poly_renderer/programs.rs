@@ -9,7 +9,7 @@ pub use font_renderer::FontRenderer;
 pub use poly_renderer::PolyRenderer;
 pub use poly_renderer::PolyRenderingMode;
 
-use crate::gfx::gl::IndexedTexture;
+use crate::gfx::gl3::IndexedTexture;
 use crate::gfx::polygon::Polygon;
 use crate::gfx::raster::IndexedImage;
 

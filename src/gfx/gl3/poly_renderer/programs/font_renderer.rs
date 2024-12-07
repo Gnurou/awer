@@ -1,7 +1,7 @@
 use std::mem;
 
 use crate::font::*;
-use crate::gfx::gl::*;
+use crate::gfx::gl3::*;
 
 use anyhow::Result;
 use gl::types::GLshort;

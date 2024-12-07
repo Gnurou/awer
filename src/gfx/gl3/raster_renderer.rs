@@ -4,7 +4,7 @@ use std::ops::DerefMut;
 use anyhow::Result;
 use gfx::SCREEN_RESOLUTION;
 
-use crate::gfx::gl::IndexedTexture;
+use crate::gfx::gl3::IndexedTexture;
 use crate::gfx::raster::RasterRenderer;
 use crate::gfx::{self};
 

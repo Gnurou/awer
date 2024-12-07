@@ -3,8 +3,8 @@ use std::cell::RefCell;
 use gl::types::GLint;
 use gl::types::GLuint;
 
-use crate::gfx::gl::poly_renderer::programs::Program;
-use crate::gfx::gl::IndexedTexture;
+use crate::gfx::gl3::poly_renderer::programs::Program;
+use crate::gfx::gl3::IndexedTexture;
 use crate::gfx::raster::IndexedImage;
 use crate::gfx::SCREEN_RESOLUTION;
 

@@ -187,6 +187,7 @@ impl IndexedImage {
         &self.0
     }
 
+    #[allow(dead_code)]
     pub fn as_ptr(&self) -> *const u8 {
         self.0.as_ptr()
     }

@@ -11,8 +11,10 @@ use tracing::error;
 use crate::audio::sdl2::Sdl2Audio;
 use crate::audio::MusicPlayer;
 use crate::gfx::sdl2::canvas_gfx::Sdl2CanvasGfx;
-use crate::gfx::sdl2::gl_gfx::RenderingMode;
-use crate::gfx::sdl2::gl_gfx::Sdl2GlGfx;
+#[cfg(feature = "gl3")]
+use crate::gfx::sdl2::gl3_gfx::RenderingMode;
+#[cfg(feature = "gl3")]
+use crate::gfx::sdl2::gl3_gfx::Sdl2GlGfx;
 use crate::gfx::sdl2::Sdl2Gfx;
 use crate::gfx::{self};
 use crate::input::ButtonState;
@@ -60,22 +62,26 @@ pub fn new_with_renderer(renderer: &Option<String>) -> Option<Box<dyn Sys>> {
             sdl_context,
             audio_device,
         }) as Box<dyn Sys>),
+        #[cfg(feature = "gl3")]
         "gl_raster" => Some(Box::new(Sdl2Sys {
             display: Sdl2GlGfx::new(&sdl_context, RenderingMode::Raster).ok()?,
             sdl_context,
             audio_device,
         }) as Box<dyn Sys>),
+        #[cfg(feature = "gl3")]
         "gl_poly" => Some(Box::new(Sdl2Sys {
             display: Sdl2GlGfx::new(&sdl_context, RenderingMode::Poly).ok()?,
             sdl_context,
             audio_device,
         }) as Box<dyn Sys>),
+        #[cfg(feature = "gl3")]
         "gl_line" => Some(Box::new(Sdl2Sys {
             display: Sdl2GlGfx::new(&sdl_context, RenderingMode::Line).ok()?,
             sdl_context,
             audio_device,
         }) as Box<dyn Sys>),
         // Just a test for Sdl2Gfx trait object.
+        #[cfg(feature = "gl3")]
         "gl_raster_boxed" => Some(Box::new(Sdl2Sys {
             display: Box::new(Sdl2GlGfx::new(&sdl_context, RenderingMode::Raster).ok()?)
                 as Box<dyn Sdl2Gfx>,

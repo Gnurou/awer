@@ -1,4 +1,4 @@
-use crate::gfx::gl::*;
+use crate::gfx::gl3::*;
 use crate::gfx::polygon::Polygon;
 
 use super::Program;

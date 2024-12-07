@@ -1,7 +1,8 @@
-pub mod gl;
 pub mod polygon;
 pub mod raster;
 
+#[cfg(feature = "gl3")]
+pub mod gl3;
 #[cfg(feature = "sdl2-sys")]
 pub mod sdl2;
 
@@ -356,6 +357,7 @@ impl Palette {
         &self.0[color_idx as usize]
     }
 
+    #[allow(dead_code)]
     pub fn as_ptr(&self) -> *const Color {
         self.0.as_ptr()
     }
