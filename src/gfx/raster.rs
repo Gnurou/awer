@@ -235,15 +235,19 @@ impl PolygonFiller for RasterRendererBuffers {
     }
 }
 
+/// CPU renderer for the game.
+///
+/// This is the renderer closest to the original game. It uses the CPU for rasterizing each polygon
+/// and filling its lines.
 #[derive(Clone)]
-pub struct RasterRenderer {
+pub struct RasterGameRenderer {
     renderer: SimplePolygonRenderer,
     buffers: RasterRendererBuffers,
 }
 
-impl RasterRenderer {
-    pub fn new() -> RasterRenderer {
-        RasterRenderer {
+impl RasterGameRenderer {
+    pub fn new() -> RasterGameRenderer {
+        RasterGameRenderer {
             renderer: Default::default(),
             buffers: RasterRendererBuffers(Box::new([
                 RefCell::new(Default::default()),
@@ -259,7 +263,7 @@ impl RasterRenderer {
     }
 }
 
-impl InitForScene for RasterRenderer {
+impl InitForScene for RasterGameRenderer {
     #[tracing::instrument(skip(self, resman))]
     fn init_from_scene(
         &mut self,
@@ -272,7 +276,7 @@ impl InitForScene for RasterRenderer {
 
 // The poly operation is the only one depending on the renderer AND the buffers. All the others
 // only need the buffers.
-impl IndexedRenderer for RasterRenderer {
+impl IndexedRenderer for RasterGameRenderer {
     fn fillvideopage(&mut self, dst_page_id: usize, color_idx: u8) {
         let mut dst = self.buffers.0[dst_page_id].borrow_mut();
 
@@ -379,7 +383,7 @@ impl IndexedRenderer for RasterRenderer {
     }
 }
 
-impl Snapshotable for RasterRenderer {
+impl Snapshotable for RasterGameRenderer {
     type State = Self;
 
     fn take_snapshot(&self) -> Self::State {

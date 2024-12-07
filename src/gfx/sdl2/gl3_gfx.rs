@@ -19,7 +19,7 @@ use crate::gfx::gl3::indexed_frame_renderer::IndexedFrameRenderer;
 use crate::gfx::gl3::raster_renderer::GlRasterRenderer;
 use crate::gfx::gl3::GlRenderer;
 use crate::gfx::gl3::Viewport;
-use crate::gfx::raster::RasterRenderer;
+use crate::gfx::raster::RasterGameRenderer;
 use crate::gfx::sdl2::Sdl2Gfx;
 use crate::gfx::sdl2::WINDOW_RESOLUTION;
 use crate::gfx::Display;
@@ -160,7 +160,7 @@ impl gfx::Display for Sdl2GlGfx {
 }
 
 struct Sdl2GfxSnapshot {
-    raster_renderer: <RasterRenderer as Snapshotable>::State,
+    raster_renderer: <RasterGameRenderer as Snapshotable>::State,
     poly_renderer: <GlGameRenderer as Snapshotable>::State,
     current_framebuffer: usize,
     palette: Palette,

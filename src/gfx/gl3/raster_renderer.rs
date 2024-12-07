@@ -5,7 +5,7 @@ use anyhow::Result;
 use gfx::SCREEN_RESOLUTION;
 
 use crate::gfx::gl3::IndexedTexture;
-use crate::gfx::raster::RasterRenderer;
+use crate::gfx::raster::RasterGameRenderer;
 use crate::gfx::{self};
 
 use super::GlRenderer;
@@ -14,7 +14,7 @@ use super::GlRenderer;
 /// the rendered buffers that can be used with OpenGL.
 pub struct GlRasterRenderer {
     /// Regular CPU raster renderer where we will render the game.
-    raster: RasterRenderer,
+    raster: RasterGameRenderer,
     /// Texture into which any buffer from `raster` can be copied in order to serve as a source.
     framebuffer_texture: IndexedTexture,
 }
@@ -22,7 +22,7 @@ pub struct GlRasterRenderer {
 impl GlRasterRenderer {
     pub fn new() -> Result<GlRasterRenderer> {
         Ok(GlRasterRenderer {
-            raster: RasterRenderer::new(),
+            raster: RasterGameRenderer::new(),
             framebuffer_texture: IndexedTexture::new(SCREEN_RESOLUTION[0], SCREEN_RESOLUTION[1]),
         })
     }
@@ -42,7 +42,7 @@ impl GlRenderer for GlRasterRenderer {
 }
 
 impl Deref for GlRasterRenderer {
-    type Target = RasterRenderer;
+    type Target = RasterGameRenderer;
 
     fn deref(&self) -> &Self::Target {
         &self.raster

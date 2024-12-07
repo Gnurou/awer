@@ -18,7 +18,7 @@ use anyhow::Result;
 use tracing::trace_span;
 
 use crate::gfx;
-use crate::gfx::raster::RasterRenderer;
+use crate::gfx::raster::RasterGameRenderer;
 use crate::gfx::sdl2::Sdl2Gfx;
 use crate::gfx::Color;
 use crate::gfx::Display;
@@ -34,7 +34,7 @@ use super::WINDOW_RESOLUTION;
 /// screen.
 pub struct Sdl2CanvasGfx {
     /// Software rasterizer from which we will get the game buffers to display.
-    raster: RasterRenderer,
+    raster: RasterGameRenderer,
 
     current_framebuffer: usize,
     current_palette: Palette,
@@ -81,7 +81,7 @@ impl Sdl2CanvasGfx {
             texture,
             pixel_format,
             bytes_per_pixel,
-            raster: RasterRenderer::new(),
+            raster: RasterGameRenderer::new(),
         })
     }
 }
@@ -162,7 +162,7 @@ impl gfx::Display for Sdl2CanvasGfx {
 
 #[derive(Clone)]
 struct Sdl2CanvasGfxSnapshot {
-    raster: RasterRenderer,
+    raster: RasterGameRenderer,
     current_framebuffer: usize,
     current_palette: Palette,
 }
