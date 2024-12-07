@@ -119,7 +119,7 @@ impl gfx::PolygonFiller for DrawCommands {
     }
 }
 
-/// A renderer that uses the GPU to render the game into a 16 colors indexed bufffer of any size.
+/// A renderer that uses the GPU to render the game into a 16 colors indexed buffer of any size.
 pub struct GlGameRenderer {
     renderer: SimplePolygonRenderer,
 

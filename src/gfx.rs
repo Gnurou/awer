@@ -40,9 +40,10 @@ pub enum PolySegment {
 
 /// Trait for filling a single polygon defined by a slice of points.
 pub trait PolygonFiller {
-    /// Fill the polygon defined by `polu` with color index `color_idx` on page `dst_page_id`.
-    /// `pos` is the coordinates of the center of the polygon on the page. `zoom` is a zoom factor
-    /// by which every point of the polygon must be multiplied by, and then divided by 64.
+    /// Fill the polygon defined by `poly` with color index `color_idx` on page `dst_page_id`.
+    /// `pos` is the coordinates of the center of the polygon on the page, and `offset` its local
+    /// displacement. `zoom` is a zoom factor by which every point of the polygon must be
+    /// multiplied by, and then divided by 64.
     #[allow(clippy::too_many_arguments)]
     fn fill_polygon(
         &mut self,
