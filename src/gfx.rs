@@ -19,8 +19,8 @@ use byteorder::BE;
 use tracing::debug;
 use tracing::error;
 use zerocopy::FromBytes;
+use zerocopy::SizeError;
 
-use self::polygon::Point;
 use self::polygon::Polygon;
 use crate::res::ResourceManager;
 use crate::scenes::InitForScene;
@@ -110,12 +110,11 @@ impl SimplePolygonRenderer {
                     None => op & 0x3f,
                 };
 
-                let poly_start = start_offset as usize + 1;
-                let nb_points = segment[poly_start + 2] as usize;
-                let Ok(poly) = Polygon::ref_from_bytes(
-                    &segment
-                        [poly_start..poly_start + 3 + nb_points * std::mem::size_of::<Point<u8>>()],
-                ) else {
+                let poly_slice = &segment[start_offset as usize + 1..];
+                let nb_points = poly_slice[2] as usize;
+                let Ok((poly, _)) = Polygon::ref_from_prefix_with_elems(poly_slice, nb_points)
+                    .map_err(SizeError::from)
+                else {
                     tracing::error!("poly data out of range of segment");
                     return;
                 };
