@@ -102,7 +102,7 @@ impl FontRenderer {
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
 
             gl::UseProgram(program);
-            let font_uniform = get_uniform_location(program, "font");
+            let font_uniform = get_uniform_location(program, c"font");
             gl::Uniform1uiv(font_uniform, 192, FONT.as_ptr() as *const GLuint);
             gl::UseProgram(0);
         }

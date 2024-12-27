@@ -84,7 +84,7 @@ impl Program for PolyRenderer {
             gl::BindTexture(gl::TEXTURE_2D, buffer0.as_tex_id());
             // TODO: when can we unbind the textures?
 
-            let viewport_uniform = get_uniform_location(self.program, "viewport_size");
+            let viewport_uniform = get_uniform_location(self.program, c"viewport_size");
             gl::Uniform2f(viewport_uniform, dimensions.0 as f32, dimensions.1 as f32);
         }
     }
@@ -174,8 +174,8 @@ impl PolyRenderer {
             gl::BindVertexArray(0);
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
 
-            self_uniform = get_uniform_location(program, "self");
-            buffer0_uniform = get_uniform_location(program, "buffer0");
+            self_uniform = get_uniform_location(program, c"self");
+            buffer0_uniform = get_uniform_location(program, c"buffer0");
         }
 
         Ok(PolyRenderer {

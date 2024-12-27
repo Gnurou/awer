@@ -88,10 +88,10 @@ impl IndexedFrameRenderer {
             gl::UseProgram(self.program);
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, source.as_tex_id());
-            let texture_uniform = get_uniform_location(self.program, "game_scene");
+            let texture_uniform = get_uniform_location(self.program, c"game_scene");
             gl::Uniform1i(texture_uniform, 0);
 
-            let palette_uniform = get_uniform_location(self.program, "palette");
+            let palette_uniform = get_uniform_location(self.program, c"palette");
             gl::Uniform1uiv(
                 palette_uniform,
                 gfx::PALETTE_SIZE as GLint,

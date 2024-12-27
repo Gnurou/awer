@@ -8,6 +8,7 @@ pub use game_renderer::PolyRenderingMode;
 pub use indexed_frame_renderer::IndexedFrameRenderer;
 pub use raster_renderer::GlRasterRenderer;
 
+use std::ffi::CStr;
 use std::ffi::CString;
 use std::mem;
 
@@ -17,9 +18,8 @@ use gl::types::*;
 use crate::gfx;
 use crate::gfx::sw::IndexedImage;
 
-pub(crate) fn get_uniform_location(program: GLuint, name: &str) -> GLint {
-    let cstr = CString::new(name).unwrap();
-    unsafe { gl::GetUniformLocation(program, cstr.as_ptr()) }
+pub(crate) fn get_uniform_location(program: GLuint, name: &CStr) -> GLint {
+    unsafe { gl::GetUniformLocation(program, name.as_ptr()) }
 }
 
 pub(crate) fn compile_shader(src: &str, typ: GLenum) -> GLuint {
