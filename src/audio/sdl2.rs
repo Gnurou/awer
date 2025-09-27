@@ -30,7 +30,7 @@ enum MusicTimerState {
     Stopped,
     Running {
         /// SDL2 timer. We need to keep it alive as long as it is running.
-        _timer: sdl2::timer::Timer<'static, 'static>,
+        _timer: sdl2::timer::Timer<'static>,
         /// Interval at which the timer will fire.
         delay: Duration,
         /// Timestamp of the start of the current interval.
@@ -93,7 +93,7 @@ impl MusicTimer {
             // is no direct reference between the two - only a lifetime requirement.
             // Also the callback steals all the data it uses and has no external reference.
             _timer: unsafe {
-                std::mem::transmute::<sdl2::timer::Timer<'_, '_>, sdl2::timer::Timer<'_, '_>>(timer)
+                std::mem::transmute::<sdl2::timer::Timer<'_>, sdl2::timer::Timer<'_>>(timer)
             },
             delay,
             current_interval,
